@@ -1,4 +1,4 @@
-# Tick
+# Ticks
 
 <p align="center">
   <img src="https://img.shields.io/badge/SwiftUI-app-orange?logo=swift">
