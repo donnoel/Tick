@@ -203,6 +203,106 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(snapshot.todayTotalDuration, 600)
     }
 
+    func testAccessoryRectangularNoProjectContent() {
+        let content = TickAccessoryWidgetContentBuilder.content(
+            from: .empty(lastUpdatedAt: Date(timeIntervalSince1970: 100)),
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertEqual(content.state, .noProjects)
+        XCTAssertEqual(content.rectangularTitle, "Ticks")
+        XCTAssertEqual(content.rectangularDetail, "Create a project")
+        XCTAssertEqual(content.circularText, "0")
+        XCTAssertEqual(content.inlineText, "Ticks: create a project")
+    }
+
+    func testAccessoryRectangularIdleContent() {
+        let snapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: UUID(),
+            defaultProjectName: "Studio",
+            activeSessionID: nil,
+            activeProjectName: nil,
+            activeSessionTitle: nil,
+            activeStartedAt: nil,
+            todayTotalDuration: 4_800,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let content = TickAccessoryWidgetContentBuilder.content(
+            from: snapshot,
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertEqual(content.state, .idle)
+        XCTAssertEqual(content.rectangularTitle, "Ticks")
+        XCTAssertEqual(content.rectangularDetail, "1h 20m")
+        XCTAssertEqual(content.rectangularFootnote, "Studio")
+        XCTAssertEqual(content.inlineText, "Ticks: 1h 20m today")
+    }
+
+    func testAccessoryRectangularActiveContent() {
+        let snapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: nil,
+            defaultProjectName: nil,
+            activeSessionID: UUID(),
+            activeProjectName: "PiSignage",
+            activeSessionTitle: "1 Tick",
+            activeStartedAt: Date(timeIntervalSince1970: 100),
+            todayTotalDuration: 2_520,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let content = TickAccessoryWidgetContentBuilder.content(
+            from: snapshot,
+            at: Date(timeIntervalSince1970: 2_620)
+        )
+
+        XCTAssertEqual(content.state, .active)
+        XCTAssertEqual(content.rectangularTitle, "PiSignage")
+        XCTAssertEqual(content.rectangularDetail, "42m")
+        XCTAssertEqual(content.rectangularFootnote, "Running")
+        XCTAssertEqual(content.inlineText, "PiSignage running 42m")
+    }
+
+    func testAccessoryCircularIdleAndActiveContent() {
+        let idleSnapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: UUID(),
+            defaultProjectName: "Studio",
+            activeSessionID: nil,
+            activeProjectName: nil,
+            activeSessionTitle: nil,
+            activeStartedAt: nil,
+            todayTotalDuration: 900,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let activeSnapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: nil,
+            defaultProjectName: nil,
+            activeSessionID: UUID(),
+            activeProjectName: "Studio",
+            activeSessionTitle: nil,
+            activeStartedAt: Date(timeIntervalSince1970: 100),
+            todayTotalDuration: 7_200,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+
+        let idleContent = TickAccessoryWidgetContentBuilder.content(
+            from: idleSnapshot,
+            at: Date(timeIntervalSince1970: 100)
+        )
+        let activeContent = TickAccessoryWidgetContentBuilder.content(
+            from: activeSnapshot,
+            at: Date(timeIntervalSince1970: 7_300)
+        )
+
+        XCTAssertEqual(idleContent.circularText, "15m")
+        XCTAssertEqual(idleContent.circularSystemImage, "timer")
+        XCTAssertEqual(activeContent.circularText, "2h 0m")
+        XCTAssertEqual(activeContent.circularSystemImage, "timer")
+    }
+
     func testWidgetStartDoesNotCreateDuplicateActiveSessions() async throws {
         let urls = temporaryWidgetStoreURLs()
         defer {

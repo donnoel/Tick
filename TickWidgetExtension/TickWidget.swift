@@ -40,6 +40,23 @@ struct TickWidgetView: View {
     let entry: TickWidgetEntry
 
     var body: some View {
+        Group {
+            switch family {
+            case .accessoryRectangular:
+                accessoryRectangularView
+            case .accessoryCircular:
+                accessoryCircularView
+            case .accessoryInline:
+                accessoryInlineView
+            default:
+                homeScreenView
+            }
+        }
+        .containerBackground(.background, for: .widget)
+        .widgetURL(URL(string: "tick://today"))
+    }
+
+    private var homeScreenView: some View {
         VStack(alignment: .leading, spacing: 8) {
             switch state {
             case .noProjects:
@@ -51,8 +68,6 @@ struct TickWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .containerBackground(.background, for: .widget)
-        .widgetURL(URL(string: "tick://today"))
     }
 
     private var state: TickWidgetState {
@@ -65,6 +80,10 @@ struct TickWidgetView: View {
         }
 
         return .idle
+    }
+
+    private var accessoryContent: TickAccessoryWidgetContent {
+        TickAccessoryWidgetContentBuilder.content(from: entry.snapshot, at: entry.date)
     }
 
     private var noProjectsView: some View {
@@ -138,16 +157,81 @@ struct TickWidgetView: View {
         }
     }
 
-    private func shortDurationString(from duration: TimeInterval) -> String {
-        let totalMinutes = max(0, Int(duration.rounded(.down)) / 60)
-        let hours = totalMinutes / 60
-        let minutes = totalMinutes % 60
+    private var accessoryRectangularView: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(accessoryContent.rectangularTitle)
+                    .font(.headline)
+                    .lineLimit(1)
 
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
+                Text(accessoryContent.rectangularDetail)
+                    .font(.subheadline.monospacedDigit())
+                    .lineLimit(1)
+
+                if let footnote = accessoryContent.rectangularFootnote {
+                    Text(footnote)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 4)
+
+            accessoryActionButton
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessoryContent.accessibilityLabel)
+    }
 
-        return "\(minutes)m"
+    @ViewBuilder
+    private var accessoryActionButton: some View {
+        switch accessoryContent.state {
+        case .noProjects:
+            Image(systemName: "chevron.forward")
+                .font(.caption.weight(.semibold))
+                .accessibilityHidden(true)
+        case .idle:
+            Button(intent: StartTickIntent()) {
+                Image(systemName: "play.fill")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Start Tick")
+            .accessibilityHint("Starts a Tick for the default project.")
+        case .active:
+            Button(intent: StopTickIntent()) {
+                Image(systemName: "stop.fill")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Stop Tick")
+            .accessibilityHint("Stops the active Tick session.")
+        }
+    }
+
+    private var accessoryCircularView: some View {
+        VStack(spacing: 2) {
+            if let systemImage = accessoryContent.circularSystemImage {
+                Image(systemName: systemImage)
+                    .font(.caption)
+                    .accessibilityHidden(true)
+            }
+
+            Text(accessoryContent.circularText)
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessoryContent.accessibilityLabel)
+    }
+
+    private var accessoryInlineView: some View {
+        Text(accessoryContent.inlineText)
+            .accessibilityLabel(accessoryContent.accessibilityLabel)
+    }
+
+    private func shortDurationString(from duration: TimeInterval) -> String {
+        TickAccessoryWidgetContentBuilder.compactDurationString(from: duration)
     }
 }
 
@@ -166,11 +250,17 @@ struct TickWidget: Widget {
         }
         .configurationDisplayName("Ticks")
         .description("Start or stop project time tracking.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
 #Preview(as: .systemSmall) {
+    TickWidget()
+} timeline: {
+    TickWidgetEntry(date: .now, snapshot: .empty())
+}
+
+#Preview(as: .accessoryRectangular) {
     TickWidget()
 } timeline: {
     TickWidgetEntry(date: .now, snapshot: .empty())

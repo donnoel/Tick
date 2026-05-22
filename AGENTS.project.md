@@ -18,7 +18,7 @@ Current scope:
 - duration-only manual time entry
 - session detail review and title/notes/project editing
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
-- WidgetKit foundation with small/medium widgets and App Intent-powered Start/Stop actions
+- WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
 - daily, weekly, and monthly text summaries
 - JSON persistence in the Tick App Group container
 
@@ -96,6 +96,8 @@ Still verify manually before submission:
 - Widget Start must not create a duplicate active session.
 - Widget Stop must stop only the current active timer/Auto Tick session.
 - Widget snapshots store dates and totals, not constantly changing elapsed time.
+- Lock Screen widgets use the same snapshot as Home Screen widgets and derive compact elapsed text from `activeStartedAt`.
+- Lock Screen accessory rectangular may show Start/Stop buttons where WidgetKit supports App Intent buttons; compact families should still be readable as tap-to-open widgets when direct actions are unavailable.
 - Auto Tick arrival must not create a duplicate active session.
 - Auto Tick departure must stop only the active Auto Tick session associated with that rule.
 - Auto Tick departure must not stop timer-created or manual sessions.
