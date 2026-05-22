@@ -10,6 +10,8 @@ struct AutoTicksView: View {
                 permissionSection
                 rulesSection
             }
+            .scrollContentBackground(.hidden)
+            .background(TickPalette.appBackground)
             .navigationTitle("Auto Ticks")
             .navigationDestination(for: AutoTickRule.ID.self) { ruleID in
                 if let rule = viewModel.autoTickRule(for: ruleID) {
@@ -41,47 +43,24 @@ struct AutoTicksView: View {
     }
 
     private var permissionSection: some View {
-        Section("Location Access") {
-            Text("Auto Ticks are optional. Tick uses location only for rules you create and enable.")
-                .foregroundStyle(.secondary)
-
-            Text("Use Current Location captures a rule coordinate. Always access is needed for reliable arrival and departure automation in the background.")
-                .foregroundStyle(.secondary)
-
-            Text(viewModel.autoTickLocationAuthorizationStatus.displayText)
-                .accessibilityLabel("Location permission")
-                .accessibilityValue(viewModel.autoTickLocationAuthorizationStatus.displayText)
-
-            if let errorMessage = viewModel.autoTickLocationErrorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Location error")
-            }
-
-            switch viewModel.autoTickLocationAuthorizationStatus {
-            case .notDetermined:
-                Button("Allow Location Access") {
-                    viewModel.requestAutoTickLocationPermission()
-                }
-                .accessibilityHint("Requests location permission for Auto Ticks.")
-            case .authorizedWhenInUse:
-                Button("Allow Background Automation") {
-                    viewModel.requestAutoTickBackgroundLocationPermission()
-                }
-                .accessibilityHint("Requests background location access for geofenced Auto Tick rules.")
-            case .authorizedAlways, .denied, .restricted, .unknown:
-                EmptyView()
-            }
+        Section {
+            LocationStatusCard(
+                status: viewModel.autoTickLocationAuthorizationStatus,
+                errorMessage: viewModel.autoTickLocationErrorMessage,
+                requestLocation: viewModel.requestAutoTickLocationPermission,
+                requestBackgroundLocation: viewModel.requestAutoTickBackgroundLocationPermission
+            )
         }
+        .listRowBackground(Color.clear)
     }
 
     private var rulesSection: some View {
         Section("Rules") {
             if viewModel.autoTickRules.isEmpty {
                 ContentUnavailableView(
-                    "No Auto Ticks",
-                    systemImage: "location.slash",
-                    description: Text("Create a rule after choosing a project and current location.")
+                    "No Auto Ticks yet",
+                    systemImage: "location.circle",
+                    description: Text("Add a place and Tick can start or stop for you.")
                 )
             } else {
                 ForEach(viewModel.autoTickRules) { rule in
@@ -138,45 +117,160 @@ struct AutoTicksView: View {
     }
 }
 
+private struct LocationStatusCard: View {
+    let status: AutoTickLocationAuthorizationStatus
+    let errorMessage: String?
+    let requestLocation: () -> Void
+    let requestBackgroundLocation: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+                .foregroundStyle(tint)
+
+            Text(bodyText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Location error")
+            }
+
+            switch status {
+            case .notDetermined:
+                Button("Allow Location Access") {
+                    requestLocation()
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("Requests location permission for Auto Ticks.")
+            case .authorizedWhenInUse:
+                Button("Allow Background Access") {
+                    requestBackgroundLocation()
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("Requests background location access for geofenced Auto Tick rules.")
+            case .authorizedAlways, .denied, .restricted, .unknown:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .tickCard(tint: tint, isHighlighted: status == .authorizedAlways)
+    }
+
+    private var title: String {
+        switch status {
+        case .authorizedAlways:
+            "Location Ready"
+        case .authorizedWhenInUse:
+            "Background Access Needed"
+        case .notDetermined:
+            "Location Off"
+        case .denied, .restricted:
+            "Location Disabled"
+        case .unknown:
+            "Location Status Unknown"
+        }
+    }
+
+    private var bodyText: String {
+        switch status {
+        case .authorizedAlways:
+            "Auto Ticks can run for places you choose."
+        case .authorizedWhenInUse:
+            "Allow Always access for reliable arrival and departure automation."
+        case .notDetermined:
+            "Allow location access to create Auto Ticks."
+        case .denied, .restricted:
+            "Allow location access in Settings to use Auto Ticks."
+        case .unknown:
+            "Tick will keep working while location access is checked."
+        }
+    }
+
+    private var systemImage: String {
+        switch status {
+        case .authorizedAlways:
+            "location.fill"
+        case .authorizedWhenInUse:
+            "location.circle"
+        case .notDetermined:
+            "location"
+        case .denied, .restricted:
+            "location.slash"
+        case .unknown:
+            "questionmark.circle"
+        }
+    }
+
+    private var tint: Color {
+        switch status {
+        case .authorizedAlways:
+            TickPalette.locationReady
+        case .authorizedWhenInUse, .notDetermined:
+            TickPalette.primaryAction
+        case .denied, .restricted:
+            .red
+        case .unknown:
+            .secondary
+        }
+    }
+}
+
 private struct AutoTickRuleRowView: View {
     let rule: AutoTickRule
     let projectName: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(rule.name)
-                        .font(.headline)
+        HStack(alignment: .top, spacing: 12) {
+            TickProjectBadge(color: TickProjectAccent.color(for: rule.projectID), systemImage: "location.fill")
 
-                    Text(projectName)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(rule.name)
+                            .font(.headline)
+
+                        Text(projectName)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Text(rule.isEnabled ? "Enabled" : "Disabled")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(statusTint.opacity(0.14), in: Capsule())
+                        .foregroundStyle(statusTint)
                 }
 
-                Spacer()
+                HStack(spacing: 12) {
+                    Label("\(Int(rule.radiusMeters.rounded())) m", systemImage: "circle.dotted")
 
-                Text(rule.isEnabled ? "Enabled" : "Disabled")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(rule.isEnabled ? .green : .secondary)
+                    if rule.startsOnArrival {
+                        Label("Arrival", systemImage: "arrow.down.to.line.compact")
+                    }
+
+                    if rule.stopsOnDeparture {
+                        Label("Departure", systemImage: "arrow.up.from.line.compact")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
             }
-
-            HStack(spacing: 12) {
-                Label("\(Int(rule.radiusMeters.rounded())) m", systemImage: "circle.dotted")
-
-                if rule.startsOnArrival {
-                    Label("Arrival", systemImage: "arrow.down.to.line.compact")
-                }
-
-                if rule.stopsOnDeparture {
-                    Label("Departure", systemImage: "arrow.up.from.line.compact")
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .accessibilityElement(children: .combine)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .contain)
+    }
+
+    private var statusTint: Color {
+        rule.isEnabled ? TickPalette.locationReady : .secondary
     }
 }

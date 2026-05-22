@@ -2,50 +2,63 @@ import SwiftUI
 
 struct SessionRowView: View {
     let session: TimeSession
+    let projectID: TickProject.ID
     let projectName: String
     let displayDate: Date
     let defaultTitle: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
+        HStack(alignment: .top, spacing: 12) {
+            TickProjectBadge(
+                color: accentColor,
+                systemImage: session.entrySource == .autoLocation ? "location.fill" : "circle.fill"
+            )
 
-                    Text(projectName)
-                        .font(.subheadline)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.headline)
+
+                        Text(projectName)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    if let sourceBadgeTitle {
+                        Text(sourceBadgeTitle)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(accentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(accentColor)
+                            .accessibilityLabel(sourceBadgeAccessibilityLabel)
+                    }
+                }
+
+                HStack {
+                    Text(timeDescription)
                         .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Text(TickDurationFormatter.shortString(from: session.duration(at: displayDate)))
+                        .font(.body.monospacedDigit())
+                        .foregroundStyle(session.isActive ? TickPalette.running : Color.primary)
                 }
-
-                Spacer()
-
-                if let sourceBadgeTitle {
-                    Text(sourceBadgeTitle)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.thinMaterial, in: Capsule())
-                        .accessibilityLabel(sourceBadgeAccessibilityLabel)
-                }
+                .font(.subheadline)
             }
-
-            HStack {
-                Text(timeDescription)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text(TickDurationFormatter.shortString(from: session.duration(at: displayDate)))
-                    .font(.body.monospacedDigit())
-                    .foregroundStyle(session.isActive ? Color.accentColor : Color.primary)
-            }
-            .font(.subheadline)
         }
         .padding(12)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .tickCard(tint: accentColor, isHighlighted: session.isActive)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accentColor: Color {
+        TickProjectAccent.color(for: projectID)
     }
 
     private var title: String {

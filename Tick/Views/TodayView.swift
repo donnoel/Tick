@@ -11,20 +11,13 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         totalHeader(at: timeline.date)
 
-                        if let activeSession = viewModel.activeSession {
-                            ActiveTimerCard(
-                                session: activeSession,
-                                projectName: projectName(for: activeSession.projectID),
-                                displayDate: timeline.date
-                            )
-                        }
-
                         projectSelector
                         actionButtons
                         todaySessions(at: timeline.date)
                     }
                     .padding()
                 }
+                .background(TickPalette.appBackground)
             }
             .navigationTitle("Today")
             .toolbar {
@@ -49,16 +42,12 @@ struct TodayView: View {
     }
 
     private func totalHeader(at date: Date) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Today")
-                .font(.title2.weight(.semibold))
-
-            Text(TickDurationFormatter.timerString(from: viewModel.totalDuration(on: date, at: date)))
-                .font(.system(.largeTitle, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-                .accessibilityLabel("Today's total tracked time")
-                .accessibilityValue(TickDurationFormatter.shortString(from: viewModel.totalDuration(on: date, at: date)))
-        }
+        TodayHeroCard(
+            totalDuration: viewModel.totalDuration(on: date, at: date),
+            activeSession: viewModel.activeSession,
+            activeProjectName: viewModel.activeSession.map { projectName(for: $0.projectID) },
+            displayDate: date
+        )
     }
 
     private var projectSelector: some View {
@@ -101,6 +90,7 @@ struct TodayView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .tint(viewModel.activeSession == nil ? TickPalette.primaryAction : TickPalette.running)
             .disabled(viewModel.activeSession == nil && viewModel.selectedProjectID == nil)
             .accessibilityHint(actionAccessibilityHint)
 
@@ -112,6 +102,7 @@ struct TodayView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
+            .tint(TickPalette.primaryAction)
             .disabled(viewModel.activeProjects.isEmpty)
             .accessibilityHint("Add time manually when you forgot to start Tick.")
         }
@@ -138,6 +129,7 @@ struct TodayView: View {
                         } label: {
                             SessionRowView(
                                 session: session,
+                                projectID: session.projectID,
                                 projectName: projectName(for: session.projectID),
                                 displayDate: date,
                                 defaultTitle: fallbackTitles[session.id] ?? "Tick"
@@ -193,29 +185,67 @@ private enum TodaySheet: Identifiable {
     }
 }
 
-private struct ActiveTimerCard: View {
-    let session: TimeSession
-    let projectName: String
+private struct TodayHeroCard: View {
+    let totalDuration: TimeInterval
+    let activeSession: TimeSession?
+    let activeProjectName: String?
     let displayDate: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Running", systemImage: "timer")
-                .font(.headline)
-                .foregroundStyle(.tint)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Label(activeSession == nil ? "Today" : "Running", systemImage: activeSession == nil ? "clock" : "timer")
+                    .font(.headline)
+                    .foregroundStyle(activeSession == nil ? TickPalette.primaryAction : TickPalette.running)
 
-            Text(TickDurationFormatter.timerString(from: session.duration(at: displayDate)))
-                .font(.system(.largeTitle, design: .rounded).weight(.semibold))
+                Spacer()
+
+                if let activeProjectName {
+                    Text(activeProjectName)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Text(primaryDuration)
+                .font(.system(.largeTitle, design: .rounded).weight(.bold))
                 .monospacedDigit()
-                .accessibilityLabel("Active timer elapsed time")
-                .accessibilityValue(TickDurationFormatter.shortString(from: session.duration(at: displayDate)))
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
 
-            Text(projectName)
+            Text(secondaryText)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(18)
+        .tickCard(tint: activeSession == nil ? TickPalette.primaryAction : TickPalette.running, isHighlighted: activeSession != nil)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var primaryDuration: String {
+        if let activeSession {
+            return TickDurationFormatter.timerString(from: activeSession.duration(at: displayDate))
+        }
+
+        return TickDurationFormatter.timerString(from: totalDuration)
+    }
+
+    private var secondaryText: String {
+        if let activeSession {
+            return "Today's total: \(TickDurationFormatter.shortString(from: totalDuration))"
+        }
+
+        return "Ready for your next Tick"
+    }
+
+    private var accessibilityLabel: String {
+        if let activeSession {
+            return "Running Tick, elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(secondaryText)"
+        }
+
+        return "Today's total tracked time, \(TickDurationFormatter.shortString(from: totalDuration))"
     }
 }

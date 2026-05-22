@@ -126,6 +126,13 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(snapshot.autoTickRules.isEmpty)
     }
 
+    func testProjectAccentAssignmentIsStable() {
+        let projectID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
+
+        XCTAssertEqual(TickProjectAccent.index(for: projectID.uuidString), TickProjectAccent.index(for: projectID.uuidString))
+        XCTAssertEqual(TickProjectAccent.index(for: "PiSignage"), TickProjectAccent.index(for: "PiSignage"))
+    }
+
     func testWidgetSnapshotGenerationWithNoProjects() {
         let snapshot = TickWidgetSnapshotBuilder.snapshot(
             from: .empty,

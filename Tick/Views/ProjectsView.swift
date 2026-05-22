@@ -24,6 +24,8 @@ struct ProjectsView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(TickPalette.appBackground)
             .navigationTitle("Projects")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -48,9 +50,7 @@ private struct ProjectRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "folder")
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+            TickProjectBadge(color: TickProjectAccent.color(for: project.id), systemImage: "folder.fill")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)
@@ -67,6 +67,7 @@ private struct ProjectRowView: View {
                 .font(.body.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(project.name), \(TickDurationFormatter.shortString(from: duration)) tracked")
     }
