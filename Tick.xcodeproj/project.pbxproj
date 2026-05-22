@@ -380,7 +380,6 @@
                 DEVELOPMENT_TEAM = H7LG8SK72M;
                 GENERATE_INFOPLIST_FILE = YES;
                 ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
-                INFOPLIST_FILE = TickTests/Info.plist;
                 IPHONEOS_DEPLOYMENT_TARGET = 26.0;
                 LD_RUNPATH_SEARCH_PATHS = (
                     "$(inherited)",
@@ -410,7 +409,6 @@
                 DEVELOPMENT_TEAM = H7LG8SK72M;
                 GENERATE_INFOPLIST_FILE = YES;
                 ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
-                INFOPLIST_FILE = TickTests/Info.plist;
                 IPHONEOS_DEPLOYMENT_TARGET = 26.0;
                 LD_RUNPATH_SEARCH_PATHS = (
                     "$(inherited)",
@@ -439,7 +437,6 @@
                 DEVELOPMENT_TEAM = H7LG8SK72M;
                 GENERATE_INFOPLIST_FILE = YES;
                 ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
-                INFOPLIST_FILE = TickUITests/Info.plist;
                 IPHONEOS_DEPLOYMENT_TARGET = 26.0;
                 LD_RUNPATH_SEARCH_PATHS = (
                     "$(inherited)",
@@ -468,7 +465,6 @@
                 DEVELOPMENT_TEAM = H7LG8SK72M;
                 GENERATE_INFOPLIST_FILE = YES;
                 ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
-                INFOPLIST_FILE = TickUITests/Info.plist;
                 IPHONEOS_DEPLOYMENT_TARGET = 26.0;
                 LD_RUNPATH_SEARCH_PATHS = (
                     "$(inherited)",
@@ -492,12 +488,15 @@
         5A63FFC22F44E19C00885BD6 /* Debug */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
+                ALWAYS_SEARCH_USER_PATHS = NO;
                 CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
                 CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
                 CLANG_WARN_SUSPICIOUS_MOVE = YES;
                 CLANG_WARN_UNGUARDED_AVAILABILITY = YES;
                 CODE_SIGN_STYLE = Automatic;
+                COPY_PHASE_STRIP = NO;
                 DEVELOPMENT_TEAM = H7LG8SK72M;
+                ENABLE_TESTABILITY = YES;
                 ENABLE_USER_SCRIPT_SANDBOXING = YES;
                 GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
                 GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -507,6 +506,7 @@
                 GCC_WARN_UNUSED_VARIABLE = YES;
                 IPHONEOS_DEPLOYMENT_TARGET = 26.0;
                 MACOSX_DEPLOYMENT_TARGET = 26.0;
+                STRIP_INSTALLED_PRODUCT = NO;
                 SWIFT_APPROACHABLE_CONCURRENCY = YES;
                 SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
             };
@@ -515,6 +515,7 @@
         5A63FFC32F44E19C00885BD6 /* Release */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
+                ALWAYS_SEARCH_USER_PATHS = NO;
                 CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
                 CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
                 CLANG_WARN_SUSPICIOUS_MOVE = YES;

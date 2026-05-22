@@ -1,0 +1,93 @@
+import SwiftUI
+
+struct SessionRowView: View {
+    let session: TimeSession
+    let projectName: String
+    let displayDate: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+
+                    Text(projectName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if session.entrySource == .manual {
+                    Text("Manual")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.thinMaterial, in: Capsule())
+                        .accessibilityLabel("Manual time entry")
+                }
+            }
+
+            HStack {
+                Text(timeDescription)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(TickDurationFormatter.shortString(from: session.duration(at: displayDate)))
+                    .font(.body.monospacedDigit())
+                    .foregroundStyle(session.isActive ? Color.accentColor : Color.primary)
+            }
+            .font(.subheadline)
+        }
+        .padding(12)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var title: String {
+        let trimmedTitle = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedTitle.isEmpty ? "Untitled Tick" : trimmedTitle
+    }
+
+    private var timeDescription: String {
+        if session.isActive {
+            return "Running since \(formattedTime(session.startedAt))"
+        }
+
+        if session.entrySource == .manual {
+            return "Added for \(formattedTime(session.referenceDate))"
+        }
+
+        guard let endedAt = session.endedAt else {
+            return formattedTime(session.referenceDate)
+        }
+
+        return "\(formattedTime(session.referenceDate)) - \(formattedTime(endedAt))"
+    }
+
+    private var accessibilityDescription: String {
+        var parts = [
+            title,
+            projectName,
+            TickDurationFormatter.shortString(from: session.duration(at: displayDate)),
+            timeDescription
+        ]
+
+        if session.entrySource == .manual {
+            parts.append("Manual")
+        }
+
+        return parts.joined(separator: ", ")
+    }
+
+    private func formattedTime(_ date: Date?) -> String {
+        guard let date else {
+            return "unknown time"
+        }
+
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+}

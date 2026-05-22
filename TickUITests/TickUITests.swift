@@ -1,10 +1,12 @@
 import XCTest
 
 final class TickUITests: XCTestCase {
-    func testExample() throws {
+    func testPrimaryTabsExist() throws {
         let app = XCUIApplication()
         app.launch()
-        // Basic smoke test
-        XCTAssertTrue(app.windows.count >= 0)
+
+        XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Projects"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Summaries"].exists)
     }
 }
