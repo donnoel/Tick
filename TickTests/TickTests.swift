@@ -136,6 +136,59 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(viewModel.sessions.filter(\.isActive).count, 1)
     }
 
+    @MainActor
+    func testViewModelUpdatesSessionDetailsAndPersists() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        await viewModel.addProject(name: "Original", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.addProject(name: "New Project", createdAt: Date(timeIntervalSince1970: 10))
+
+        guard let originalProject = viewModel.activeProjects.first,
+              let newProject = viewModel.activeProjects.last else {
+            XCTFail("Expected test projects to exist.")
+            return
+        }
+
+        await viewModel.addManualSession(
+            projectID: originalProject.id,
+            title: "",
+            notes: "",
+            date: Date(timeIntervalSince1970: 100),
+            duration: 1_800
+        )
+
+        guard let session = viewModel.sessions.first else {
+            XCTFail("Expected a session to update.")
+            return
+        }
+
+        let didUpdate = await viewModel.updateSession(
+            id: session.id,
+            title: "  Follow-up planning  ",
+            notes: "  Clean up tracked work.  ",
+            projectID: newProject.id
+        )
+
+        XCTAssertTrue(didUpdate)
+        XCTAssertEqual(viewModel.sessions.first?.title, "Follow-up planning")
+        XCTAssertEqual(viewModel.sessions.first?.notes, "Clean up tracked work.")
+        XCTAssertEqual(viewModel.sessions.first?.projectID, newProject.id)
+        XCTAssertEqual(viewModel.sessions.first?.duration(), 1_800)
+        XCTAssertEqual(viewModel.sessions.first?.entrySource, .manual)
+
+        let reloadedViewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await reloadedViewModel.loadIfNeeded()
+
+        XCTAssertEqual(reloadedViewModel.sessions.first?.title, "Follow-up planning")
+        XCTAssertEqual(reloadedViewModel.sessions.first?.notes, "Clean up tracked work.")
+        XCTAssertEqual(reloadedViewModel.sessions.first?.projectID, newProject.id)
+    }
+
     private func temporaryStoreURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

@@ -145,6 +145,35 @@ final class TickViewModel {
         projects.first { $0.id == id }
     }
 
+    func session(for id: TimeSession.ID) -> TimeSession? {
+        sessions.first { $0.id == id }
+    }
+
+    @discardableResult
+    func updateSession(
+        id: TimeSession.ID,
+        title: String,
+        notes: String,
+        projectID: TickProject.ID
+    ) async -> Bool {
+        guard projects.contains(where: { $0.id == projectID }) else {
+            errorMessage = "Choose a project for this Tick."
+            return false
+        }
+
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that session."
+            return false
+        }
+
+        sessions[sessionIndex].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        sessions[sessionIndex].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        sessions[sessionIndex].projectID = projectID
+        sessions.sort { $0.referenceDate > $1.referenceDate }
+        await persist()
+        return true
+    }
+
     func sessions(on date: Date, calendar: Calendar = .current) -> [TimeSession] {
         sessions
             .filter { calendar.isDate($0.referenceDate, inSameDayAs: date) }

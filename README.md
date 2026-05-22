@@ -12,6 +12,7 @@ Current MVP foundation:
 - create projects
 - start and stop one active Tick session
 - add missed time manually
+- review and edit session title, notes, and project
 - view today's tracked time and sessions
 - review simple daily, weekly, and monthly summaries
 - persist local data between launches
@@ -54,7 +55,7 @@ Tick/
 - [x] Define app goals and core flows
 - [x] Add real UI and data model
 - [x] Add tests for key behaviors
-- [ ] Add timer-session editing for title and notes
+- [x] Add timer-session editing for title and notes
 - [ ] Add project archiving UI
 - [ ] Add charts and export after the local foundation is stable
 

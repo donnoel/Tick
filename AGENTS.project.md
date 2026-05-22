@@ -16,6 +16,7 @@ Current scope:
 - local-only project and time-session tracking
 - Today, Projects, and Summaries tabs
 - duration-only manual time entry
+- session detail review and title/notes/project editing
 - daily, weekly, and monthly text summaries
 - JSON persistence in Application Support
 
@@ -53,7 +54,7 @@ Accessibility is part of every user-facing change.
 
 Current implementation includes:
 - semantic buttons, pickers, forms, lists, and tab labels
-- accessibility labels/hints for timer actions, project selection, manual entry, project creation, active elapsed time, and session rows
+- accessibility labels/hints for timer actions, project selection, manual entry, project creation, active elapsed time, session rows, and session editing
 - visible "Manual" badge and spoken manual-session description
 - Dynamic Type-friendly SwiftUI text styles for major labels and timer readouts
 
@@ -90,7 +91,6 @@ Still verify manually before submission:
 - Build warnings should be treated as failures.
 
 ## Near-term priorities
-- Add editing for timer-session title and notes.
 - Add project archiving UI.
 - Add richer validation around manual duration entry.
 - Add more UI tests once flows stabilize.

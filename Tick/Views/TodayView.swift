@@ -132,11 +132,17 @@ struct TodayView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(sessions) { session in
-                        SessionRowView(
-                            session: session,
-                            projectName: projectName(for: session.projectID),
-                            displayDate: date
-                        )
+                        NavigationLink {
+                            SessionDetailView(viewModel: viewModel, session: session)
+                        } label: {
+                            SessionRowView(
+                                session: session,
+                                projectName: projectName(for: session.projectID),
+                                displayDate: date
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens session details.")
                     }
                 }
             }
