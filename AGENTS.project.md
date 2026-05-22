@@ -17,6 +17,7 @@ Current scope:
 - Today, Projects, and Summaries tabs
 - duration-only manual time entry
 - session detail review and title/notes/project editing
+- project detail review with project-scoped session lists and session deletion
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
 - daily, weekly, and monthly text summaries
@@ -102,6 +103,7 @@ Still verify manually before submission:
 - Auto Tick departure must stop only the active Auto Tick session associated with that rule.
 - Auto Tick departure must not stop timer-created or manual sessions.
 - Deleting an Auto Tick rule must remove its monitored geofence without deleting existing sessions.
+- Deleting a session must not delete its project or Auto Tick rules; active sessions must be stopped before they can be deleted.
 
 ## UX rules
 - Use plain, playful Tick language: Start Tick, Stop Tick, Add Time, Today's Ticks.

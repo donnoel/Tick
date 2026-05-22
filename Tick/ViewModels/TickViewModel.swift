@@ -363,6 +363,12 @@ final class TickViewModel {
         sessions.first { $0.id == id }
     }
 
+    func sessions(for projectID: TickProject.ID) -> [TimeSession] {
+        sessions
+            .filter { $0.projectID == projectID }
+            .sorted { $0.referenceDate > $1.referenceDate }
+    }
+
     @discardableResult
     func updateSession(
         id: TimeSession.ID,
@@ -384,6 +390,23 @@ final class TickViewModel {
         sessions[sessionIndex].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         sessions[sessionIndex].projectID = projectID
         sessions.sort { $0.referenceDate > $1.referenceDate }
+        await persist()
+        return true
+    }
+
+    @discardableResult
+    func deleteSession(id: TimeSession.ID) async -> Bool {
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that session."
+            return false
+        }
+
+        guard !sessions[sessionIndex].isActive else {
+            errorMessage = "Stop the active Tick before deleting it."
+            return false
+        }
+
+        sessions.remove(at: sessionIndex)
         await persist()
         return true
     }

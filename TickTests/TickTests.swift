@@ -133,6 +133,150 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(TickProjectAccent.index(for: "PiSignage"), TickProjectAccent.index(for: "PiSignage"))
     }
 
+    func testProjectAccentAssignmentDistributesSampleProjects() {
+        let sampleProjectNames = ["PiSignage", "Earth Pulse", "Coloring Room", "Briefly"]
+        let accentIndexes = Set(sampleProjectNames.map(TickProjectAccent.index(for:)))
+
+        XCTAssertEqual(accentIndexes.count, sampleProjectNames.count)
+    }
+
+    @MainActor
+    func testSessionsForProjectFiltersAndSortsNewestFirst() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "First", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.addProject(name: "Second", createdAt: Date(timeIntervalSince1970: 1))
+        let firstProjectID = viewModel.activeProjects[0].id
+        let secondProjectID = viewModel.activeProjects[1].id
+
+        await viewModel.addManualSession(
+            projectID: firstProjectID,
+            title: "Old",
+            notes: "",
+            date: Date(timeIntervalSince1970: 100),
+            duration: 300
+        )
+        await viewModel.addManualSession(
+            projectID: secondProjectID,
+            title: "Other",
+            notes: "",
+            date: Date(timeIntervalSince1970: 200),
+            duration: 300
+        )
+        await viewModel.addManualSession(
+            projectID: firstProjectID,
+            title: "New",
+            notes: "",
+            date: Date(timeIntervalSince1970: 300),
+            duration: 300
+        )
+
+        let projectSessions = viewModel.sessions(for: firstProjectID)
+
+        XCTAssertEqual(projectSessions.map(\.title), ["New", "Old"])
+        XCTAssertTrue(projectSessions.allSatisfy { $0.projectID == firstProjectID })
+    }
+
+    @MainActor
+    func testDeleteSessionRemovesPersistedSession() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let projectID = viewModel.activeProjects[0].id
+        await viewModel.addManualSession(
+            projectID: projectID,
+            title: "Planning",
+            notes: "",
+            date: Date(timeIntervalSince1970: 100),
+            duration: 1_200
+        )
+
+        guard let sessionID = viewModel.sessions.first?.id else {
+            XCTFail("Expected a session to delete.")
+            return
+        }
+
+        let didDelete = await viewModel.deleteSession(id: sessionID)
+        let reloadedViewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await reloadedViewModel.loadIfNeeded()
+
+        XCTAssertTrue(didDelete)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertTrue(reloadedViewModel.sessions.isEmpty)
+    }
+
+    @MainActor
+    func testDeletingSessionUpdatesProjectTotalDuration() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let projectID = viewModel.activeProjects[0].id
+
+        await viewModel.addManualSession(
+            projectID: projectID,
+            title: "Keep",
+            notes: "",
+            date: Date(timeIntervalSince1970: 100),
+            duration: 600
+        )
+        await viewModel.addManualSession(
+            projectID: projectID,
+            title: "Delete",
+            notes: "",
+            date: Date(timeIntervalSince1970: 200),
+            duration: 900
+        )
+
+        guard let sessionID = viewModel.sessions.first(where: { $0.title == "Delete" })?.id else {
+            XCTFail("Expected a session to delete.")
+            return
+        }
+
+        XCTAssertEqual(viewModel.totalDuration(for: projectID), 1_500)
+
+        let didDelete = await viewModel.deleteSession(id: sessionID)
+
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(viewModel.totalDuration(for: projectID), 600)
+    }
+
+    @MainActor
+    func testDeletingActiveSessionIsBlocked() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.startTick(at: Date(timeIntervalSince1970: 100))
+
+        guard let activeSessionID = viewModel.activeSession?.id else {
+            XCTFail("Expected an active session.")
+            return
+        }
+
+        let didDelete = await viewModel.deleteSession(id: activeSessionID)
+
+        XCTAssertFalse(didDelete)
+        XCTAssertEqual(viewModel.sessions.count, 1)
+        XCTAssertEqual(viewModel.activeSession?.id, activeSessionID)
+        XCTAssertEqual(viewModel.errorMessage, "Stop the active Tick before deleting it.")
+    }
+
     func testWidgetSnapshotGenerationWithNoProjects() {
         let snapshot = TickWidgetSnapshotBuilder.snapshot(
             from: .empty,

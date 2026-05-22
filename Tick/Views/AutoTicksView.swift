@@ -7,7 +7,9 @@ struct AutoTicksView: View {
     var body: some View {
         NavigationStack {
             List {
-                permissionSection
+                if shouldShowPermissionSection {
+                    permissionSection
+                }
                 rulesSection
             }
             .scrollContentBackground(.hidden)
@@ -42,6 +44,10 @@ struct AutoTicksView: View {
         }
     }
 
+    private var shouldShowPermissionSection: Bool {
+        viewModel.autoTickLocationAuthorizationStatus != .authorizedAlways
+    }
+
     private var permissionSection: some View {
         Section {
             LocationStatusCard(
@@ -58,9 +64,22 @@ struct AutoTicksView: View {
         Section("Rules") {
             if viewModel.autoTickRules.isEmpty {
                 ContentUnavailableView(
-                    "No Auto Ticks yet",
-                    systemImage: "location.circle",
-                    description: Text("Add a place and Tick can start or stop for you.")
+                    label: {
+                        Label("No Auto Ticks yet", systemImage: "location.circle")
+                    },
+                    description: {
+                        Text("Add a place and Tick can start or stop for you.")
+                    },
+                    actions: {
+                        Button {
+                            isAddingRule = true
+                        } label: {
+                            Label("Add Auto Tick", systemImage: "plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.activeProjects.isEmpty)
+                        .accessibilityHint("Create a location rule for automatic time tracking.")
+                    }
                 )
             } else {
                 ForEach(viewModel.autoTickRules) { rule in

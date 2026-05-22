@@ -10,12 +10,18 @@ enum TickPalette {
 
 enum TickProjectAccent {
     private static let colors: [Color] = [
+        .blue,
+        .green,
         .purple,
+        .orange,
         .pink,
         .teal,
-        .orange,
         .indigo,
-        .mint
+        .yellow,
+        .cyan,
+        .red,
+        .mint,
+        .brown
     ]
 
     static func color(for projectID: UUID) -> Color {
@@ -27,11 +33,19 @@ enum TickProjectAccent {
     }
 
     static func index(for seed: String) -> Int {
-        let value = seed.unicodeScalars.reduce(0) { partialResult, scalar in
-            partialResult &+ Int(scalar.value)
+        let normalizedSeed = seed.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var hash: UInt64 = 14_695_981_039_346_656_037
+
+        for scalar in normalizedSeed.unicodeScalars {
+            hash ^= UInt64(scalar.value)
+            hash = hash &* 1_099_511_628_211
         }
 
-        return value % colors.count
+        hash ^= hash >> 33
+        hash = hash &* 0xff51afd7ed558ccd
+        hash ^= hash >> 33
+
+        return Int(hash % UInt64(colors.count))
     }
 }
 

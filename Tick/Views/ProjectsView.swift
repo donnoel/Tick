@@ -16,10 +16,15 @@ struct ProjectsView: View {
                 } else {
                     Section("Active Projects") {
                         ForEach(viewModel.activeProjects) { project in
-                            ProjectRowView(
-                                project: project,
-                                duration: viewModel.totalDuration(for: project.id)
-                            )
+                            NavigationLink {
+                                ProjectDetailView(viewModel: viewModel, project: project)
+                            } label: {
+                                ProjectRowView(
+                                    project: project,
+                                    duration: viewModel.totalDuration(for: project.id)
+                                )
+                            }
+                            .accessibilityHint("Opens project details.")
                         }
                     }
                 }
