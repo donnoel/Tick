@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: TickViewModel
 
     @MainActor
@@ -37,6 +38,20 @@ struct ContentView: View {
         }
         .task {
             await viewModel.loadIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else {
+                return
+            }
+
+            Task {
+                await viewModel.reload()
+            }
+        }
+        .onChange(of: viewModel.selectedProjectID) { _, _ in
+            Task {
+                await viewModel.refreshWidgetSnapshot()
+            }
         }
         .alert("Tick needs attention", isPresented: errorIsPresented) {
             Button("OK") {

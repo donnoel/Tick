@@ -2,13 +2,15 @@ import Foundation
 
 actor TickDataStore {
     private let fileURL: URL
+    private let legacyFileURL: URL?
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
     private let fileManager: FileManager
 
     init(fileURL: URL? = nil, fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        self.fileURL = fileURL ?? Self.defaultFileURL(fileManager: fileManager)
+        self.fileURL = fileURL ?? TickSharedStorage.dataFileURL(fileManager: fileManager)
+        self.legacyFileURL = fileURL == nil ? TickSharedStorage.legacyDataFileURL(fileManager: fileManager) : nil
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -21,6 +23,8 @@ actor TickDataStore {
     }
 
     func load() throws -> TickStorageSnapshot {
+        try migrateLegacyStoreIfNeeded()
+
         guard fileManager.fileExists(atPath: fileURL.path) else {
             return .empty
         }
@@ -42,10 +46,18 @@ actor TickDataStore {
         try data.write(to: fileURL, options: [.atomic])
     }
 
-    private static func defaultFileURL(fileManager: FileManager) -> URL {
-        let baseURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return baseURL
-            .appendingPathComponent("Tick", isDirectory: true)
-            .appendingPathComponent("tick-data.json")
+    private func migrateLegacyStoreIfNeeded() throws {
+        guard let legacyFileURL,
+              legacyFileURL != fileURL,
+              !fileManager.fileExists(atPath: fileURL.path),
+              fileManager.fileExists(atPath: legacyFileURL.path) else {
+            return
+        }
+
+        try fileManager.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try fileManager.copyItem(at: legacyFileURL, to: fileURL)
     }
 }

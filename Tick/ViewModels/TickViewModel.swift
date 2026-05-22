@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 
 @MainActor
 @Observable
@@ -73,14 +74,23 @@ final class TickViewModel {
             return
         }
 
+        await reload()
+    }
+
+    func reload() async {
         do {
             let snapshot = try await store.load()
             projects = snapshot.projects.sorted { $0.createdAt < $1.createdAt }
             sessions = snapshot.sessions.sorted { $0.referenceDate > $1.referenceDate }
             autoTickRules = snapshot.autoTickRules.sorted { $0.createdAt < $1.createdAt }
-            selectedProjectID = activeSession?.projectID ?? activeProjects.first?.id
+            if let activeSession {
+                selectedProjectID = activeSession.projectID
+            } else if selectedProjectID.flatMap(project(for:)) == nil {
+                selectedProjectID = activeProjects.first?.id
+            }
             hasLoaded = true
             refreshAutoTickMonitoring()
+            await refreshWidgetSnapshot()
         } catch {
             errorMessage = "Tick could not load saved time. \(error.localizedDescription)"
             hasLoaded = true
@@ -423,8 +433,62 @@ final class TickViewModel {
             )
             errorMessage = nil
             refreshAutoTickMonitoring()
+            await refreshWidgetSnapshot()
         } catch {
             errorMessage = "Tick could not save your changes. \(error.localizedDescription)"
+        }
+    }
+
+    func refreshWidgetSnapshot(at date: Date = .now) async {
+        let widgetStorageSnapshot = TickWidgetStorageSnapshot(
+            projects: projects.map { project in
+                TickWidgetStoredProject(
+                    id: project.id,
+                    name: project.name,
+                    createdAt: project.createdAt,
+                    isArchived: project.isArchived
+                )
+            },
+            sessions: sessions.map { session in
+                TickWidgetStoredSession(
+                    id: session.id,
+                    projectID: session.projectID,
+                    title: session.title,
+                    notes: session.notes,
+                    startedAt: session.startedAt,
+                    endedAt: session.endedAt,
+                    manualDuration: session.manualDuration,
+                    entrySource: session.entrySource.rawValue,
+                    autoTickRuleID: session.autoTickRuleID,
+                    createdAt: session.createdAt
+                )
+            },
+            autoTickRules: autoTickRules.map { rule in
+                TickWidgetStoredAutoTickRule(
+                    id: rule.id,
+                    projectID: rule.projectID,
+                    name: rule.name,
+                    latitude: rule.latitude,
+                    longitude: rule.longitude,
+                    radiusMeters: rule.radiusMeters,
+                    startsOnArrival: rule.startsOnArrival,
+                    stopsOnDeparture: rule.stopsOnDeparture,
+                    isEnabled: rule.isEnabled,
+                    createdAt: rule.createdAt
+                )
+            }
+        )
+        let widgetSnapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: widgetStorageSnapshot,
+            defaultProjectID: selectedProjectID,
+            at: date
+        )
+
+        do {
+            try TickWidgetActionStore().saveWidgetSnapshot(widgetSnapshot)
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            errorMessage = "Tick could not update the widget. \(error.localizedDescription)"
         }
     }
 

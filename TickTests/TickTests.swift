@@ -126,6 +126,181 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(snapshot.autoTickRules.isEmpty)
     }
 
+    func testWidgetSnapshotGenerationWithNoProjects() {
+        let snapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: .empty,
+            defaultProjectID: nil,
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertFalse(snapshot.hasProjects)
+        XCTAssertNil(snapshot.defaultProjectID)
+        XCTAssertNil(snapshot.activeSessionID)
+        XCTAssertEqual(snapshot.todayTotalDuration, 0)
+    }
+
+    func testWidgetSnapshotGenerationWithNoActiveSession() {
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let session = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "Planning",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 1_000),
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let snapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: TickWidgetStorageSnapshot(projects: [project], sessions: [session]),
+            defaultProjectID: project.id,
+            at: Date(timeIntervalSince1970: 1_200)
+        )
+
+        XCTAssertTrue(snapshot.hasProjects)
+        XCTAssertEqual(snapshot.defaultProjectID, project.id)
+        XCTAssertEqual(snapshot.defaultProjectName, "Studio")
+        XCTAssertNil(snapshot.activeSessionID)
+        XCTAssertEqual(snapshot.todayTotalDuration, 900)
+    }
+
+    func testWidgetSnapshotGenerationWithActiveSession() {
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let activeSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let snapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+            defaultProjectID: nil,
+            at: Date(timeIntervalSince1970: 700)
+        )
+
+        XCTAssertEqual(snapshot.activeSessionID, activeSession.id)
+        XCTAssertEqual(snapshot.activeProjectName, "Studio")
+        XCTAssertEqual(snapshot.activeSessionTitle, "1 Tick")
+        XCTAssertEqual(snapshot.activeStartedAt, Date(timeIntervalSince1970: 100))
+        XCTAssertEqual(snapshot.todayTotalDuration, 600)
+    }
+
+    func testWidgetStartDoesNotCreateDuplicateActiveSessions() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let activeSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let store = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+            at: urls.dataFileURL
+        )
+
+        let result = try store.startTick(at: Date(timeIntervalSince1970: 200))
+        let savedSnapshot = try store.loadStorageSnapshot()
+
+        XCTAssertFalse(result.didChange)
+        XCTAssertEqual(savedSnapshot.sessions.filter(\.isActive).count, 1)
+        XCTAssertEqual(savedSnapshot.sessions.first?.id, activeSession.id)
+    }
+
+    func testWidgetStopStopsOnlyActiveSession() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let activeSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let manualSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "Manual",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 50),
+            endedAt: nil,
+            manualDuration: 600,
+            entrySource: "manual",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 50)
+        )
+        let store = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [manualSession, activeSession]),
+            at: urls.dataFileURL
+        )
+
+        let result = try store.stopTick(at: Date(timeIntervalSince1970: 300))
+        let savedSnapshot = try store.loadStorageSnapshot()
+
+        XCTAssertTrue(result.didChange)
+        XCTAssertNil(savedSnapshot.sessions.first { $0.id == activeSession.id }?.manualDuration)
+        XCTAssertEqual(savedSnapshot.sessions.first { $0.id == activeSession.id }?.endedAt, Date(timeIntervalSince1970: 300))
+        XCTAssertEqual(savedSnapshot.sessions.first { $0.id == manualSession.id }?.manualDuration, 600)
+        XCTAssertFalse(savedSnapshot.sessions.contains(where: \.isActive))
+    }
+
     @MainActor
     func testViewModelPreventsMultipleActiveSessions() async {
         let fileURL = temporaryStoreURL()
@@ -556,5 +731,33 @@ final class TickTests: XCTestCase {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
             .appendingPathComponent("tick-data.json")
+    }
+
+    private func temporaryWidgetStoreURLs() -> (
+        directoryURL: URL,
+        dataFileURL: URL,
+        snapshotFileURL: URL
+    ) {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+
+        return (
+            directoryURL,
+            directoryURL.appendingPathComponent("tick-data.json"),
+            directoryURL.appendingPathComponent("tick-widget-snapshot.json")
+        )
+    }
+
+    private func seedWidgetStore(_ snapshot: TickWidgetStorageSnapshot, at fileURL: URL) async throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let data = try encoder.encode(snapshot)
+        try data.write(to: fileURL, options: [.atomic])
     }
 }

@@ -18,11 +18,12 @@ Current scope:
 - duration-only manual time entry
 - session detail review and title/notes/project editing
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
+- WidgetKit foundation with small/medium widgets and App Intent-powered Start/Stop actions
 - daily, weekly, and monthly text summaries
-- JSON persistence in Application Support
+- JSON persistence in the Tick App Group container
 
 Explicitly out of scope for this phase:
-- iCloud sync, networking, authentication, widgets, Live Activities, Apple Watch, billing, exports, charts, map search, route tracking, location history, voice memos, and transcription
+- iCloud sync, networking, authentication, Live Activities, Apple Watch, billing, exports, charts, map search, route tracking, location history, voice memos, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
@@ -41,11 +42,14 @@ State and operations:
 - Auto Tick rule mutations and arrival/departure decisions live on the view model.
 - Auto Tick rule updates/deletes must persist through `TickDataStore` and refresh monitored regions.
 - `TickSummaryCalculator` handles daily, weekly, and monthly duration aggregation.
+- Widget App Intents use `TickWidgetActionStore` for small shared-data mutations.
 
 Persistence:
 - `TickDataStore` is an actor-backed JSON store.
 - The store reads/writes off the main actor and uses atomic writes.
-- Saved file path: Application Support/Tick/tick-data.json.
+- Saved file path: App Group `group.dn.tick` / Tick / tick-data.json, with one-time migration from the old Application Support path.
+- Widget snapshots are stored separately as `tick-widget-snapshot.json` in the same App Group container.
+- Keep widget shared storage small. Widgets should render from `TickWidgetSnapshot`, not from broad SwiftUI view-model state.
 
 Location architecture:
 - `AutoTickLocationService` is the only type that owns `CLLocationManager`.
@@ -89,6 +93,9 @@ Still verify manually before submission:
 - A timer session duration is derived from `startedAt` and `endedAt`.
 - A running session uses `Date.now - startedAt` only for display; elapsed time is not stored continuously.
 - Local data should survive app relaunches.
+- Widget Start must not create a duplicate active session.
+- Widget Stop must stop only the current active timer/Auto Tick session.
+- Widget snapshots store dates and totals, not constantly changing elapsed time.
 - Auto Tick arrival must not create a duplicate active session.
 - Auto Tick departure must stop only the active Auto Tick session associated with that rule.
 - Auto Tick departure must not stop timer-created or manual sessions.
