@@ -129,6 +129,8 @@ struct SessionDetailView: View {
             "Timer"
         case .manual:
             "Manual"
+        case .autoLocation:
+            "Auto Tick"
         }
     }
 }

@@ -25,6 +25,11 @@ struct ContentView: View {
                     Label("Projects", systemImage: "folder.fill")
                 }
 
+            AutoTicksView(viewModel: viewModel)
+                .tabItem {
+                    Label("Auto Ticks", systemImage: "location.fill")
+                }
+
             SummariesView(viewModel: viewModel)
                 .tabItem {
                     Label("Summaries", systemImage: "calendar")

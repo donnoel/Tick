@@ -17,11 +17,12 @@ Current scope:
 - Today, Projects, and Summaries tabs
 - duration-only manual time entry
 - session detail review and title/notes/project editing
+- Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, and region-monitoring service boundary
 - daily, weekly, and monthly text summaries
 - JSON persistence in Application Support
 
 Explicitly out of scope for this phase:
-- iCloud sync, networking, authentication, widgets, Live Activities, Apple Watch, billing, exports, charts, GPS/location capture, voice memos, and transcription
+- iCloud sync, networking, authentication, widgets, Live Activities, Apple Watch, billing, exports, charts, map search, route tracking, location history, voice memos, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
@@ -31,11 +32,13 @@ App entry and navigation:
 Core models:
 - `TickProject`: project identity, name, creation date, archive flag.
 - `TimeSession`: project link, optional timer dates, optional manual duration, title, notes, source, and creation date.
-- `SessionEntrySource`: distinguishes timer-created and manual sessions.
+- `AutoTickRule`: project link, location coordinate, radius, enabled state, and arrival/departure behavior.
+- `SessionEntrySource`: distinguishes timer-created, manual, and Auto Tick sessions.
 
 State and operations:
 - `TickViewModel` is main-actor isolated because it owns SwiftUI-observed state.
 - Project/session mutations live on the view model, not inside SwiftUI view bodies.
+- Auto Tick rule mutations and arrival/departure decisions live on the view model.
 - `TickSummaryCalculator` handles daily, weekly, and monthly duration aggregation.
 
 Persistence:
@@ -43,19 +46,34 @@ Persistence:
 - The store reads/writes off the main actor and uses atomic writes.
 - Saved file path: Application Support/Tick/tick-data.json.
 
+Location architecture:
+- `AutoTickLocationService` is the only type that owns `CLLocationManager`.
+- SwiftUI views must not talk to `CLLocationManager` directly.
+- Auto Ticks uses current location only to create a rule and region monitoring for enabled saved rules where permission allows.
+- Do not add continuous GPS polling unless a future feature explicitly requires it and documents the battery/privacy tradeoff.
+
 ## Concurrency rules
 - Keep UI-observed state on `TickViewModel`.
 - Keep file IO inside `TickDataStore`.
+- Keep Core Location delegate work inside `AutoTickLocationService`.
 - Keep pure value models and summary helpers `nonisolated` so Codable and calculations can run outside the main actor.
 - Do not add broad `@MainActor` annotations to persistence or model types to silence warnings.
+
+## Auto Ticks privacy rules
+- Auto Ticks is opt-in.
+- Do not request location permission before the user opens Auto Ticks or tries to use current location.
+- Do not monitor locations until at least one rule exists and is enabled.
+- Explain location use in plain language before permission prompts.
+- Denied or restricted location permission must leave the app usable and must not crash.
+- Do not store route history, visit history, or raw location samples beyond saved rule coordinates.
 
 ## Accessibility requirements
 Accessibility is part of every user-facing change.
 
 Current implementation includes:
 - semantic buttons, pickers, forms, lists, and tab labels
-- accessibility labels/hints for timer actions, project selection, manual entry, project creation, active elapsed time, session rows, and session editing
-- visible "Manual" badge and spoken manual-session description
+- accessibility labels/hints for timer actions, project selection, manual entry, project creation, active elapsed time, session rows, session editing, and Auto Tick rule creation
+- visible "Manual" and "Auto" badges with spoken source descriptions
 - Dynamic Type-friendly SwiftUI text styles for major labels and timer readouts
 
 Still verify manually before submission:
@@ -70,6 +88,9 @@ Still verify manually before submission:
 - A timer session duration is derived from `startedAt` and `endedAt`.
 - A running session uses `Date.now - startedAt` only for display; elapsed time is not stored continuously.
 - Local data should survive app relaunches.
+- Auto Tick arrival must not create a duplicate active session.
+- Auto Tick departure must stop only the active Auto Tick session associated with that rule.
+- Auto Tick departure must not stop timer-created or manual sessions.
 
 ## UX rules
 - Use plain, playful Tick language: Start Tick, Stop Tick, Add Time, Today's Ticks.

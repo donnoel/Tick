@@ -3,6 +3,7 @@ import Foundation
 nonisolated enum SessionEntrySource: String, Codable, CaseIterable, Equatable, Hashable, Identifiable {
     case timer
     case manual
+    case autoLocation
 
     var id: String { rawValue }
 }
@@ -16,6 +17,7 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
     var endedAt: Date?
     var manualDuration: TimeInterval?
     var entrySource: SessionEntrySource
+    var autoTickRuleID: AutoTickRule.ID?
     let createdAt: Date
 
     init(
@@ -27,6 +29,7 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
         endedAt: Date?,
         manualDuration: TimeInterval?,
         entrySource: SessionEntrySource,
+        autoTickRuleID: AutoTickRule.ID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -37,11 +40,15 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
         self.endedAt = endedAt
         self.manualDuration = manualDuration
         self.entrySource = entrySource
+        self.autoTickRuleID = autoTickRuleID
         self.createdAt = createdAt
     }
 
     var isActive: Bool {
-        entrySource == .timer && startedAt != nil && endedAt == nil && manualDuration == nil
+        (entrySource == .timer || entrySource == .autoLocation) &&
+            startedAt != nil &&
+            endedAt == nil &&
+            manualDuration == nil
     }
 
     var referenceDate: Date {

@@ -118,6 +118,14 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(loadedSnapshot, snapshot)
     }
 
+    func testStorageSnapshotDefaultsMissingAutoTickRules() throws {
+        let data = Data(#"{"projects":[],"sessions":[]}"#.utf8)
+
+        let snapshot = try JSONDecoder().decode(TickStorageSnapshot.self, from: data)
+
+        XCTAssertTrue(snapshot.autoTickRules.isEmpty)
+    }
+
     @MainActor
     func testViewModelPreventsMultipleActiveSessions() async {
         let fileURL = temporaryStoreURL()
@@ -187,6 +195,185 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(reloadedViewModel.sessions.first?.title, "Follow-up planning")
         XCTAssertEqual(reloadedViewModel.sessions.first?.notes, "Clean up tracked work.")
         XCTAssertEqual(reloadedViewModel.sessions.first?.projectID, newProject.id)
+    }
+
+    @MainActor
+    func testEnabledAutoTickArrivalStartsSession() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let projectID = viewModel.activeProjects[0].id
+
+        await viewModel.addAutoTickRule(
+            projectID: projectID,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true,
+            createdAt: Date(timeIntervalSince1970: 10)
+        )
+
+        let rule = viewModel.autoTickRules[0]
+        let didStart = await viewModel.handleAutoTickEvent(
+            ruleID: rule.id,
+            event: .arrival,
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertTrue(didStart)
+        XCTAssertEqual(viewModel.activeSession?.entrySource, .autoLocation)
+        XCTAssertEqual(viewModel.activeSession?.autoTickRuleID, rule.id)
+        XCTAssertEqual(viewModel.activeSession?.projectID, projectID)
+        XCTAssertEqual(viewModel.activeSession?.title, "Office")
+    }
+
+    @MainActor
+    func testDisabledAutoTickArrivalDoesNothing() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+
+        await viewModel.addAutoTickRule(
+            projectID: viewModel.activeProjects[0].id,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: false
+        )
+
+        let didStart = await viewModel.handleAutoTickEvent(
+            ruleID: viewModel.autoTickRules[0].id,
+            event: .arrival,
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertFalse(didStart)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+    }
+
+    @MainActor
+    func testAutoTickArrivalDoesNotDuplicateActiveSession() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.startTick(at: Date(timeIntervalSince1970: 50))
+
+        await viewModel.addAutoTickRule(
+            projectID: viewModel.activeProjects[0].id,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        let didStart = await viewModel.handleAutoTickEvent(
+            ruleID: viewModel.autoTickRules[0].id,
+            event: .arrival,
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertFalse(didStart)
+        XCTAssertEqual(viewModel.sessions.filter(\.isActive).count, 1)
+        XCTAssertEqual(viewModel.activeSession?.entrySource, .timer)
+    }
+
+    @MainActor
+    func testAutoTickDepartureStopsOnlyAssociatedAutoSession() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let projectID = viewModel.activeProjects[0].id
+        await viewModel.addManualSession(
+            projectID: projectID,
+            title: "Manual",
+            notes: "",
+            date: Date(timeIntervalSince1970: 20),
+            duration: 600
+        )
+
+        await viewModel.addAutoTickRule(
+            projectID: projectID,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true,
+            createdAt: Date(timeIntervalSince1970: 30)
+        )
+        await viewModel.addAutoTickRule(
+            projectID: projectID,
+            name: "Workshop",
+            latitude: 37.332,
+            longitude: -122.032,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true,
+            createdAt: Date(timeIntervalSince1970: 40)
+        )
+
+        let officeRule = viewModel.autoTickRules[0]
+        let workshopRule = viewModel.autoTickRules[1]
+        await viewModel.handleAutoTickEvent(
+            ruleID: officeRule.id,
+            event: .arrival,
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        let didStopWrongRule = await viewModel.handleAutoTickEvent(
+            ruleID: workshopRule.id,
+            event: .departure,
+            at: Date(timeIntervalSince1970: 200)
+        )
+        XCTAssertFalse(didStopWrongRule)
+        XCTAssertTrue(viewModel.activeSession?.isActive == true)
+
+        let didStopOffice = await viewModel.handleAutoTickEvent(
+            ruleID: officeRule.id,
+            event: .departure,
+            at: Date(timeIntervalSince1970: 300)
+        )
+
+        XCTAssertTrue(didStopOffice)
+        XCTAssertNil(viewModel.activeSession)
+        XCTAssertEqual(viewModel.sessions.first(where: { $0.entrySource == .manual })?.duration(), 600)
+        XCTAssertEqual(viewModel.sessions.first(where: { $0.autoTickRuleID == officeRule.id })?.endedAt, Date(timeIntervalSince1970: 300))
+    }
+
+    func testDeniedAutoTickLocationPermissionIsNonTrackingState() {
+        let status = AutoTickLocationAuthorizationStatus.denied
+
+        XCTAssertFalse(status.canRequestCurrentLocation)
+        XCTAssertFalse(status.canMonitorRegions)
+        XCTAssertFalse(status.needsPermissionRequest)
+        XCTAssertTrue(status.displayText.contains("denied"))
     }
 
     private func temporaryStoreURL() -> URL {

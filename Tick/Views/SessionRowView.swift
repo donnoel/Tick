@@ -19,13 +19,13 @@ struct SessionRowView: View {
 
                 Spacer()
 
-                if session.entrySource == .manual {
-                    Text("Manual")
+                if let sourceBadgeTitle {
+                    Text(sourceBadgeTitle)
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(.thinMaterial, in: Capsule())
-                        .accessibilityLabel("Manual time entry")
+                        .accessibilityLabel(sourceBadgeAccessibilityLabel)
                 }
             }
 
@@ -76,11 +76,33 @@ struct SessionRowView: View {
             timeDescription
         ]
 
-        if session.entrySource == .manual {
-            parts.append("Manual")
+        if let sourceBadgeTitle {
+            parts.append(sourceBadgeTitle)
         }
 
         return parts.joined(separator: ", ")
+    }
+
+    private var sourceBadgeTitle: String? {
+        switch session.entrySource {
+        case .timer:
+            nil
+        case .manual:
+            "Manual"
+        case .autoLocation:
+            "Auto"
+        }
+    }
+
+    private var sourceBadgeAccessibilityLabel: String {
+        switch session.entrySource {
+        case .timer:
+            "Timer session"
+        case .manual:
+            "Manual time entry"
+        case .autoLocation:
+            "Auto Tick session"
+        }
     }
 
     private func formattedTime(_ date: Date?) -> String {
