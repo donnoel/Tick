@@ -251,6 +251,66 @@ final class TickViewModel {
         return true
     }
 
+    @discardableResult
+    func updateAutoTickRule(
+        id: AutoTickRule.ID,
+        projectID: TickProject.ID?,
+        name: String,
+        radiusMeters: Double,
+        startsOnArrival: Bool,
+        stopsOnDeparture: Bool,
+        isEnabled: Bool
+    ) async -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let projectID, projects.contains(where: { $0.id == projectID }) else {
+            errorMessage = "Choose a project for this Auto Tick."
+            return false
+        }
+
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Name this Auto Tick location."
+            return false
+        }
+
+        guard radiusMeters > 0 else {
+            errorMessage = "Auto Tick radius must be greater than zero meters."
+            return false
+        }
+
+        guard startsOnArrival || stopsOnDeparture else {
+            errorMessage = "Choose arrival, departure, or both for this Auto Tick."
+            return false
+        }
+
+        guard let ruleIndex = autoTickRules.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that Auto Tick rule."
+            return false
+        }
+
+        autoTickRules[ruleIndex].projectID = projectID
+        autoTickRules[ruleIndex].name = trimmedName
+        autoTickRules[ruleIndex].radiusMeters = radiusMeters
+        autoTickRules[ruleIndex].startsOnArrival = startsOnArrival
+        autoTickRules[ruleIndex].stopsOnDeparture = stopsOnDeparture
+        autoTickRules[ruleIndex].isEnabled = isEnabled
+        autoTickRules.sort { $0.createdAt < $1.createdAt }
+        await persist()
+        return true
+    }
+
+    @discardableResult
+    func deleteAutoTickRule(id: AutoTickRule.ID) async -> Bool {
+        guard let ruleIndex = autoTickRules.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that Auto Tick rule."
+            return false
+        }
+
+        autoTickRules.remove(at: ruleIndex)
+        await persist()
+        return true
+    }
+
     func autoTickRule(for id: AutoTickRule.ID) -> AutoTickRule? {
         autoTickRules.first { $0.id == id }
     }

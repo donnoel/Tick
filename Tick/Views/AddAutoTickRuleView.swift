@@ -31,6 +31,11 @@ struct AddAutoTickRuleView: View {
                 }
 
                 Section("Location") {
+                    Text(locationGuidance)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Location guidance")
+
                     TextField("Location Name", text: $name)
                         .textInputAutocapitalization(.words)
                         .accessibilityHint("Name this Auto Tick location.")
@@ -108,5 +113,22 @@ struct AddAutoTickRuleView: View {
             coordinate != nil &&
             !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
             (startsOnArrival || stopsOnDeparture)
+    }
+
+    private var locationGuidance: String {
+        switch viewModel.autoTickLocationAuthorizationStatus {
+        case .notDetermined:
+            "Use Current Location will ask for permission. After granting access, tap it again to capture this rule."
+        case .authorizedWhenInUse:
+            "Tick can capture this location while the app is open. Background arrival and departure work best with Always access."
+        case .authorizedAlways:
+            "Tick can capture this location and monitor enabled rules in the background."
+        case .denied:
+            "Location access is denied. You can keep using Tick, but current location capture needs permission in Settings."
+        case .restricted:
+            "Location access is restricted on this device. You can keep using Tick without Auto Ticks."
+        case .unknown:
+            "Tick cannot read the current location permission state."
+        }
     }
 }

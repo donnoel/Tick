@@ -198,6 +198,182 @@ final class TickTests: XCTestCase {
     }
 
     @MainActor
+    func testViewModelUpdatesAutoTickRuleAndPersists() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        await viewModel.addProject(name: "Original", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.addProject(name: "New Project", createdAt: Date(timeIntervalSince1970: 10))
+
+        guard let originalProject = viewModel.activeProjects.first,
+              let newProject = viewModel.activeProjects.last else {
+            XCTFail("Expected test projects to exist.")
+            return
+        }
+
+        await viewModel.addAutoTickRule(
+            projectID: originalProject.id,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        guard let rule = viewModel.autoTickRules.first else {
+            XCTFail("Expected an Auto Tick rule to update.")
+            return
+        }
+
+        let didUpdate = await viewModel.updateAutoTickRule(
+            id: rule.id,
+            projectID: newProject.id,
+            name: "  Studio Door  ",
+            radiusMeters: 225,
+            startsOnArrival: false,
+            stopsOnDeparture: true,
+            isEnabled: false
+        )
+
+        XCTAssertTrue(didUpdate)
+        XCTAssertEqual(viewModel.autoTickRules.first?.name, "Studio Door")
+        XCTAssertEqual(viewModel.autoTickRules.first?.projectID, newProject.id)
+        XCTAssertEqual(viewModel.autoTickRules.first?.radiusMeters, 225)
+        XCTAssertFalse(viewModel.autoTickRules.first?.startsOnArrival ?? true)
+        XCTAssertTrue(viewModel.autoTickRules.first?.stopsOnDeparture ?? false)
+        XCTAssertFalse(viewModel.autoTickRules.first?.isEnabled ?? true)
+        XCTAssertEqual(viewModel.autoTickRules.first?.latitude, 37.3318)
+        XCTAssertEqual(viewModel.autoTickRules.first?.longitude, -122.0312)
+
+        let reloadedViewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await reloadedViewModel.loadIfNeeded()
+
+        XCTAssertEqual(reloadedViewModel.autoTickRules.first?.name, "Studio Door")
+        XCTAssertEqual(reloadedViewModel.autoTickRules.first?.projectID, newProject.id)
+        XCTAssertEqual(reloadedViewModel.autoTickRules.first?.radiusMeters, 225)
+        XCTAssertFalse(reloadedViewModel.autoTickRules.first?.startsOnArrival ?? true)
+        XCTAssertTrue(reloadedViewModel.autoTickRules.first?.stopsOnDeparture ?? false)
+        XCTAssertFalse(reloadedViewModel.autoTickRules.first?.isEnabled ?? true)
+    }
+
+    @MainActor
+    func testViewModelDeletesAutoTickRuleAndPersists() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let projectID = viewModel.activeProjects[0].id
+
+        await viewModel.addAutoTickRule(
+            projectID: projectID,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        guard let rule = viewModel.autoTickRules.first else {
+            XCTFail("Expected an Auto Tick rule to delete.")
+            return
+        }
+
+        let didDelete = await viewModel.deleteAutoTickRule(id: rule.id)
+
+        XCTAssertTrue(didDelete)
+        XCTAssertTrue(viewModel.autoTickRules.isEmpty)
+
+        let reloadedViewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await reloadedViewModel.loadIfNeeded()
+
+        XCTAssertTrue(reloadedViewModel.autoTickRules.isEmpty)
+    }
+
+    @MainActor
+    func testInvalidAutoTickRuleUpdatesFailGracefully() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let projectID = viewModel.activeProjects[0].id
+
+        await viewModel.addAutoTickRule(
+            projectID: projectID,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        guard let originalRule = viewModel.autoTickRules.first else {
+            XCTFail("Expected an Auto Tick rule to validate.")
+            return
+        }
+
+        let missingProjectUpdate = await viewModel.updateAutoTickRule(
+            id: originalRule.id,
+            projectID: UUID(),
+            name: "Office",
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        let emptyNameUpdate = await viewModel.updateAutoTickRule(
+            id: originalRule.id,
+            projectID: projectID,
+            name: "   ",
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        let zeroRadiusUpdate = await viewModel.updateAutoTickRule(
+            id: originalRule.id,
+            projectID: projectID,
+            name: "Office",
+            radiusMeters: 0,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        let noBehaviorUpdate = await viewModel.updateAutoTickRule(
+            id: originalRule.id,
+            projectID: projectID,
+            name: "Office",
+            radiusMeters: 150,
+            startsOnArrival: false,
+            stopsOnDeparture: false,
+            isEnabled: true
+        )
+
+        XCTAssertFalse(missingProjectUpdate)
+        XCTAssertFalse(emptyNameUpdate)
+        XCTAssertFalse(zeroRadiusUpdate)
+        XCTAssertFalse(noBehaviorUpdate)
+        XCTAssertEqual(viewModel.autoTickRules.first, originalRule)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    @MainActor
     func testEnabledAutoTickArrivalStartsSession() async {
         let fileURL = temporaryStoreURL()
         defer {

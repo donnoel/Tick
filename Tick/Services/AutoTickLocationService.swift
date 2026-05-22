@@ -45,15 +45,15 @@ nonisolated enum AutoTickLocationAuthorizationStatus: Equatable {
     var displayText: String {
         switch self {
         case .notDetermined:
-            "Location permission has not been requested."
+            "Location permission has not been requested. Use Current Location will ask before capturing a rule coordinate."
         case .restricted:
             "Location access is restricted on this device."
         case .denied:
             "Location access is denied. Auto Ticks will stay off until permission is allowed in Settings."
         case .authorizedWhenInUse:
-            "Location access is allowed while Tick is open."
+            "When In Use access is allowed. Current location capture works while Tick is open, but background arrival and departure may not run reliably."
         case .authorizedAlways:
-            "Background location access is allowed for saved Auto Tick rules."
+            "Always access is allowed for enabled Auto Tick rules."
         case .unknown:
             "Tick cannot read the current location permission state."
         }
@@ -226,8 +226,13 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
     private func startMonitoring(_ rule: AutoTickRule) {
         let identifier = Self.regionIdentifier(for: rule.id)
 
-        guard !manager.monitoredRegions.contains(where: { $0.identifier == identifier }) else {
-            return
+        if let monitoredRegion = manager.monitoredRegions.first(where: { $0.identifier == identifier }) {
+            guard let circularRegion = monitoredRegion as? CLCircularRegion,
+                  !circularRegion.matches(rule, maximumRadius: manager.maximumRegionMonitoringDistance) else {
+                return
+            }
+
+            manager.stopMonitoring(for: monitoredRegion)
         }
 
         let radius = min(max(rule.radiusMeters, 1), manager.maximumRegionMonitoringDistance)
@@ -266,5 +271,15 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
 
         let uuidString = String(identifier.dropFirst(Self.regionIdentifierPrefix.count))
         return UUID(uuidString: uuidString)
+    }
+}
+
+private extension CLCircularRegion {
+    func matches(_ rule: AutoTickRule, maximumRadius: CLLocationDistance) -> Bool {
+        center.latitude == rule.latitude &&
+            center.longitude == rule.longitude &&
+            radius == min(max(rule.radiusMeters, 1), maximumRadius) &&
+            notifyOnEntry == rule.startsOnArrival &&
+            notifyOnExit == rule.stopsOnDeparture
     }
 }

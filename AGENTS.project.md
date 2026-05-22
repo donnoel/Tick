@@ -17,7 +17,7 @@ Current scope:
 - Today, Projects, and Summaries tabs
 - duration-only manual time entry
 - session detail review and title/notes/project editing
-- Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, and region-monitoring service boundary
+- Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - daily, weekly, and monthly text summaries
 - JSON persistence in Application Support
 
@@ -39,6 +39,7 @@ State and operations:
 - `TickViewModel` is main-actor isolated because it owns SwiftUI-observed state.
 - Project/session mutations live on the view model, not inside SwiftUI view bodies.
 - Auto Tick rule mutations and arrival/departure decisions live on the view model.
+- Auto Tick rule updates/deletes must persist through `TickDataStore` and refresh monitored regions.
 - `TickSummaryCalculator` handles daily, weekly, and monthly duration aggregation.
 
 Persistence:
@@ -91,6 +92,7 @@ Still verify manually before submission:
 - Auto Tick arrival must not create a duplicate active session.
 - Auto Tick departure must stop only the active Auto Tick session associated with that rule.
 - Auto Tick departure must not stop timer-created or manual sessions.
+- Deleting an Auto Tick rule must remove its monitored geofence without deleting existing sessions.
 
 ## UX rules
 - Use plain, playful Tick language: Start Tick, Stop Tick, Add Time, Today's Ticks.

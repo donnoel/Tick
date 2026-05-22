@@ -4,6 +4,7 @@ struct SessionRowView: View {
     let session: TimeSession
     let projectName: String
     let displayDate: Date
+    let defaultTitle: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -49,7 +50,7 @@ struct SessionRowView: View {
 
     private var title: String {
         let trimmedTitle = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedTitle.isEmpty ? "Untitled Tick" : trimmedTitle
+        return trimmedTitle.isEmpty ? defaultTitle : trimmedTitle
     }
 
     private var timeDescription: String {

@@ -13,7 +13,7 @@ Current MVP foundation:
 - start and stop one active Tick session
 - add missed time manually
 - review and edit session title, notes, and project
-- create opt-in Auto Tick location rules for automatic arrival/departure tracking
+- create, edit, and delete opt-in Auto Tick location rules for automatic arrival/departure tracking
 - view today's tracked time and sessions
 - review simple daily, weekly, and monthly summaries
 - persist local data between launches
@@ -63,4 +63,4 @@ Tick/
 - [ ] Add charts and export after the local foundation is stable
 
 ## Credits
-Created with **ProjectPilot**.
+Built with care by **Don Noel** and AI collaboration.
