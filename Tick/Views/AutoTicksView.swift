@@ -116,33 +116,37 @@ private struct EmptyAutoTicksCard: View {
     let addRule: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .center, spacing: 16) {
             Image(systemName: "location.circle")
                 .font(.system(size: 42, weight: .regular))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
-            VStack(spacing: 6) {
+            VStack(alignment: .center, spacing: 6) {
                 Text("No Auto Ticks yet")
                     .font(.headline)
+                    .multilineTextAlignment(.center)
 
                 Text("Add a place and Tick can start or stop for you.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .frame(maxWidth: 240)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
 
             Button {
                 addRule()
             } label: {
                 Label("Add Auto Tick", systemImage: "plus")
+                    .frame(minWidth: 150)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
             .disabled(!canAddRule)
             .accessibilityHint(canAddRule ? "Create a location rule for automatic time tracking." : "Create a project before adding an Auto Tick rule.")
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(.vertical, 28)
         .padding(.horizontal, 18)
         .tickCard(tint: TickPalette.primaryAction)
@@ -262,11 +266,12 @@ private struct AutoTickRuleRowView: View {
         HStack(alignment: .top, spacing: 12) {
             TickProjectBadge(color: TickProjectAccent.color(for: rule.projectID), systemImage: "location.fill")
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(rule.name)
                             .font(.headline)
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
 
                         Text(projectName)
@@ -287,38 +292,33 @@ private struct AutoTickRuleRowView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    AutoTickRuleChip(title: "\(Int(rule.radiusMeters.rounded())) m", systemImage: "circle.dotted")
+                    Label("\(Int(rule.radiusMeters.rounded())) meter radius", systemImage: "circle.dotted")
 
-                    if rule.startsOnArrival {
-                        AutoTickRuleChip(title: "Arrival", systemImage: "arrow.down.to.line.compact")
-                    }
-
-                    if rule.stopsOnDeparture {
-                        AutoTickRuleChip(title: "Departure", systemImage: "arrow.up.from.line.compact")
-                    }
+                    Text(automationSummary)
+                        .font(.caption)
                 }
                 .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .accessibilityElement(children: .contain)
     }
 
     private var statusTint: Color {
         rule.isEnabled ? TickPalette.locationReady : .secondary
     }
-}
 
-private struct AutoTickRuleChip: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        Label(title, systemImage: systemImage)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.secondary.opacity(0.10), in: Capsule())
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+    private var automationSummary: String {
+        switch (rule.startsOnArrival, rule.stopsOnDeparture) {
+        case (true, true):
+            "Starts on arrival · stops on departure"
+        case (true, false):
+            "Starts on arrival"
+        case (false, true):
+            "Stops on departure"
+        case (false, false):
+            "No automation behavior"
+        }
     }
 }
