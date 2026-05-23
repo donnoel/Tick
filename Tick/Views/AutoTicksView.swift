@@ -67,6 +67,7 @@ struct AutoTicksView: View {
                     canAddRule: !viewModel.activeProjects.isEmpty,
                     addRule: { isAddingRule = true }
                 )
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
             } else {
                 ForEach(viewModel.autoTickRules) { rule in
@@ -76,6 +77,8 @@ struct AutoTicksView: View {
                             projectName: projectName(for: rule.projectID)
                         )
                     }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(ruleAccessibilityLabel(rule, projectName: projectName(for: rule.projectID)))
                     .accessibilityValue(ruleAccessibilityValue(rule))
@@ -116,10 +119,10 @@ private struct EmptyAutoTicksCard: View {
     let addRule: () -> Void
 
     var body: some View {
-        VStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .center, spacing: 18) {
             Image(systemName: "location.circle")
                 .font(.system(size: 42, weight: .regular))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(TickPalette.primaryAction)
                 .accessibilityHidden(true)
 
             VStack(alignment: .center, spacing: 6) {
@@ -138,16 +141,18 @@ private struct EmptyAutoTicksCard: View {
             Button {
                 addRule()
             } label: {
-                Label("Add Auto Tick", systemImage: "plus")
-                    .frame(minWidth: 150)
+                Text("Add Auto Tick")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
             .disabled(!canAddRule)
+            .frame(width: 180)
             .accessibilityHint(canAddRule ? "Create a location rule for automatic time tracking." : "Create a project before adding an Auto Tick rule.")
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.vertical, 28)
+        .padding(.vertical, 30)
         .padding(.horizontal, 18)
         .tickCard(tint: TickPalette.primaryAction)
         .accessibilityElement(children: .contain)
@@ -263,45 +268,50 @@ private struct AutoTickRuleRowView: View {
     let projectName: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            TickProjectBadge(color: TickProjectAccent.color(for: rule.projectID), systemImage: "location.fill")
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                TickProjectBadge(color: TickProjectAccent.color(for: rule.projectID), systemImage: "location.fill")
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(rule.name)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(rule.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-                        Text(projectName)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Text(rule.isEnabled ? "Enabled" : "Disabled")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(statusTint.opacity(0.14), in: Capsule())
-                        .foregroundStyle(statusTint)
+                    Text(projectName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("\(Int(rule.radiusMeters.rounded())) meter radius", systemImage: "circle.dotted")
+                Spacer(minLength: 8)
 
-                    Text(automationSummary)
-                        .font(.caption)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(rule.isEnabled ? "Enabled" : "Disabled")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(statusTint.opacity(0.14), in: Capsule())
+                    .foregroundStyle(statusTint)
+                    .lineLimit(1)
+            }
+
+            HStack(alignment: .top, spacing: 10) {
+                RuleMetric(
+                    title: "Radius",
+                    value: "\(Int(rule.radiusMeters.rounded())) m",
+                    systemImage: "circle.dotted"
+                )
+
+                RuleMetric(
+                    title: "Automation",
+                    value: automationSummary,
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
             }
         }
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .tickCard(tint: statusTint, isHighlighted: rule.isEnabled)
         .accessibilityElement(children: .contain)
     }
 
@@ -312,13 +322,38 @@ private struct AutoTickRuleRowView: View {
     private var automationSummary: String {
         switch (rule.startsOnArrival, rule.stopsOnDeparture) {
         case (true, true):
-            "Starts on arrival · stops on departure"
+            "Arrive + leave"
         case (true, false):
-            "Starts on arrival"
+            "Arrive"
         case (false, true):
-            "Stops on departure"
+            "Leave"
         case (false, false):
-            "No automation behavior"
+            "Off"
         }
+    }
+}
+
+private struct RuleMetric: View {
+    let title: String
+    let value: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(title, systemImage: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
     }
 }
