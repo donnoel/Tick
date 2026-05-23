@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TodayView: View {
     @Bindable var viewModel: TickViewModel
-    @State private var presentedSheet: TodaySheet?
+    @State private var isAddingTime = false
 
     var body: some View {
         NavigationStack {
@@ -20,23 +20,8 @@ struct TodayView: View {
                 .background(TickPalette.appBackground)
             }
             .navigationTitle("Today")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        presentedSheet = .addProject
-                    } label: {
-                        Label("Add Project", systemImage: "folder.badge.plus")
-                    }
-                    .accessibilityHint("Create a new project.")
-                }
-            }
-            .sheet(item: $presentedSheet) { sheet in
-                switch sheet {
-                case .addProject:
-                    AddProjectView(viewModel: viewModel)
-                case .addTime:
-                    ManualTimeEntryView(viewModel: viewModel)
-                }
+            .sheet(isPresented: $isAddingTime) {
+                ManualTimeEntryView(viewModel: viewModel)
             }
         }
     }
@@ -59,7 +44,7 @@ struct TodayView: View {
                 ContentUnavailableView(
                     "No Projects",
                     systemImage: "folder.badge.plus",
-                    description: Text("Add a project to start tracking time.")
+                    description: Text("Add a project from the Projects tab to start tracking time.")
                 )
                 .frame(maxWidth: .infinity)
             } else {
@@ -95,7 +80,7 @@ struct TodayView: View {
             .accessibilityHint(actionAccessibilityHint)
 
             Button {
-                presentedSheet = .addTime
+                isAddingTime = true
             } label: {
                 Label("Add Time", systemImage: "plus.circle")
                     .frame(maxWidth: .infinity)
@@ -168,20 +153,6 @@ struct TodayView: View {
                     (session.id, "\(index + 1) Tick")
                 }
         )
-    }
-}
-
-private enum TodaySheet: Identifiable {
-    case addProject
-    case addTime
-
-    var id: Int {
-        switch self {
-        case .addProject:
-            1
-        case .addTime:
-            2
-        }
     }
 }
 
