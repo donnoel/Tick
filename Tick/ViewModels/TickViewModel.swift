@@ -7,6 +7,8 @@ import WidgetKit
 final class TickViewModel {
     private let store: TickDataStore
     private let locationService: AutoTickLocationService
+    private let iCloudSyncStore: TickICloudSyncStore?
+    @ObservationIgnored private var iCloudSyncObserver: NSObjectProtocol?
 
     private(set) var projects: [TickProject] = []
     private(set) var sessions: [TimeSession] = []
@@ -19,10 +21,25 @@ final class TickViewModel {
     var errorMessage: String?
     private(set) var hasLoaded = false
 
-    init(store: TickDataStore = TickDataStore()) {
-        let locationService = AutoTickLocationService()
+    init() {
+        self.store = TickDataStore()
+        self.locationService = AutoTickLocationService()
+        self.iCloudSyncStore = TickICloudSyncStore()
+
+        let locationState = locationService.currentState
+        self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
+        self.latestAutoTickCoordinate = locationState.latestCoordinate
+        self.autoTickLocationMessage = locationState.statusMessage
+        self.autoTickLocationErrorMessage = locationState.errorMessage
+
+        configureLocationServiceCallbacks()
+        configureICloudSyncCallbacks()
+    }
+
+    init(store: TickDataStore) {
         self.store = store
-        self.locationService = locationService
+        self.locationService = AutoTickLocationService()
+        self.iCloudSyncStore = nil
 
         let locationState = locationService.currentState
         self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
@@ -33,9 +50,10 @@ final class TickViewModel {
         configureLocationServiceCallbacks()
     }
 
-    init(store: TickDataStore, locationService: AutoTickLocationService) {
+    init(store: TickDataStore, locationService: AutoTickLocationService, iCloudSyncStore: TickICloudSyncStore? = nil) {
         self.store = store
         self.locationService = locationService
+        self.iCloudSyncStore = iCloudSyncStore
 
         let locationState = locationService.currentState
         self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
@@ -44,6 +62,13 @@ final class TickViewModel {
         self.autoTickLocationErrorMessage = locationState.errorMessage
 
         configureLocationServiceCallbacks()
+        configureICloudSyncCallbacks()
+    }
+
+    deinit {
+        if let iCloudSyncObserver {
+            NotificationCenter.default.removeObserver(iCloudSyncObserver)
+        }
     }
 
     private func configureLocationServiceCallbacks() {
@@ -53,6 +78,22 @@ final class TickViewModel {
         locationService.regionEventHandler = { [weak self] ruleID, event in
             Task { @MainActor in
                 await self?.handleAutoTickEvent(ruleID: ruleID, event: event)
+            }
+        }
+    }
+
+    private func configureICloudSyncCallbacks() {
+        guard iCloudSyncStore != nil else {
+            return
+        }
+
+        iCloudSyncObserver = NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.applyRemoteICloudSnapshotIfNeeded()
             }
         }
     }
@@ -80,14 +121,12 @@ final class TickViewModel {
     func reload() async {
         do {
             let snapshot = try await store.load()
-            projects = snapshot.projects.sorted { $0.createdAt < $1.createdAt }
-            sessions = snapshot.sessions.sorted { $0.referenceDate > $1.referenceDate }
-            autoTickRules = snapshot.autoTickRules.sorted { $0.createdAt < $1.createdAt }
-            if let activeSession {
-                selectedProjectID = activeSession.projectID
-            } else if selectedProjectID.flatMap(project(for:)) == nil {
-                selectedProjectID = activeProjects.first?.id
-            }
+            let localModifiedAt = try? await store.modificationDate()
+            let resolvedSnapshot = await resolveICloudSnapshot(
+                localSnapshot: snapshot,
+                localModifiedAt: localModifiedAt
+            )
+            apply(storageSnapshot: resolvedSnapshot)
             hasLoaded = true
             refreshAutoTickMonitoring()
             await refreshWidgetSnapshot()
@@ -470,19 +509,93 @@ final class TickViewModel {
     }
 
     private func persist() async {
+        let snapshot = TickStorageSnapshot(
+            projects: projects,
+            sessions: sessions,
+            autoTickRules: autoTickRules
+        )
+
         do {
-            try await store.save(
-                TickStorageSnapshot(
-                    projects: projects,
-                    sessions: sessions,
-                    autoTickRules: autoTickRules
-                )
-            )
-            errorMessage = nil
+            try await store.save(snapshot)
+            do {
+                try iCloudSyncStore?.save(snapshot)
+                errorMessage = nil
+            } catch {
+                errorMessage = "Tick saved locally but could not sync with iCloud. \(error.localizedDescription)"
+            }
             refreshAutoTickMonitoring()
             await refreshWidgetSnapshot()
         } catch {
             errorMessage = "Tick could not save your changes. \(error.localizedDescription)"
+        }
+    }
+
+    private func resolveICloudSnapshot(
+        localSnapshot: TickStorageSnapshot,
+        localModifiedAt: Date?
+    ) async -> TickStorageSnapshot {
+        guard let iCloudSyncStore else {
+            return localSnapshot
+        }
+
+        do {
+            let resolution = iCloudSyncStore.resolve(
+                localSnapshot: localSnapshot,
+                localModifiedAt: localModifiedAt,
+                remoteEnvelope: try iCloudSyncStore.loadEnvelope()
+            )
+
+            if resolution.shouldSaveLocal {
+                try await store.save(resolution.snapshot)
+            }
+
+            if resolution.shouldSaveRemote {
+                try iCloudSyncStore.save(resolution.snapshot)
+            }
+
+            return resolution.snapshot
+        } catch {
+            errorMessage = "Tick could not sync iCloud data. \(error.localizedDescription)"
+            return localSnapshot
+        }
+    }
+
+    private func applyRemoteICloudSnapshotIfNeeded() async {
+        do {
+            let localSnapshot = try await store.load()
+            let localModifiedAt = try? await store.modificationDate()
+            let resolvedSnapshot = await resolveICloudSnapshot(
+                localSnapshot: localSnapshot,
+                localModifiedAt: localModifiedAt
+            )
+
+            if resolvedSnapshot != currentStorageSnapshot {
+                apply(storageSnapshot: resolvedSnapshot)
+                refreshAutoTickMonitoring()
+                await refreshWidgetSnapshot()
+            }
+        } catch {
+            errorMessage = "Tick could not apply iCloud changes. \(error.localizedDescription)"
+        }
+    }
+
+    private var currentStorageSnapshot: TickStorageSnapshot {
+        TickStorageSnapshot(
+            projects: projects,
+            sessions: sessions,
+            autoTickRules: autoTickRules
+        )
+    }
+
+    private func apply(storageSnapshot: TickStorageSnapshot) {
+        projects = storageSnapshot.projects.sorted { $0.createdAt < $1.createdAt }
+        sessions = storageSnapshot.sessions.sorted { $0.referenceDate > $1.referenceDate }
+        autoTickRules = storageSnapshot.autoTickRules.sorted { $0.createdAt < $1.createdAt }
+
+        if let activeSession {
+            selectedProjectID = activeSession.projectID
+        } else if selectedProjectID.flatMap(project(for:)) == nil {
+            selectedProjectID = activeProjects.first?.id
         }
     }
 

@@ -11,15 +11,27 @@ nonisolated final class TickWidgetActionStore {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
     private let fileManager: FileManager
+    private let iCloudSyncStore: TickWidgetICloudSyncStore?
+
+    convenience init() {
+        self.init(
+            dataFileURL: TickSharedStorage.dataFileURL(),
+            widgetSnapshotFileURL: TickSharedStorage.widgetSnapshotFileURL(),
+            fileManager: .default,
+            iCloudSyncStore: TickWidgetICloudSyncStore()
+        )
+    }
 
     init(
-        dataFileURL: URL = TickSharedStorage.dataFileURL(),
-        widgetSnapshotFileURL: URL = TickSharedStorage.widgetSnapshotFileURL(),
-        fileManager: FileManager = .default
+        dataFileURL: URL,
+        widgetSnapshotFileURL: URL,
+        fileManager: FileManager = .default,
+        iCloudSyncStore: TickWidgetICloudSyncStore? = nil
     ) {
         self.dataFileURL = dataFileURL
         self.widgetSnapshotFileURL = widgetSnapshotFileURL
         self.fileManager = fileManager
+        self.iCloudSyncStore = iCloudSyncStore
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -149,5 +161,6 @@ nonisolated final class TickWidgetActionStore {
         )
         let data = try encoder.encode(snapshot)
         try data.write(to: dataFileURL, options: [.atomic])
+        try iCloudSyncStore?.save(snapshot)
     }
 }

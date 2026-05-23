@@ -46,6 +46,15 @@ actor TickDataStore {
         try data.write(to: fileURL, options: [.atomic])
     }
 
+    func modificationDate() throws -> Date? {
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+
+        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+        return attributes[.modificationDate] as? Date
+    }
+
     private func migrateLegacyStoreIfNeeded() throws {
         guard let legacyFileURL,
               legacyFileURL != fileURL,

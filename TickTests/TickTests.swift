@@ -118,6 +118,46 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(loadedSnapshot, snapshot)
     }
 
+    func testICloudResolutionUsesNewerRemoteSnapshot() {
+        let project = TickProject(name: "Synced", createdAt: Date(timeIntervalSince1970: 100))
+        let localSnapshot = TickStorageSnapshot.empty
+        let remoteSnapshot = TickStorageSnapshot(projects: [project], sessions: [])
+        let syncStore = TickICloudSyncStore()
+
+        let resolution = syncStore.resolve(
+            localSnapshot: localSnapshot,
+            localModifiedAt: Date(timeIntervalSince1970: 100),
+            remoteEnvelope: (
+                snapshot: remoteSnapshot,
+                updatedAt: Date(timeIntervalSince1970: 200)
+            )
+        )
+
+        XCTAssertEqual(resolution.snapshot, remoteSnapshot)
+        XCTAssertTrue(resolution.shouldSaveLocal)
+        XCTAssertFalse(resolution.shouldSaveRemote)
+    }
+
+    func testICloudResolutionPushesNewerLocalSnapshot() {
+        let project = TickProject(name: "Local", createdAt: Date(timeIntervalSince1970: 100))
+        let localSnapshot = TickStorageSnapshot(projects: [project], sessions: [])
+        let remoteSnapshot = TickStorageSnapshot.empty
+        let syncStore = TickICloudSyncStore()
+
+        let resolution = syncStore.resolve(
+            localSnapshot: localSnapshot,
+            localModifiedAt: Date(timeIntervalSince1970: 300),
+            remoteEnvelope: (
+                snapshot: remoteSnapshot,
+                updatedAt: Date(timeIntervalSince1970: 200)
+            )
+        )
+
+        XCTAssertEqual(resolution.snapshot, localSnapshot)
+        XCTAssertFalse(resolution.shouldSaveLocal)
+        XCTAssertTrue(resolution.shouldSaveRemote)
+    }
+
     func testStorageSnapshotDefaultsMissingAutoTickRules() throws {
         let data = Data(#"{"projects":[],"sessions":[]}"#.utf8)
 

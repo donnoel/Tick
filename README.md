@@ -18,11 +18,13 @@ Current MVP foundation:
 - view today's tracked time and sessions
 - review simple daily, weekly, and monthly summaries
 - persist local data between launches
+- sync Tick data between iPhone and iPad with iCloud Key-Value Store
 
 ## Requirements
 - macOS with Xcode installed
 - Xcode with an iOS Simulator
 - SwiftUI
+- iCloud capability for device-to-device sync builds
 
 ## Getting Started
 1. Open `Tick.xcodeproj`
@@ -60,6 +62,7 @@ Tick/
 - [x] Add timer-session editing for title and notes
 - [x] Add Auto Ticks foundation
 - [x] Add Home Screen and Lock Screen widget foundation
+- [x] Add iCloud Key-Value Store sync foundation
 - [ ] Add project archiving UI
 - [ ] Add map/search support for Auto Tick locations
 - [ ] Add charts and export after the local foundation is stable
