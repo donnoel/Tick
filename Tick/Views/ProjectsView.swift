@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectsView: View {
     let viewModel: TickViewModel
     @State private var isAddingProject = false
+    @State private var deletionMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,9 @@ struct ProjectsView: View {
                             }
                             .accessibilityHint("Opens project details.")
                         }
+                        .onDelete { indexSet in
+                            deleteProjects(at: indexSet, from: viewModel.activeProjects)
+                        }
                     }
                 }
             }
@@ -44,6 +48,33 @@ struct ProjectsView: View {
             }
             .sheet(isPresented: $isAddingProject) {
                 AddProjectView(viewModel: viewModel)
+            }
+            .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deletionMessage ?? "Tick could not delete that project.")
+            }
+        }
+    }
+
+    private var deletionAlertIsPresented: Binding<Bool> {
+        Binding {
+            deletionMessage != nil
+        } set: { isPresented in
+            if !isPresented {
+                deletionMessage = nil
+            }
+        }
+    }
+
+    private func deleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
+        Task {
+            for index in indexSet {
+                let didDelete = await viewModel.deleteProject(id: projects[index].id)
+                if !didDelete {
+                    deletionMessage = viewModel.errorMessage ?? "Tick could not delete that project."
+                    return
+                }
             }
         }
     }

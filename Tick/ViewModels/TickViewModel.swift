@@ -119,6 +119,30 @@ final class TickViewModel {
     }
 
     @discardableResult
+    func deleteProject(id: TickProject.ID) async -> Bool {
+        guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that project."
+            return false
+        }
+
+        guard activeSession?.projectID != id else {
+            errorMessage = "Stop the active Tick before deleting this project."
+            return false
+        }
+
+        projects.remove(at: projectIndex)
+        sessions.removeAll { $0.projectID == id }
+        autoTickRules.removeAll { $0.projectID == id }
+
+        if selectedProjectID == id {
+            selectedProjectID = activeProjects.first?.id
+        }
+
+        await persist()
+        return true
+    }
+
+    @discardableResult
     func startTick(at date: Date = .now) async -> Bool {
         guard activeSession == nil else {
             errorMessage = "Stop the current Tick before starting another one."

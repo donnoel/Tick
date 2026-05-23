@@ -51,7 +51,7 @@ struct ProjectDetailView: View {
         }
         .navigationTitle(project.name)
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Could Not Delete Session", isPresented: deletionAlertIsPresented) {
+        .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(deletionMessage ?? "Tick could not delete that session.")
