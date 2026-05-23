@@ -11,18 +11,22 @@ enum TickPalette {
 enum TickProjectAccent {
     private static let colors: [Color] = [
         .blue,
-        .green,
-        .purple,
-        .orange,
         .pink,
-        .teal,
+        .orange,
+        .purple,
+        .green,
         .indigo,
-        .yellow,
-        .cyan,
-        .red,
         .mint,
+        .red,
+        .cyan,
+        .yellow,
+        .teal,
         .brown
     ]
+
+    static func color(for project: TickProject, in projects: [TickProject]) -> Color {
+        colors[index(for: project, in: projects)]
+    }
 
     static func color(for projectID: UUID) -> Color {
         colors[index(for: projectID.uuidString)]
@@ -30,6 +34,27 @@ enum TickProjectAccent {
 
     static func color(for projectName: String) -> Color {
         colors[index(for: projectName)]
+    }
+
+    static func index(for project: TickProject, in projects: [TickProject]) -> Int {
+        let orderedProjects = projects.sorted { lhs, rhs in
+            if lhs.createdAt != rhs.createdAt {
+                return lhs.createdAt < rhs.createdAt
+            }
+
+            let nameComparison = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+            if nameComparison != .orderedSame {
+                return nameComparison == .orderedAscending
+            }
+
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+
+        guard let projectIndex = orderedProjects.firstIndex(where: { $0.id == project.id }) else {
+            return index(for: project.id.uuidString)
+        }
+
+        return projectIndex % colors.count
     }
 
     static func index(for seed: String) -> Int {

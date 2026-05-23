@@ -22,6 +22,7 @@ struct ProjectsView: View {
                             } label: {
                                 ProjectRowView(
                                     project: project,
+                                    projects: viewModel.activeProjects,
                                     duration: viewModel.totalDuration(for: project.id)
                                 )
                             }
@@ -82,11 +83,12 @@ struct ProjectsView: View {
 
 private struct ProjectRowView: View {
     let project: TickProject
+    let projects: [TickProject]
     let duration: TimeInterval
 
     var body: some View {
         HStack(spacing: 12) {
-            TickProjectBadge(color: TickProjectAccent.color(for: project.id), systemImage: "folder.fill")
+            TickProjectBadge(color: TickProjectAccent.color(for: project, in: projects), systemImage: "folder.fill")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)
