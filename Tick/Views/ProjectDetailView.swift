@@ -34,7 +34,8 @@ struct ProjectDetailView: View {
                                     projectID: project.id,
                                     projectName: project.name,
                                     displayDate: timeline.date,
-                                    defaultTitle: defaultTitle(for: session, in: projectSessions)
+                                    defaultTitle: defaultTitle(for: session, in: projectSessions),
+                                    detailStyle: .date
                                 )
                             }
                             .buttonStyle(.plain)
