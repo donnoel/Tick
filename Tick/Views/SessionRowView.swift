@@ -72,7 +72,7 @@ struct SessionRowView: View {
         }
 
         if session.entrySource == .manual {
-            return "Added for \(formattedTime(session.referenceDate))"
+            return formattedDate(session.referenceDate)
         }
 
         guard let endedAt = session.endedAt else {
@@ -125,5 +125,9 @@ struct SessionRowView: View {
         }
 
         return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func formattedDate(_ date: Date) -> String {
+        date.formatted(date: .abbreviated, time: .omitted)
     }
 }
