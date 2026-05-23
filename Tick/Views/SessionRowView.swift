@@ -1,11 +1,17 @@
 import SwiftUI
 
 struct SessionRowView: View {
+    enum DetailStyle {
+        case time
+        case date
+    }
+
     let session: TimeSession
     let projectID: TickProject.ID
     let projectName: String
     let displayDate: Date
     let defaultTitle: String
+    var detailStyle: DetailStyle = .time
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -67,6 +73,10 @@ struct SessionRowView: View {
     }
 
     private var timeDescription: String {
+        if detailStyle == .date && !session.isActive {
+            return formattedDate(session.referenceDate)
+        }
+
         if session.isActive {
             return "Running since \(formattedTime(session.startedAt))"
         }
