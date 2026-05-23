@@ -63,48 +63,23 @@ struct AutoTicksView: View {
     private var rulesSection: some View {
         Section("Rules") {
             if viewModel.autoTickRules.isEmpty {
-                ContentUnavailableView(
-                    label: {
-                        Label("No Auto Ticks yet", systemImage: "location.circle")
-                    },
-                    description: {
-                        Text("Add a place and Tick can start or stop for you.")
-                    },
-                    actions: {
-                        Button {
-                            isAddingRule = true
-                        } label: {
-                            Label("Add Auto Tick", systemImage: "plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.activeProjects.isEmpty)
-                        .accessibilityHint("Create a location rule for automatic time tracking.")
-                    }
+                EmptyAutoTicksCard(
+                    canAddRule: !viewModel.activeProjects.isEmpty,
+                    addRule: { isAddingRule = true }
                 )
+                .listRowBackground(Color.clear)
             } else {
                 ForEach(viewModel.autoTickRules) { rule in
-                    HStack(spacing: 12) {
-                        NavigationLink(value: rule.id) {
-                            AutoTickRuleRowView(
-                                rule: rule,
-                                projectName: projectName(for: rule.projectID)
-                            )
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(ruleAccessibilityLabel(rule, projectName: projectName(for: rule.projectID)))
-                        .accessibilityValue(ruleAccessibilityValue(rule))
-                        .accessibilityHint("Opens this Auto Tick rule for editing.")
-
-                        Toggle("Enabled", isOn: Binding {
-                            viewModel.autoTickRule(for: rule.id)?.isEnabled ?? rule.isEnabled
-                        } set: { isEnabled in
-                            Task {
-                                await viewModel.setAutoTickRule(rule.id, isEnabled: isEnabled)
-                            }
-                        })
-                        .labelsHidden()
-                        .accessibilityLabel("\(rule.name) enabled")
+                    NavigationLink(value: rule.id) {
+                        AutoTickRuleRowView(
+                            rule: rule,
+                            projectName: projectName(for: rule.projectID)
+                        )
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(ruleAccessibilityLabel(rule, projectName: projectName(for: rule.projectID)))
+                    .accessibilityValue(ruleAccessibilityValue(rule))
+                    .accessibilityHint("Opens this Auto Tick rule for editing.")
                 }
             }
         }
@@ -133,6 +108,45 @@ struct AutoTicksView: View {
         case (false, false):
             "no automation behavior"
         }
+    }
+}
+
+private struct EmptyAutoTicksCard: View {
+    let canAddRule: Bool
+    let addRule: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "location.circle")
+                .font(.system(size: 42, weight: .regular))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 6) {
+                Text("No Auto Ticks yet")
+                    .font(.headline)
+
+                Text("Add a place and Tick can start or stop for you.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                addRule()
+            } label: {
+                Label("Add Auto Tick", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .disabled(!canAddRule)
+            .accessibilityHint(canAddRule ? "Create a location rule for automatic time tracking." : "Create a project before adding an Auto Tick rule.")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 18)
+        .tickCard(tint: TickPalette.primaryAction)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -248,18 +262,20 @@ private struct AutoTickRuleRowView: View {
         HStack(alignment: .top, spacing: 12) {
             TickProjectBadge(color: TickProjectAccent.color(for: rule.projectID), systemImage: "location.fill")
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(rule.name)
                             .font(.headline)
+                            .lineLimit(1)
 
                         Text(projectName)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
 
-                    Spacer()
+                    Spacer(minLength: 8)
 
                     Text(rule.isEnabled ? "Enabled" : "Disabled")
                         .font(.caption.weight(.semibold))
@@ -267,29 +283,42 @@ private struct AutoTickRuleRowView: View {
                         .padding(.vertical, 4)
                         .background(statusTint.opacity(0.14), in: Capsule())
                         .foregroundStyle(statusTint)
+                        .lineLimit(1)
                 }
 
-                HStack(spacing: 12) {
-                    Label("\(Int(rule.radiusMeters.rounded())) m", systemImage: "circle.dotted")
+                VStack(alignment: .leading, spacing: 6) {
+                    AutoTickRuleChip(title: "\(Int(rule.radiusMeters.rounded())) m", systemImage: "circle.dotted")
 
                     if rule.startsOnArrival {
-                        Label("Arrival", systemImage: "arrow.down.to.line.compact")
+                        AutoTickRuleChip(title: "Arrival", systemImage: "arrow.down.to.line.compact")
                     }
 
                     if rule.stopsOnDeparture {
-                        Label("Departure", systemImage: "arrow.up.from.line.compact")
+                        AutoTickRuleChip(title: "Departure", systemImage: "arrow.up.from.line.compact")
                     }
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .contain)
     }
 
     private var statusTint: Color {
         rule.isEnabled ? TickPalette.locationReady : .secondary
+    }
+}
+
+private struct AutoTickRuleChip: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.secondary.opacity(0.10), in: Capsule())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
