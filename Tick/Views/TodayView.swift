@@ -19,7 +19,7 @@ struct TodayView: View {
                 }
                 .background(TickPalette.appBackground)
             }
-            .navigationTitle("Today")
+            .navigationTitle("Start Ticking")
             .sheet(isPresented: $isAddingTime) {
                 ManualTimeEntryView(viewModel: viewModel)
             }
@@ -165,7 +165,7 @@ private struct TodayHeroCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Label(activeSession == nil ? "Today" : "Running", systemImage: activeSession == nil ? "clock" : "timer")
+                Label(activeSession == nil ? "Today’s Total" : "Running", systemImage: activeSession == nil ? "clock" : "timer")
                     .font(.headline)
                     .foregroundStyle(activeSession == nil ? TickPalette.primaryAction : TickPalette.running)
 
