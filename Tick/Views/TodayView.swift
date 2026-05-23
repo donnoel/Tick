@@ -205,7 +205,7 @@ private struct TodayHeroCard: View {
     }
 
     private var secondaryText: String {
-        if let activeSession {
+        if activeSession != nil {
             return "Today's total: \(TickDurationFormatter.shortString(from: totalDuration))"
         }
 
