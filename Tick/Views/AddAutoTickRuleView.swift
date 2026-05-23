@@ -6,7 +6,7 @@ struct AddAutoTickRuleView: View {
     @State private var projectID: TickProject.ID?
     @State private var name = ""
     @State private var coordinate: AutoTickCoordinate?
-    @State private var radiusMeters = 150.0
+    @State private var radiusMeters = 50.0
     @State private var startsOnArrival = true
     @State private var stopsOnDeparture = true
     @State private var isEnabled = true
