@@ -31,10 +31,12 @@ struct ManualTimeEntryView: View {
                 Section("Details") {
                     TextField("Title", text: $title)
                         .textInputAutocapitalization(.sentences)
+                        .accessibilityIdentifier("manualTime.titleField")
 
                     TextField("Notes", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
                         .textInputAutocapitalization(.sentences)
+                        .accessibilityIdentifier("manualTime.notesField")
                 }
 
                 Section("Time") {
@@ -74,6 +76,7 @@ struct ManualTimeEntryView: View {
                         }
                     }
                     .disabled(projectID == nil || duration <= 0)
+                    .accessibilityIdentifier("manualTime.saveButton")
                 }
             }
         }

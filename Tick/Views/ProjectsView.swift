@@ -44,6 +44,7 @@ struct ProjectsView: View {
                     } label: {
                         Label("Add Project", systemImage: "plus")
                     }
+                    .accessibilityIdentifier("projects.addProjectButton")
                     .accessibilityHint("Create a new project for Tick sessions.")
                 }
             }

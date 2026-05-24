@@ -57,6 +57,7 @@ struct SessionDetailView: View {
                     }
                 }
                 .disabled(projectID == nil)
+                .accessibilityIdentifier("sessionDetail.saveButton")
             }
         }
     }
@@ -77,6 +78,7 @@ struct SessionDetailView: View {
 
                 TextField("Title", text: $title)
                     .textInputAutocapitalization(.sentences)
+                    .accessibilityIdentifier("sessionDetail.titleField")
                     .accessibilityLabel("Title")
                     .accessibilityHint("Edit the short title for this session.")
 

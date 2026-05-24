@@ -17,6 +17,17 @@ nonisolated enum TickSharedStorage {
         containerURL(fileManager: fileManager).appendingPathComponent(widgetSnapshotFileName)
     }
 
+    /// UI-test only reset hook, enabled by `-resetDataForUITests`.
+    static func resetForUITests(fileManager: FileManager = .default) {
+        let currentDataURL = dataFileURL(fileManager: fileManager)
+        let currentWidgetURL = widgetSnapshotFileURL(fileManager: fileManager)
+        let legacyDataURL = legacyDataFileURL(fileManager: fileManager)
+
+        try? fileManager.removeItem(at: currentDataURL)
+        try? fileManager.removeItem(at: currentWidgetURL)
+        try? fileManager.removeItem(at: legacyDataURL)
+    }
+
     private static func containerURL(fileManager: FileManager) -> URL {
         if let groupURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
             return groupURL.appendingPathComponent("Tick", isDirectory: true)

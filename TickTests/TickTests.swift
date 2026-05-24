@@ -173,6 +173,7 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(TickProjectAccent.index(for: "PiSignage"), TickProjectAccent.index(for: "PiSignage"))
     }
 
+    @MainActor
     func testProjectAccentAssignmentDistributesSampleProjects() {
         let sampleProjectNames = ["PiSignage", "Earth Pulse", "Coloring Room", "Briefly"]
         let accentIndexes = Set(sampleProjectNames.map(TickProjectAccent.index(for:)))

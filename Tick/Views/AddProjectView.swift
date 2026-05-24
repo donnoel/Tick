@@ -12,6 +12,7 @@ struct AddProjectView: View {
                     TextField("Name", text: $projectName)
                         .textInputAutocapitalization(.words)
                         .submitLabel(.done)
+                        .accessibilityIdentifier("addProject.nameField")
                         .accessibilityHint("Enter a short project name.")
                 }
             }
@@ -34,6 +35,7 @@ struct AddProjectView: View {
                         }
                     }
                     .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("addProject.saveButton")
                 }
             }
         }

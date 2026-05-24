@@ -77,6 +77,7 @@ struct TodayView: View {
             .controlSize(.large)
             .tint(viewModel.activeSession == nil ? TickPalette.primaryAction : TickPalette.running)
             .disabled(viewModel.activeSession == nil && viewModel.selectedProjectID == nil)
+            .accessibilityIdentifier("today.startStopButton")
             .accessibilityHint(actionAccessibilityHint)
 
             Button {
@@ -89,6 +90,7 @@ struct TodayView: View {
             .controlSize(.large)
             .tint(TickPalette.primaryAction)
             .disabled(viewModel.activeProjects.isEmpty)
+            .accessibilityIdentifier("today.addTimeButton")
             .accessibilityHint("Add time manually when you forgot to start Tick.")
         }
     }
@@ -100,6 +102,7 @@ struct TodayView: View {
         return VStack(alignment: .leading, spacing: 12) {
             Text("Today's Ticks")
                 .font(.headline)
+                .accessibilityIdentifier("today.sessionsHeader")
 
             if sessions.isEmpty {
                 Text("No time tracked yet today.")
