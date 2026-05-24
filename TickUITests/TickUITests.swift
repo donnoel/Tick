@@ -174,15 +174,17 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
         app.staticTexts[projectName].tap()
 
-        let projectSessionRow = app.staticTexts[sessionTitle]
-        XCTAssertTrue(projectSessionRow.waitForExistence(timeout: 5))
+        let projectSessionRowText = app.staticTexts[sessionTitle]
+        XCTAssertTrue(projectSessionRowText.waitForExistence(timeout: 5))
 
+        let projectSessionRow = app.cells.containing(.staticText, identifier: sessionTitle).firstMatch
+        XCTAssertTrue(projectSessionRow.waitForExistence(timeout: 5))
         projectSessionRow.swipeLeft()
         let deleteButton = app.buttons["Delete"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.tap()
 
-        XCTAssertFalse(projectSessionRow.waitForExistence(timeout: 5))
+        XCTAssertFalse(projectSessionRowText.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No Ticks yet"].waitForExistence(timeout: 5))
     }
 }
