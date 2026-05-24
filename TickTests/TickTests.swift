@@ -91,6 +91,140 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(summary.durationByProject.map(\.duration), [3_600, 1_800])
     }
 
+    func testProjectChartExcludesZeroDurationProjects() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let zeroDurationProject = TickProject(id: UUID(), name: "Zero", createdAt: referenceDate)
+        let trackedProject = TickProject(id: UUID(), name: "Tracked", createdAt: referenceDate)
+        let trackedSession = TimeSession(
+            projectID: trackedProject.id,
+            title: "",
+            notes: "",
+            startedAt: referenceDate,
+            endedAt: referenceDate.addingTimeInterval(3_600),
+            manualDuration: nil,
+            entrySource: .timer
+        )
+
+        let entries = TickChartDataBuilder.projectEntries(
+            for: .day,
+            projects: [zeroDurationProject, trackedProject],
+            sessions: [trackedSession],
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.projectID, trackedProject.id)
+    }
+
+    func testProjectChartIncludesArchivedProjectWithTime() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let archivedProject = TickProject(
+            id: UUID(),
+            name: "Archived",
+            createdAt: referenceDate,
+            isArchived: true
+        )
+        let session = TimeSession(
+            projectID: archivedProject.id,
+            title: "",
+            notes: "",
+            startedAt: referenceDate,
+            endedAt: referenceDate.addingTimeInterval(1_800),
+            manualDuration: nil,
+            entrySource: .timer
+        )
+
+        let entries = TickChartDataBuilder.projectEntries(
+            for: .day,
+            projects: [archivedProject],
+            sessions: [session],
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(entries.map(\.projectID), [archivedProject.id])
+    }
+
+    func testWeeklyDayChartReturnsSevenOrderedDays() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 2
+
+        let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let entries = TickChartDataBuilder.dayEntries(
+            for: .week,
+            sessions: [],
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(entries.count, 7)
+        XCTAssertTrue(zip(entries, entries.dropFirst()).allSatisfy { lhs, rhs in
+            lhs.date < rhs.date
+        })
+    }
+
+    func testMonthlyDayChartReturnsOrderedDaysForMonth() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let referenceDate = Date(timeIntervalSince1970: 1_709_251_200) // 2024-03-15 00:00:00 UTC
+
+        let entries = TickChartDataBuilder.dayEntries(
+            for: .month,
+            sessions: [],
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(entries.count, 31)
+        XCTAssertTrue(zip(entries, entries.dropFirst()).allSatisfy { lhs, rhs in
+            lhs.date < rhs.date
+        })
+    }
+
+    func testActiveRunningSessionContributesChartDurationAtDisplayDate() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let project = TickProject(id: UUID(), name: "Active", createdAt: Date(timeIntervalSince1970: 0))
+        let startDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let displayDate = startDate.addingTimeInterval(1_800)
+        let activeSession = TimeSession(
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: startDate,
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: .timer
+        )
+
+        let projectEntries = TickChartDataBuilder.projectEntries(
+            for: .day,
+            projects: [project],
+            sessions: [activeSession],
+            referenceDate: displayDate,
+            calendar: calendar
+        )
+        let dayEntries = TickChartDataBuilder.dayEntries(
+            for: .week,
+            sessions: [activeSession],
+            referenceDate: displayDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(projectEntries.first?.duration ?? 0, 1_800, accuracy: 0.1)
+        XCTAssertEqual(dayEntries.reduce(0) { $0 + $1.duration }, 1_800, accuracy: 0.1)
+    }
+
     func testDataStoreRoundTripsSnapshot() async throws {
         let fileURL = temporaryStoreURL()
         defer {

@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 struct SummariesView: View {
@@ -8,6 +9,17 @@ struct SummariesView: View {
         NavigationStack {
             TimelineView(.periodic(from: .now, by: 60)) { timeline in
                 let summary = viewModel.summary(for: selectedPeriod, at: timeline.date)
+                let projectChartEntries = TickChartDataBuilder.projectEntries(
+                    for: selectedPeriod,
+                    projects: viewModel.projects,
+                    sessions: viewModel.sessions,
+                    referenceDate: timeline.date
+                )
+                let dayChartEntries = TickChartDataBuilder.dayEntries(
+                    for: selectedPeriod,
+                    sessions: viewModel.sessions,
+                    referenceDate: timeline.date
+                )
 
                 List {
                     Section {
@@ -30,6 +42,57 @@ struct SummariesView: View {
                     }
                     .listRowBackground(Color.clear)
 
+                    Section("Time by Project") {
+                        if projectChartEntries.isEmpty {
+                            Text("No time tracked in this period.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Chart(projectChartEntries) { entry in
+                                BarMark(
+                                    x: .value("Duration", entry.hours),
+                                    y: .value("Project", entry.projectName)
+                                )
+                                .foregroundStyle(TickProjectAccent.color(for: entry.projectID))
+                                .accessibilityLabel(entry.projectName)
+                                .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
+                            }
+                            .chartXAxisLabel("Hours")
+                            .frame(minHeight: 220)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(projectChartAccessibilityLabel(for: projectChartEntries))
+                        }
+                    }
+
+                    if selectedPeriod != .day {
+                        Section("Time by Day") {
+                            if dayChartEntries.allSatisfy({ $0.duration == 0 }) {
+                                Text("No time tracked in this period.")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Chart(dayChartEntries) { entry in
+                                    BarMark(
+                                        x: .value("Day", entry.date, unit: .day),
+                                        y: .value("Duration", entry.hours)
+                                    )
+                                    .foregroundStyle(TickPalette.primaryAction)
+                                    .accessibilityLabel(entry.date.formatted(date: .abbreviated, time: .omitted))
+                                    .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
+                                }
+                                .chartXAxis {
+                                    AxisMarks(values: .stride(by: .day)) { value in
+                                        AxisGridLine()
+                                        AxisTick()
+                                        AxisValueLabel(format: selectedPeriod == .week ? .dateTime.weekday(.narrow) : .dateTime.day())
+                                    }
+                                }
+                                .chartYAxisLabel("Hours")
+                                .frame(minHeight: 220)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(dayChartAccessibilityLabel(for: dayChartEntries))
+                            }
+                        }
+                    }
+
                     Section("By Project") {
                         if summary.durationByProject.isEmpty {
                             Text("No time tracked in this period.")
@@ -49,6 +112,22 @@ struct SummariesView: View {
             }
             .navigationTitle("Summaries")
         }
+    }
+
+    private func projectChartAccessibilityLabel(for entries: [TickProjectChartEntry]) -> String {
+        let details = entries.map { entry in
+            "\(entry.projectName) \(TickDurationFormatter.shortString(from: entry.duration))"
+        }.joined(separator: ", ")
+
+        return "Time by Project chart, \(details)."
+    }
+
+    private func dayChartAccessibilityLabel(for entries: [TickDayChartEntry]) -> String {
+        let details = entries.map { entry in
+            "\(entry.date.formatted(date: .abbreviated, time: .omitted)) \(TickDurationFormatter.shortString(from: entry.duration))"
+        }.joined(separator: ", ")
+
+        return "Time by Day chart, \(details)."
     }
 }
 
