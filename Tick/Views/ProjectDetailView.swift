@@ -4,20 +4,49 @@ struct ProjectDetailView: View {
     let viewModel: TickViewModel
     let project: TickProject
     @State private var deletionMessage: String?
+    @State private var projectActionMessage: String?
 
     var body: some View {
+        let currentProject = viewModel.project(for: project.id) ?? project
+
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
             List {
                 Section {
                     ProjectSummaryCard(
-                        project: project,
-                        duration: viewModel.totalDuration(for: project.id, at: timeline.date)
+                        project: currentProject,
+                        duration: viewModel.totalDuration(for: currentProject.id, at: timeline.date)
                     )
                 }
                 .listRowBackground(Color.clear)
 
+                if currentProject.isArchived {
+                    Section {
+                        Label("This project is archived.", systemImage: "archivebox")
+                            .font(.subheadline)
+                            .accessibilityLabel("Project status: archived.")
+                    }
+                }
+
+                Section("Project") {
+                    if currentProject.isArchived {
+                        Button {
+                            restoreProject(currentProject.id)
+                        } label: {
+                            Label("Restore Project", systemImage: "arrow.uturn.backward.circle")
+                        }
+                        .accessibilityHint("Moves this project back to Active Projects.")
+                    } else {
+                        Button {
+                            archiveProject(currentProject.id)
+                        } label: {
+                            Label("Archive Project", systemImage: "archivebox")
+                        }
+                        .accessibilityHint("Moves this project to Archived Projects without deleting it.")
+                    }
+                }
+
                 Section("Sessions") {
-                    let projectSessions = viewModel.sessions(for: project.id)
+                    let projectSessions = viewModel.sessions(for: currentProject.id)
                     if projectSessions.isEmpty {
                         ContentUnavailableView(
                             "No Ticks yet",
@@ -31,8 +60,8 @@ struct ProjectDetailView: View {
                             } label: {
                                 SessionRowView(
                                     session: session,
-                                    projectID: project.id,
-                                    projectName: project.name,
+                                    projectID: currentProject.id,
+                                    projectName: currentProject.name,
                                     displayDate: timeline.date,
                                     defaultTitle: SessionFallbackTitleProvider.fallbackTitle(for: session, in: projectSessions),
                                     detailStyle: .date
@@ -50,12 +79,17 @@ struct ProjectDetailView: View {
             .scrollContentBackground(.hidden)
             .background(TickPalette.appBackground)
         }
-        .navigationTitle(project.name)
+        .navigationTitle(currentProject.name)
         .navigationBarTitleDisplayMode(.inline)
         .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(deletionMessage ?? "Tick could not delete that session.")
+        }
+        .alert("Could Not Update Project", isPresented: projectActionAlertIsPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(projectActionMessage ?? "Tick could not update that project.")
         }
     }
 
@@ -69,14 +103,14 @@ struct ProjectDetailView: View {
         }
     }
 
-    private func defaultTitle(for session: TimeSession, in sessions: [TimeSession]) -> String {
-        guard let offset = sessions
-            .filter({ $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
-            .firstIndex(where: { $0.id == session.id }) else {
-            return "Tick"
+    private var projectActionAlertIsPresented: Binding<Bool> {
+        Binding {
+            projectActionMessage != nil
+        } set: { isPresented in
+            if !isPresented {
+                projectActionMessage = nil
+            }
         }
-
-        return "\(offset + 1) Tick"
     }
 
     private func deleteSessions(at indexSet: IndexSet, from sessions: [TimeSession]) {
@@ -87,6 +121,24 @@ struct ProjectDetailView: View {
                     deletionMessage = viewModel.errorMessage ?? "Tick could not delete that session."
                     return
                 }
+            }
+        }
+    }
+
+    private func archiveProject(_ projectID: TickProject.ID) {
+        Task {
+            let didArchive = await viewModel.archiveProject(id: projectID)
+            if !didArchive {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not archive that project."
+            }
+        }
+    }
+
+    private func restoreProject(_ projectID: TickProject.ID) {
+        Task {
+            let didRestore = await viewModel.restoreProject(id: projectID)
+            if !didRestore {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that project."
             }
         }
     }

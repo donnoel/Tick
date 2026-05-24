@@ -4,6 +4,7 @@ struct ProjectsView: View {
     let viewModel: TickViewModel
     @State private var isAddingProject = false
     @State private var deletionMessage: String?
+    @State private var projectActionMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -27,9 +28,47 @@ struct ProjectsView: View {
                                 )
                             }
                             .accessibilityHint("Opens project details.")
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                Button("Archive") {
+                                    archiveProject(project.id)
+                                }
+                                .tint(.orange)
+                                .accessibilityLabel("Archive project")
+                                .accessibilityHint("Moves this project to Archived Projects without deleting it.")
+                            }
                         }
                         .onDelete { indexSet in
                             deleteProjects(at: indexSet, from: viewModel.activeProjects)
+                        }
+                    }
+                }
+
+                let archivedProjects = archivedProjects
+                if !archivedProjects.isEmpty {
+                    Section("Archived Projects") {
+                        ForEach(archivedProjects) { project in
+                            NavigationLink {
+                                ProjectDetailView(viewModel: viewModel, project: project)
+                            } label: {
+                                ProjectRowView(
+                                    project: project,
+                                    projects: viewModel.projects,
+                                    duration: viewModel.totalDuration(for: project.id),
+                                    showsArchivedBadge: true
+                                )
+                            }
+                            .accessibilityHint("Opens project details.")
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                Button("Restore") {
+                                    restoreProject(project.id)
+                                }
+                                .tint(.green)
+                                .accessibilityLabel("Restore project")
+                                .accessibilityHint("Moves this project back to Active Projects.")
+                            }
+                        }
+                        .onDelete { indexSet in
+                            deleteProjects(at: indexSet, from: archivedProjects)
                         }
                     }
                 }
@@ -56,6 +95,11 @@ struct ProjectsView: View {
             } message: {
                 Text(deletionMessage ?? "Tick could not delete that project.")
             }
+            .alert("Could Not Update Project", isPresented: projectActionAlertIsPresented) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(projectActionMessage ?? "Tick could not update that project.")
+            }
         }
     }
 
@@ -69,6 +113,22 @@ struct ProjectsView: View {
         }
     }
 
+    private var projectActionAlertIsPresented: Binding<Bool> {
+        Binding {
+            projectActionMessage != nil
+        } set: { isPresented in
+            if !isPresented {
+                projectActionMessage = nil
+            }
+        }
+    }
+
+    private var archivedProjects: [TickProject] {
+        viewModel.projects
+            .filter(\.isArchived)
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
     private func deleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
         Task {
             for index in indexSet {
@@ -80,12 +140,31 @@ struct ProjectsView: View {
             }
         }
     }
+
+    private func archiveProject(_ projectID: TickProject.ID) {
+        Task {
+            let didArchive = await viewModel.archiveProject(id: projectID)
+            if !didArchive {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not archive that project."
+            }
+        }
+    }
+
+    private func restoreProject(_ projectID: TickProject.ID) {
+        Task {
+            let didRestore = await viewModel.restoreProject(id: projectID)
+            if !didRestore {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that project."
+            }
+        }
+    }
 }
 
 private struct ProjectRowView: View {
     let project: TickProject
     let projects: [TickProject]
     let duration: TimeInterval
+    var showsArchivedBadge = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -98,6 +177,13 @@ private struct ProjectRowView: View {
                 Text("Created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                if showsArchivedBadge {
+                    Text("Archived")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Archived project")
+                }
             }
 
             Spacer()
@@ -108,6 +194,11 @@ private struct ProjectRowView: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(project.name), \(TickDurationFormatter.shortString(from: duration)) tracked")
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        let base = "\(project.name), \(TickDurationFormatter.shortString(from: duration)) tracked"
+        return showsArchivedBadge ? "\(base), archived" : base
     }
 }

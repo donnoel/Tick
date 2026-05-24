@@ -612,6 +612,137 @@ final class TickTests: XCTestCase {
     }
 
     @MainActor
+    func testArchiveProjectRemovesProjectFromActiveProjects() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Alpha", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project to archive.")
+            return
+        }
+
+        let didArchive = await viewModel.archiveProject(id: projectID)
+
+        XCTAssertTrue(didArchive)
+        XCTAssertTrue(viewModel.projects.contains(where: { $0.id == projectID && $0.isArchived }))
+        XCTAssertFalse(viewModel.activeProjects.contains(where: { $0.id == projectID }))
+    }
+
+    @MainActor
+    func testRestoreProjectReturnsProjectToActiveProjects() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Alpha", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project to restore.")
+            return
+        }
+        _ = await viewModel.archiveProject(id: projectID)
+
+        let didRestore = await viewModel.restoreProject(id: projectID)
+
+        XCTAssertTrue(didRestore)
+        XCTAssertTrue(viewModel.projects.contains(where: { $0.id == projectID && !$0.isArchived }))
+        XCTAssertTrue(viewModel.activeProjects.contains(where: { $0.id == projectID }))
+    }
+
+    @MainActor
+    func testArchivingSelectedProjectUpdatesSelectionToAnotherActiveProject() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "First", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.addProject(name: "Second", createdAt: Date(timeIntervalSince1970: 1))
+        let firstProjectID = viewModel.activeProjects[0].id
+        let secondProjectID = viewModel.activeProjects[1].id
+        viewModel.selectedProjectID = firstProjectID
+
+        let didArchive = await viewModel.archiveProject(id: firstProjectID)
+
+        XCTAssertTrue(didArchive)
+        XCTAssertEqual(viewModel.selectedProjectID, secondProjectID)
+    }
+
+    @MainActor
+    func testArchivingProjectWithActiveSessionFails() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project for active session test.")
+            return
+        }
+        _ = await viewModel.startTick(at: Date(timeIntervalSince1970: 100))
+
+        let didArchive = await viewModel.archiveProject(id: projectID)
+
+        XCTAssertFalse(didArchive)
+        XCTAssertEqual(viewModel.errorMessage, "Stop the active Tick before archiving this project.")
+        XCTAssertTrue(viewModel.activeProjects.contains(where: { $0.id == projectID }))
+    }
+
+    @MainActor
+    func testArchivingProjectDoesNotDeleteExistingSessions() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project to archive.")
+            return
+        }
+        await viewModel.addManualSession(
+            projectID: projectID,
+            title: "Manual",
+            notes: "",
+            date: Date(timeIntervalSince1970: 100),
+            duration: 900
+        )
+
+        let didArchive = await viewModel.archiveProject(id: projectID)
+
+        XCTAssertTrue(didArchive)
+        XCTAssertEqual(viewModel.sessions(for: projectID).count, 1)
+    }
+
+    @MainActor
+    func testArchivingProjectDoesNotDeleteAutoTickRules() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project to archive.")
+            return
+        }
+        await viewModel.addAutoTickRule(
+            projectID: projectID,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 100,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        let didArchive = await viewModel.archiveProject(id: projectID)
+
+        XCTAssertTrue(didArchive)
+        XCTAssertEqual(viewModel.autoTickRules.count, 1)
+        XCTAssertEqual(viewModel.autoTickRules.first?.projectID, projectID)
+    }
+
+    @MainActor
     func testViewModelUpdatesSessionDetailsAndPersists() async {
         let fileURL = temporaryStoreURL()
         defer {

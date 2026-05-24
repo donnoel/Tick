@@ -182,6 +182,45 @@ final class TickViewModel {
     }
 
     @discardableResult
+    func archiveProject(id: TickProject.ID) async -> Bool {
+        guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that project."
+            return false
+        }
+
+        guard activeSession?.projectID != id else {
+            errorMessage = "Stop the active Tick before archiving this project."
+            return false
+        }
+
+        projects[projectIndex].isArchived = true
+
+        if selectedProjectID == id {
+            selectedProjectID = activeProjects.first?.id
+        }
+
+        await persist()
+        return true
+    }
+
+    @discardableResult
+    func restoreProject(id: TickProject.ID) async -> Bool {
+        guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that project."
+            return false
+        }
+
+        projects[projectIndex].isArchived = false
+
+        if selectedProjectID == nil {
+            selectedProjectID = project(for: id)?.id ?? activeProjects.first?.id
+        }
+
+        await persist()
+        return true
+    }
+
+    @discardableResult
     func startTick(at date: Date = .now) async -> Bool {
         guard activeSession == nil else {
             errorMessage = "Stop the current Tick before starting another one."
@@ -189,6 +228,12 @@ final class TickViewModel {
         }
 
         guard let selectedProjectID else {
+            errorMessage = "Choose or create a project before starting Tick."
+            return false
+        }
+
+        guard activeProjects.contains(where: { $0.id == selectedProjectID }) else {
+            self.selectedProjectID = activeProjects.first?.id
             errorMessage = "Choose or create a project before starting Tick."
             return false
         }
@@ -594,7 +639,11 @@ final class TickViewModel {
 
         if let activeSession {
             selectedProjectID = activeSession.projectID
-        } else if selectedProjectID.flatMap(project(for:)) == nil {
+        } else if let selectedProjectID {
+            if !activeProjects.contains(where: { $0.id == selectedProjectID }) {
+                self.selectedProjectID = activeProjects.first?.id
+            }
+        } else {
             selectedProjectID = activeProjects.first?.id
         }
     }
