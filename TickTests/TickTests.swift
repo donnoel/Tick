@@ -1040,6 +1040,60 @@ final class TickTests: XCTestCase {
         )
     }
 
+    func testUntitledSessionTitlesNumbersOnlyUntitledSessionsInInputOrder() {
+        let projectID = UUID()
+        let titled = TimeSession(
+            projectID: projectID,
+            title: "Planning",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 1),
+            endedAt: nil,
+            manualDuration: 300,
+            entrySource: .manual
+        )
+        let untitledA = TimeSession(
+            projectID: projectID,
+            title: " ",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 2),
+            endedAt: nil,
+            manualDuration: 300,
+            entrySource: .manual
+        )
+        let untitledB = TimeSession(
+            projectID: projectID,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 3),
+            endedAt: nil,
+            manualDuration: 300,
+            entrySource: .manual
+        )
+
+        let titles = SessionFallbackTitleProvider.untitledSessionTitles(for: [titled, untitledA, untitledB])
+
+        XCTAssertEqual(titles[untitledA.id], "1 Tick")
+        XCTAssertEqual(titles[untitledB.id], "2 Tick")
+        XCTAssertNil(titles[titled.id])
+    }
+
+    func testFallbackTitleReturnsTickForTitledSession() {
+        let projectID = UUID()
+        let titled = TimeSession(
+            projectID: projectID,
+            title: "Named",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 10),
+            endedAt: nil,
+            manualDuration: 600,
+            entrySource: .manual
+        )
+
+        let fallback = SessionFallbackTitleProvider.fallbackTitle(for: titled, in: [titled])
+
+        XCTAssertEqual(fallback, "Tick")
+    }
+
     private func seedWidgetStore(_ snapshot: TickWidgetStorageSnapshot, at fileURL: URL) async throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

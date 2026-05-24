@@ -97,7 +97,7 @@ struct TodayView: View {
 
     private func todaySessions(at date: Date) -> some View {
         let sessions = viewModel.sessions(on: date)
-        let fallbackTitles = untitledSessionFallbackTitles(for: sessions)
+        let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: sessions)
 
         return VStack(alignment: .leading, spacing: 12) {
             Text("Today's Ticks")
