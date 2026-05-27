@@ -4,6 +4,10 @@ struct AutoTicksView: View {
     let viewModel: TickViewModel
     @State private var isAddingRule = false
 
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -38,10 +42,36 @@ struct AutoTicksView: View {
                     .accessibilityHint("Create a location rule for automatic time tracking.")
                 }
             }
-            .sheet(isPresented: $isAddingRule) {
+            .sheet(isPresented: isAddingRuleSheetBinding) {
+                AddAutoTickRuleView(viewModel: viewModel)
+                    .presentationDetents([.large])
+            }
+            .fullScreenCover(isPresented: isAddingRuleFullScreenBinding) {
                 AddAutoTickRuleView(viewModel: viewModel)
             }
         }
+    }
+
+    private var isAddingRuleSheetBinding: Binding<Bool> {
+        Binding(
+            get: { isAddingRule && !isPad },
+            set: { isPresented in
+                if !isPresented {
+                    isAddingRule = false
+                }
+            }
+        )
+    }
+
+    private var isAddingRuleFullScreenBinding: Binding<Bool> {
+        Binding(
+            get: { isAddingRule && isPad },
+            set: { isPresented in
+                if !isPresented {
+                    isAddingRule = false
+                }
+            }
+        )
     }
 
     private var shouldShowPermissionSection: Bool {
