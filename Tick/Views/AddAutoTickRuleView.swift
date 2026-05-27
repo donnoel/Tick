@@ -62,8 +62,10 @@ struct AddAutoTickRuleView: View {
                 }
 
                 Section("Automation") {
-                    Stepper(value: $radiusMeters, in: 50...1_000, step: 25) {
-                        Text("Radius: \(Int(radiusMeters)) meters")
+                    Picker("Radius", selection: $radiusMeters) {
+                        ForEach(radiusOptions, id: \.self) { radius in
+                            Text("\(Int(radius)) meters").tag(radius)
+                        }
                     }
                     .accessibilityValue("\(Int(radiusMeters)) meters")
 
@@ -130,5 +132,10 @@ struct AddAutoTickRuleView: View {
         case .unknown:
             "Tick cannot read the current location permission state."
         }
+    }
+
+    private var radiusOptions: [Double] {
+        let options = AutoTickRule.radiusOptionMeters + [radiusMeters]
+        return Array(Set(options)).sorted()
     }
 }

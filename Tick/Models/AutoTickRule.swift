@@ -12,6 +12,13 @@ nonisolated struct AutoTickRule: Codable, Equatable, Hashable, Identifiable {
     var isEnabled: Bool
     let createdAt: Date
 
+    static let radiusOptionMeters: [Double] = {
+        var options: [Double] = [5, 10, 15, 20, 25]
+        options.append(contentsOf: Array(stride(from: 50, through: 1_000, by: 25)))
+
+        return options
+    }()
+
     init(
         id: UUID = UUID(),
         projectID: TickProject.ID,
