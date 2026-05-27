@@ -60,7 +60,7 @@ nonisolated enum TickSummaryCalculator {
             .map { projectID, sessions in
                 ProjectDurationSummary(
                     projectID: projectID,
-                    projectName: projectNamesByID[projectID] ?? "Unknown Project",
+                    projectName: projectNamesByID[projectID] ?? "Unknown Space",
                     duration: sessions.reduce(0) { $0 + $1.duration(at: referenceDate) }
                 )
             }

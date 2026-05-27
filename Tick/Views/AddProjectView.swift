@@ -8,15 +8,15 @@ struct AddProjectView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Project") {
+                Section("Space") {
                     TextField("Name", text: $projectName)
                         .textInputAutocapitalization(.words)
                         .submitLabel(.done)
                         .accessibilityIdentifier("addProject.nameField")
-                        .accessibilityHint("Enter a short project name.")
+                        .accessibilityHint("Enter a short space name.")
                 }
             }
-            .navigationTitle("New Project")
+            .navigationTitle("New Space")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

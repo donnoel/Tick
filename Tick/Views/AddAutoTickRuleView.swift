@@ -21,13 +21,13 @@ struct AddAutoTickRuleView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Project") {
-                    Picker("Project", selection: $projectID) {
+                Section("Space") {
+                    Picker("Space", selection: $projectID) {
                         ForEach(viewModel.activeProjects) { project in
                             Text(project.name).tag(Optional(project.id))
                         }
                     }
-                    .accessibilityHint("Choose the project for automatically tracked time.")
+                    .accessibilityHint("Choose the space for automatic time.")
                 }
 
                 Section("Location") {

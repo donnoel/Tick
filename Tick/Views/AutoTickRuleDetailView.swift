@@ -45,12 +45,12 @@ struct AutoTickRuleDetailView: View {
                     .accessibilityLabel("Rule name")
                     .accessibilityHint("Edit the name for this Auto Tick rule.")
 
-                Picker("Project", selection: $projectID) {
+                Picker("Space", selection: $projectID) {
                     ForEach(projectOptions(for: rule)) { project in
                         Text(project.name).tag(Optional(project.id))
                     }
                 }
-                .accessibilityHint("Choose the project for automatically tracked time.")
+                .accessibilityHint("Choose the space for automatic time.")
             }
 
             Section("Location") {

@@ -11,12 +11,12 @@ struct ProjectsView: View {
             List {
                 if viewModel.activeProjects.isEmpty {
                     ContentUnavailableView(
-                        "No Projects",
+                        "No Spaces",
                         systemImage: "folder.badge.plus",
-                        description: Text("Add a project before starting Tick.")
+                        description: Text("Add a space before starting Tick.")
                     )
                 } else {
-                    Section("Active Projects") {
+                    Section("Active Spaces") {
                         ForEach(viewModel.activeProjects) { project in
                             NavigationLink {
                                 ProjectDetailView(viewModel: viewModel, project: project)
@@ -27,14 +27,14 @@ struct ProjectsView: View {
                                     duration: viewModel.totalDuration(for: project.id)
                                 )
                             }
-                            .accessibilityHint("Opens project details.")
+                            .accessibilityHint("Opens space details.")
                             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                                 Button("Archive") {
                                     archiveProject(project.id)
                                 }
                                 .tint(.orange)
-                                .accessibilityLabel("Archive project")
-                                .accessibilityHint("Moves this project to Archived Projects without deleting it.")
+                                .accessibilityLabel("Archive space")
+                                .accessibilityHint("Moves this space to Archived Spaces without deleting it.")
                             }
                         }
                         .onDelete { indexSet in
@@ -45,7 +45,7 @@ struct ProjectsView: View {
 
                 let archivedProjects = archivedProjects
                 if !archivedProjects.isEmpty {
-                    Section("Archived Projects") {
+                    Section("Archived Spaces") {
                         ForEach(archivedProjects) { project in
                             NavigationLink {
                                 ProjectDetailView(viewModel: viewModel, project: project)
@@ -57,14 +57,14 @@ struct ProjectsView: View {
                                     showsArchivedBadge: true
                                 )
                             }
-                            .accessibilityHint("Opens project details.")
+                            .accessibilityHint("Opens space details.")
                             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                                 Button("Restore") {
                                     restoreProject(project.id)
                                 }
                                 .tint(.green)
-                                .accessibilityLabel("Restore project")
-                                .accessibilityHint("Moves this project back to Active Projects.")
+                                .accessibilityLabel("Restore space")
+                                .accessibilityHint("Moves this space back to Active Spaces.")
                             }
                         }
                         .onDelete { indexSet in
@@ -75,16 +75,16 @@ struct ProjectsView: View {
             }
             .scrollContentBackground(.hidden)
             .background(TickPalette.appBackground)
-            .navigationTitle("Projects")
+            .navigationTitle("Spaces")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAddingProject = true
                     } label: {
-                        Label("Add Project", systemImage: "plus")
+                        Label("Add Space", systemImage: "plus")
                     }
                     .accessibilityIdentifier("projects.addProjectButton")
-                    .accessibilityHint("Create a new project for Tick sessions.")
+                    .accessibilityHint("Create a new space for Tick sessions.")
                 }
             }
             .sheet(isPresented: $isAddingProject) {
@@ -93,12 +93,12 @@ struct ProjectsView: View {
             .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(deletionMessage ?? "Tick could not delete that project.")
+                Text(deletionMessage ?? "Tick could not delete that space.")
             }
-            .alert("Could Not Update Project", isPresented: projectActionAlertIsPresented) {
+            .alert("Could Not Update Space", isPresented: projectActionAlertIsPresented) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(projectActionMessage ?? "Tick could not update that project.")
+                Text(projectActionMessage ?? "Tick could not update that space.")
             }
         }
     }
@@ -134,7 +134,7 @@ struct ProjectsView: View {
             for index in indexSet {
                 let didDelete = await viewModel.deleteProject(id: projects[index].id)
                 if !didDelete {
-                    deletionMessage = viewModel.errorMessage ?? "Tick could not delete that project."
+                    deletionMessage = viewModel.errorMessage ?? "Tick could not delete that space."
                     return
                 }
             }
@@ -145,7 +145,7 @@ struct ProjectsView: View {
         Task {
             let didArchive = await viewModel.archiveProject(id: projectID)
             if !didArchive {
-                projectActionMessage = viewModel.errorMessage ?? "Tick could not archive that project."
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not archive that space."
             }
         }
     }
@@ -154,7 +154,7 @@ struct ProjectsView: View {
         Task {
             let didRestore = await viewModel.restoreProject(id: projectID)
             if !didRestore {
-                projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that project."
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that space."
             }
         }
     }
@@ -182,7 +182,7 @@ private struct ProjectRowView: View {
                     Text("Archived")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("Archived project")
+                        .accessibilityLabel("Archived space")
                 }
             }
 
@@ -198,7 +198,7 @@ private struct ProjectRowView: View {
     }
 
     private var accessibilityLabel: String {
-        let base = "\(project.name), \(TickDurationFormatter.shortString(from: duration)) tracked"
+        let base = "\(project.name), \(TickDurationFormatter.shortString(from: duration)) recorded"
         return showsArchivedBadge ? "\(base), archived" : base
     }
 }

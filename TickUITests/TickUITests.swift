@@ -6,7 +6,7 @@ final class TickUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.buttons["Projects"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Spaces"].exists)
         XCTAssertTrue(app.tabBars.buttons["Auto Ticks"].exists)
         XCTAssertTrue(app.tabBars.buttons["Summaries"].exists)
     }
@@ -19,7 +19,7 @@ final class TickUITests: XCTestCase {
         let projectName = "UITest Project"
         let tabBar = app.tabBars.firstMatch
 
-        let projectsTab = tabBar.buttons["Projects"]
+        let projectsTab = tabBar.buttons["Spaces"]
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
         projectsTab.tap()
 
@@ -65,7 +65,7 @@ final class TickUITests: XCTestCase {
         let editedSessionTitle = "Edited Manual UI Session"
         let tabBar = app.tabBars.firstMatch
 
-        let projectsTab = tabBar.buttons["Projects"]
+        let projectsTab = tabBar.buttons["Spaces"]
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
         projectsTab.tap()
 
@@ -131,7 +131,7 @@ final class TickUITests: XCTestCase {
         let sessionTitle = "Delete UI Session"
         let tabBar = app.tabBars.firstMatch
 
-        let projectsTab = tabBar.buttons["Projects"]
+        let projectsTab = tabBar.buttons["Spaces"]
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
         projectsTab.tap()
 

@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Tick uses background location only for Auto Tick rules you create and enable, so project time can start or stop when you arrive or leave.</string>
+    <string>Tick uses background location only for Auto Tick rules you create and enable, so time for your Spaces can start or stop when you arrive or leave.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Tick uses your current location only when you set up an Auto Tick rule or enable location-based time tracking.</string>
+    <string>Tick uses your current location only when you set up an Auto Tick rule or enable location-based time recording.</string>
 </dict>
 </plist>

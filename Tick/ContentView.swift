@@ -23,7 +23,7 @@ struct ContentView: View {
 
             ProjectsView(viewModel: viewModel)
                 .tabItem {
-                    Label("Projects", systemImage: "folder.fill")
+                    Label("Spaces", systemImage: "folder.fill")
                 }
 
             AutoTicksView(viewModel: viewModel)

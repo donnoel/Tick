@@ -141,7 +141,7 @@ final class TickViewModel {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedName.isEmpty else {
-            errorMessage = "Project name cannot be empty."
+            errorMessage = "Space name cannot be empty."
             return false
         }
 
@@ -160,12 +160,12 @@ final class TickViewModel {
     @discardableResult
     func deleteProject(id: TickProject.ID) async -> Bool {
         guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
-            errorMessage = "Tick could not find that project."
+            errorMessage = "Tick could not find that space."
             return false
         }
 
         guard activeSession?.projectID != id else {
-            errorMessage = "Stop the active Tick before deleting this project."
+            errorMessage = "Stop the active Tick before deleting this space."
             return false
         }
 
@@ -184,12 +184,12 @@ final class TickViewModel {
     @discardableResult
     func archiveProject(id: TickProject.ID) async -> Bool {
         guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
-            errorMessage = "Tick could not find that project."
+            errorMessage = "Tick could not find that space."
             return false
         }
 
         guard activeSession?.projectID != id else {
-            errorMessage = "Stop the active Tick before archiving this project."
+            errorMessage = "Stop the active Tick before archiving this space."
             return false
         }
 
@@ -206,7 +206,7 @@ final class TickViewModel {
     @discardableResult
     func restoreProject(id: TickProject.ID) async -> Bool {
         guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
-            errorMessage = "Tick could not find that project."
+            errorMessage = "Tick could not find that space."
             return false
         }
 
@@ -228,13 +228,13 @@ final class TickViewModel {
         }
 
         guard let selectedProjectID else {
-            errorMessage = "Choose or create a project before starting Tick."
+            errorMessage = "Choose or create a space before starting Tick."
             return false
         }
 
         guard activeProjects.contains(where: { $0.id == selectedProjectID }) else {
             self.selectedProjectID = activeProjects.first?.id
-            errorMessage = "Choose or create a project before starting Tick."
+            errorMessage = "Choose or create a space before starting Tick."
             return false
         }
 
@@ -276,7 +276,7 @@ final class TickViewModel {
         duration: TimeInterval
     ) async -> Bool {
         guard let projectID else {
-            errorMessage = "Choose a project for this manual time."
+            errorMessage = "Choose a space for this manual time."
             return false
         }
 
@@ -316,7 +316,7 @@ final class TickViewModel {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let projectID, projects.contains(where: { $0.id == projectID }) else {
-            errorMessage = "Choose a project for this Auto Tick."
+            errorMessage = "Choose a space for this Auto Tick."
             return false
         }
 
@@ -382,7 +382,7 @@ final class TickViewModel {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let projectID, projects.contains(where: { $0.id == projectID }) else {
-            errorMessage = "Choose a project for this Auto Tick."
+            errorMessage = "Choose a space for this Auto Tick."
             return false
         }
 
@@ -485,7 +485,7 @@ final class TickViewModel {
         projectID: TickProject.ID
     ) async -> Bool {
         guard projects.contains(where: { $0.id == projectID }) else {
-            errorMessage = "Choose a project for this Tick."
+            errorMessage = "Choose a space for this Tick."
             return false
         }
 

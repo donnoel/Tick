@@ -84,7 +84,7 @@ nonisolated final class TickWidgetActionStore {
 
         guard !activeProjects.isEmpty else {
             try saveWidgetSnapshot(.empty(lastUpdatedAt: date))
-            return TickWidgetActionResult(didChange: false, message: "Open Ticks to create a project first.")
+            return TickWidgetActionResult(didChange: false, message: "Open Ticks to create a space first.")
         }
 
         let existingSnapshot = try? loadWidgetSnapshot(at: date, calendar: calendar)

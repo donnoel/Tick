@@ -3,33 +3,35 @@
 # Tick Project Guide for Agents
 
 ## Product intent
-Tick is a lightweight project timekeeping app for people who want a quick record of how long future projects actually take.
+Tick is a lightweight timekeeping app for people who want a quick record of how long spaces actually take.
 
 The first product goal is effortless capture: starting and stopping time should be immediate, while titles, notes, and missed time can be added later through lightweight manual entry.
 
-Success for the current phase means the app can create projects, track one active timer session, add manual time, summarize tracked time, and preserve local data between launches.
+Success for the current phase means the app can create spaces, capture one active timer session, add manual time, summarize recorded time, and preserve local data between launches.
+
+For product language only, the app is space-centric: users measure time for a Space. The internal model type is still `TickProject`.
 
 ## Current product phase
 Tick is in MVP foundation.
 
 Current scope:
-- project and time-session tracking with local JSON persistence plus iCloud key-value mirroring
-- Today, Projects, and Summaries tabs
+- space capture with local JSON persistence plus iCloud key-value mirroring
+- Today, Spaces, and Summaries tabs
 - duration-only manual time entry
-- session detail review and title/notes/project editing
-- project detail review with project-scoped session lists and session deletion
+- session detail review and title/notes/space editing
+- space detail review with space-scoped session lists and session deletion
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
 - daily, weekly, and monthly text summaries
 - JSON persistence in the Tick App Group container with iCloud KVS sync between the iPhone/iPad app and widget actions
 
 Explicitly out of scope for this phase:
-- CloudKit record schema sync, authentication, Live Activities, Apple Watch, billing, exports, charts, map search, route tracking, location history, voice memos, and transcription
+- CloudKit record schema sync, authentication, Live Activities, Apple Watch, billing, exports, charts, map search, route capture, location history, voice memos, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
 - `TickApp` opens `ContentView`.
-- `ContentView` owns a root `TickViewModel` and presents a `TabView` with Today, Projects, and Summaries.
+- `ContentView` owns a root `TickViewModel` and presents a `TabView` with Today, Spaces, and Summaries.
 
 Core models:
 - `TickProject`: project identity, name, creation date, archive flag.
@@ -81,7 +83,7 @@ Accessibility is part of every user-facing change.
 
 Current implementation includes:
 - semantic buttons, pickers, forms, lists, and tab labels
-- accessibility labels/hints for timer actions, project selection, manual entry, project creation, active elapsed time, session rows, session editing, and Auto Tick rule creation
+- accessibility labels/hints for timer actions, space selection, manual entry, space creation, active elapsed time, session rows, session editing, and Auto Tick rule creation
 - visible "Manual" and "Auto" badges with spoken source descriptions
 - Dynamic Type-friendly SwiftUI text styles for major labels and timer readouts
 
@@ -97,7 +99,7 @@ Still verify manually before submission:
 - A timer session duration is derived from `startedAt` and `endedAt`.
 - A running session uses `Date.now - startedAt` only for display; elapsed time is not stored continuously.
 - Local data should survive app relaunches.
-- iCloud sync must preserve the same project/session/Auto Tick snapshot across iPhone and iPad when both devices use the same Apple ID and have iCloud enabled.
+- iCloud sync must preserve the same space/session/Auto Tick snapshot across iPhone and iPad when both devices use the same Apple ID and have iCloud enabled.
 - iCloud sync is whole-snapshot newest-write-wins; do not assume field-level conflict merging until a future CloudKit-style sync model exists.
 - Widget Start must not create a duplicate active session.
 - Widget Stop must stop only the current active timer/Auto Tick session.
@@ -114,7 +116,7 @@ Still verify manually before submission:
 - Use plain, playful Tick language: Start Tick, Stop Tick, Add Time, Today's Ticks.
 - Keep capture lightweight before adding detail-heavy flows.
 - Prefer Apple-native controls over custom controls.
-- Do not require archived-project support in the UI until the product asks for it, but preserve `isArchived` in the model.
+- Do not require archived-space support in the UI until the product asks for it, but preserve `isArchived` in the model.
 
 ## Coding conventions
 - Stay Apple-native. Do not add third-party dependencies.
@@ -130,7 +132,7 @@ Still verify manually before submission:
 - Build warnings should be treated as failures.
 
 ## Near-term priorities
-- Add project archiving UI.
+- Add space archiving UI.
 - Add richer validation around manual duration entry.
 - Add more UI tests once flows stabilize.
 

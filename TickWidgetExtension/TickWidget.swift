@@ -91,7 +91,7 @@ struct TickWidgetView: View {
             Text("Ticks")
                 .font(.headline)
 
-            Text("Create a project to start tracking.")
+            Text("Create a space to start recording.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -121,7 +121,7 @@ struct TickWidgetView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .accessibilityHint("Starts a Tick for the default project.")
+            .accessibilityHint("Starts a Tick for the default space.")
         }
     }
 
@@ -197,7 +197,7 @@ struct TickWidgetView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Start Tick")
-            .accessibilityHint("Starts a Tick for the default project.")
+            .accessibilityHint("Starts a Tick for the default space.")
         case .active:
             Button(intent: StopTickIntent()) {
                 Image(systemName: "stop.fill")
@@ -249,7 +249,7 @@ struct TickWidget: Widget {
             TickWidgetView(entry: entry)
         }
         .configurationDisplayName("Ticks")
-        .description("Start or stop project time tracking.")
+        .description("Start or stop space recording.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }

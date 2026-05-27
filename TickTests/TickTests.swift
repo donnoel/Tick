@@ -537,9 +537,9 @@ final class TickTests: XCTestCase {
 
         XCTAssertEqual(content.state, .noProjects)
         XCTAssertEqual(content.rectangularTitle, "Ticks")
-        XCTAssertEqual(content.rectangularDetail, "Create a project")
+        XCTAssertEqual(content.rectangularDetail, "Create a space")
         XCTAssertEqual(content.circularText, "0")
-        XCTAssertEqual(content.inlineText, "Ticks: create a project")
+        XCTAssertEqual(content.inlineText, "Ticks: create a space")
     }
 
     func testAccessoryRectangularIdleContent() {
@@ -818,7 +818,7 @@ final class TickTests: XCTestCase {
         let didArchive = await viewModel.archiveProject(id: projectID)
 
         XCTAssertFalse(didArchive)
-        XCTAssertEqual(viewModel.errorMessage, "Stop the active Tick before archiving this project.")
+        XCTAssertEqual(viewModel.errorMessage, "Stop the active Tick before archiving this space.")
         XCTAssertTrue(viewModel.activeProjects.contains(where: { $0.id == projectID }))
     }
 

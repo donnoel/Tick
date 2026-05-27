@@ -37,24 +37,24 @@ struct TodayView: View {
 
     private var projectSelector: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Project")
+            Text("Space")
                 .font(.headline)
 
             if viewModel.activeProjects.isEmpty {
                 ContentUnavailableView(
-                    "No Projects",
+                    "No Spaces",
                     systemImage: "folder.badge.plus",
-                    description: Text("Add a project from the Projects tab to start tracking time.")
+                    description: Text("Add a space from the Spaces tab to start ticking.")
                 )
                 .frame(maxWidth: .infinity)
             } else {
-                Picker("Project", selection: $viewModel.selectedProjectID) {
+                Picker("Space", selection: $viewModel.selectedProjectID) {
                     ForEach(viewModel.activeProjects) { project in
                         Text(project.name).tag(Optional(project.id))
                     }
                 }
                 .pickerStyle(.menu)
-                .accessibilityHint("Choose the project for the next timer session.")
+                .accessibilityHint("Choose the space for the next timer session.")
             }
         }
     }
@@ -105,7 +105,7 @@ struct TodayView: View {
                 .accessibilityIdentifier("today.sessionsHeader")
 
             if sessions.isEmpty {
-                Text("No time tracked yet today.")
+                Text("No time recorded yet today.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 12)
@@ -137,14 +137,14 @@ struct TodayView: View {
 
     private var actionAccessibilityHint: String {
         if viewModel.activeSession == nil {
-            return "Starts a timer immediately for the selected project."
+            return "Starts a timer immediately for the selected space."
         }
 
         return "Stops the active timer session."
     }
 
     private func projectName(for projectID: TickProject.ID) -> String {
-        viewModel.project(for: projectID)?.name ?? "Unknown Project"
+        viewModel.project(for: projectID)?.name ?? "Unknown Space"
     }
 
     private func untitledSessionFallbackTitles(for sessions: [TimeSession]) -> [TimeSession.ID: String] {
@@ -220,6 +220,6 @@ private struct TodayHeroCard: View {
             return "Running Tick, elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(secondaryText)"
         }
 
-        return "Today's total tracked time, \(TickDurationFormatter.shortString(from: totalDuration))"
+        return "Today's total recorded time, \(TickDurationFormatter.shortString(from: totalDuration))"
     }
 }

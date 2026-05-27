@@ -66,14 +66,14 @@ struct SessionDetailView: View {
         Form {
             Section("Details") {
                 if projectOptions(for: session).isEmpty {
-                    LabeledContent("Project", value: projectName(for: session.projectID))
+                    LabeledContent("Space", value: projectName(for: session.projectID))
                 } else {
-                    Picker("Project", selection: $projectID) {
+                    Picker("Space", selection: $projectID) {
                         ForEach(projectOptions(for: session)) { project in
                             Text(project.name).tag(Optional(project.id))
                         }
                     }
-                    .accessibilityHint("Choose the project for this session.")
+                    .accessibilityHint("Choose the space for this session.")
                 }
 
                 TextField("Title", text: $title)
@@ -122,7 +122,7 @@ struct SessionDetailView: View {
     }
 
     private func projectName(for projectID: TickProject.ID) -> String {
-        viewModel.project(for: projectID)?.name ?? "Unknown Project"
+        viewModel.project(for: projectID)?.name ?? "Unknown Space"
     }
 
     private func sourceDescription(for source: SessionEntrySource) -> String {

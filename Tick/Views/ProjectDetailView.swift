@@ -21,27 +21,27 @@ struct ProjectDetailView: View {
 
                 if currentProject.isArchived {
                     Section {
-                        Label("This project is archived.", systemImage: "archivebox")
+                        Label("This space is archived.", systemImage: "archivebox")
                             .font(.subheadline)
-                            .accessibilityLabel("Project status: archived.")
+                            .accessibilityLabel("Space status: archived.")
                     }
                 }
 
-                Section("Project") {
+                Section("Space") {
                     if currentProject.isArchived {
                         Button {
                             restoreProject(currentProject.id)
                         } label: {
-                            Label("Restore Project", systemImage: "arrow.uturn.backward.circle")
+                            Label("Restore Space", systemImage: "arrow.uturn.backward.circle")
                         }
-                        .accessibilityHint("Moves this project back to Active Projects.")
+                        .accessibilityHint("Moves this space back to Active Spaces.")
                     } else {
                         Button {
                             archiveProject(currentProject.id)
                         } label: {
-                            Label("Archive Project", systemImage: "archivebox")
+                            Label("Archive Space", systemImage: "archivebox")
                         }
-                        .accessibilityHint("Moves this project to Archived Projects without deleting it.")
+                        .accessibilityHint("Moves this space to Archived Spaces without deleting it.")
                     }
                 }
 
@@ -51,7 +51,7 @@ struct ProjectDetailView: View {
                         ContentUnavailableView(
                             "No Ticks yet",
                             systemImage: "clock",
-                            description: Text("Sessions for this project will appear here.")
+                            description: Text("Sessions for this space will appear here.")
                         )
                     } else {
                         ForEach(projectSessions) { session in
@@ -86,10 +86,10 @@ struct ProjectDetailView: View {
         } message: {
             Text(deletionMessage ?? "Tick could not delete that session.")
         }
-        .alert("Could Not Update Project", isPresented: projectActionAlertIsPresented) {
+        .alert("Could Not Update Space", isPresented: projectActionAlertIsPresented) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(projectActionMessage ?? "Tick could not update that project.")
+            Text(projectActionMessage ?? "Tick could not update that space.")
         }
     }
 
@@ -129,7 +129,7 @@ struct ProjectDetailView: View {
         Task {
             let didArchive = await viewModel.archiveProject(id: projectID)
             if !didArchive {
-                projectActionMessage = viewModel.errorMessage ?? "Tick could not archive that project."
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not archive that space."
             }
         }
     }
@@ -138,7 +138,7 @@ struct ProjectDetailView: View {
         Task {
             let didRestore = await viewModel.restoreProject(id: projectID)
             if !didRestore {
-                projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that project."
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that space."
             }
         }
     }
@@ -169,7 +169,7 @@ private struct ProjectSummaryCard: View {
                 .minimumScaleFactor(0.75)
                 .lineLimit(1)
 
-            Text("Total tracked")
+            Text("Total recorded")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -177,6 +177,6 @@ private struct ProjectSummaryCard: View {
         .padding(16)
         .tickCard(tint: TickProjectAccent.color(for: project.id))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(project.name), \(TickDurationFormatter.shortString(from: duration)) total tracked, created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
+        .accessibilityLabel("\(project.name), \(TickDurationFormatter.shortString(from: duration)) total recorded, created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
     }
 }

@@ -6,16 +6,16 @@
 </p>
 
 ## Overview
-Tick is a playful, lightweight SwiftUI timekeeping app for tracking how long projects actually take.
+Tick is a playful, lightweight SwiftUI timekeeping app for recording how long spaces actually take.
 
 Current MVP foundation:
-- create projects
+- create spaces
 - start and stop one active Tick session
 - add missed time manually
-- review and edit session title, notes, and project
-- create, edit, and delete opt-in Auto Tick location rules for automatic arrival/departure tracking
+- review and edit session title, notes, and space
+- create, edit, and delete opt-in Auto Tick location rules for automatic arrival/departure actions
 - use Home Screen and Lock Screen widgets to glance at, start, or stop the current Tick
-- view today's tracked time and sessions
+- view today's recorded time and sessions
 - review simple daily, weekly, and monthly summaries
 - persist local data between launches
 - sync Tick data between iPhone and iPad with iCloud Key-Value Store
@@ -63,7 +63,7 @@ Tick/
 - [x] Add Auto Ticks foundation
 - [x] Add Home Screen and Lock Screen widget foundation
 - [x] Add iCloud Key-Value Store sync foundation
-- [ ] Add project archiving UI
+- [ ] Add space archiving UI
 - [ ] Add map/search support for Auto Tick locations
 - [ ] Add charts and export after the local foundation is stable
 

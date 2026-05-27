@@ -42,15 +42,15 @@ struct SummariesView: View {
                     }
                     .listRowBackground(Color.clear)
 
-                    Section("Time by Project") {
+                    Section("Time by Space") {
                         if projectChartEntries.isEmpty {
-                            Text("No time tracked in this period.")
+                            Text("No time recorded in this period.")
                                 .foregroundStyle(.secondary)
                         } else {
                             Chart(projectChartEntries) { entry in
                                 BarMark(
                                     x: .value("Duration", entry.hours),
-                                    y: .value("Project", entry.projectName)
+                                    y: .value("Space", entry.projectName)
                                 )
                                 .foregroundStyle(TickProjectAccent.color(for: entry.projectID))
                                 .accessibilityLabel(entry.projectName)
@@ -66,7 +66,7 @@ struct SummariesView: View {
                     if selectedPeriod != .day {
                         Section("Time by Day") {
                             if dayChartEntries.allSatisfy({ $0.duration == 0 }) {
-                                Text("No time tracked in this period.")
+                                    Text("No time recorded in this period.")
                                     .foregroundStyle(.secondary)
                             } else {
                                 Chart(dayChartEntries) { entry in
@@ -93,9 +93,9 @@ struct SummariesView: View {
                         }
                     }
 
-                    Section("By Project") {
+                    Section("By Space") {
                         if summary.durationByProject.isEmpty {
-                            Text("No time tracked in this period.")
+                            Text("No time recorded in this period.")
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(summary.durationByProject) { projectSummary in
@@ -119,7 +119,7 @@ struct SummariesView: View {
             "\(entry.projectName) \(TickDurationFormatter.shortString(from: entry.duration))"
         }.joined(separator: ", ")
 
-        return "Time by Project chart, \(details)."
+        return "Time by Space chart, \(details)."
     }
 
     private func dayChartAccessibilityLabel(for entries: [TickDayChartEntry]) -> String {

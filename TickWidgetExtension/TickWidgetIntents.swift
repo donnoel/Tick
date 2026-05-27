@@ -3,7 +3,7 @@ import WidgetKit
 
 struct StartTickIntent: AppIntent {
     static var title: LocalizedStringResource = "Start Tick"
-    static var description = IntentDescription("Start tracking time for the default Tick project.")
+    static var description = IntentDescription("Start recording time for the default Tick space.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let result = try TickWidgetActionStore().startTick()

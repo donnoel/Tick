@@ -39,7 +39,7 @@ struct AutoTicksView: View {
                         Label("Add Auto Tick", systemImage: "plus")
                     }
                     .disabled(viewModel.activeProjects.isEmpty)
-                    .accessibilityHint("Create a location rule for automatic time tracking.")
+                    .accessibilityHint("Create a location rule for automatic time.")
                 }
             }
             .sheet(isPresented: isAddingRuleSheetBinding) {
@@ -119,7 +119,7 @@ struct AutoTicksView: View {
     }
 
     private func projectName(for projectID: TickProject.ID) -> String {
-        viewModel.project(for: projectID)?.name ?? "Unknown Project"
+        viewModel.project(for: projectID)?.name ?? "Unknown Space"
     }
 
     private func ruleAccessibilityLabel(_ rule: AutoTickRule, projectName: String) -> String {
@@ -179,7 +179,7 @@ private struct EmptyAutoTicksCard: View {
             .controlSize(.regular)
             .disabled(!canAddRule)
             .frame(width: 180)
-            .accessibilityHint(canAddRule ? "Create a location rule for automatic time tracking." : "Create a project before adding an Auto Tick rule.")
+            .accessibilityHint(canAddRule ? "Create a location rule for automatic time." : "Create a space before adding an Auto Tick rule.")
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.vertical, 30)

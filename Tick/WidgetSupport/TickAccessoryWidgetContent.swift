@@ -23,12 +23,12 @@ nonisolated enum TickAccessoryWidgetContentBuilder {
             return TickAccessoryWidgetContent(
                 state: .noProjects,
                 rectangularTitle: "Ticks",
-                rectangularDetail: "Create a project",
+                rectangularDetail: "Create a space",
                 rectangularFootnote: nil,
                 circularText: "0",
                 circularSystemImage: "timer",
-                inlineText: "Ticks: create a project",
-                accessibilityLabel: "Ticks. Create a project to start tracking."
+                inlineText: "Ticks: create a space",
+                accessibilityLabel: "Ticks. Create a space to start ticking."
             )
         }
 
