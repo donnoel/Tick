@@ -21,7 +21,7 @@ struct AutoTickNotificationService {
         do {
             _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            // Notification permission is best-effort. Tick should continue tracking even if permission fails.
+            // Notification permission is best-effort. Tick should continue monitoring even if permission fails.
         }
     }
 
@@ -67,7 +67,7 @@ struct AutoTickNotificationService {
         do {
             try await center.add(request)
         } catch {
-            // Notification delivery is best-effort. Tick should never fail tracking because of notification delivery.
+            // Notification delivery is best-effort. Tick should never fail monitoring because of notification delivery.
         }
     }
 }
