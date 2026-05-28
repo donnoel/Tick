@@ -23,7 +23,6 @@ struct ProjectsView: View {
                             } label: {
                                 ProjectRowView(
                                     project: project,
-                                    projects: viewModel.activeProjects,
                                     duration: viewModel.totalDuration(for: project.id)
                                 )
                             }
@@ -52,7 +51,6 @@ struct ProjectsView: View {
                             } label: {
                                 ProjectRowView(
                                     project: project,
-                                    projects: viewModel.projects,
                                     duration: viewModel.totalDuration(for: project.id),
                                     showsArchivedBadge: true
                                 )
@@ -162,13 +160,12 @@ struct ProjectsView: View {
 
 private struct ProjectRowView: View {
     let project: TickProject
-    let projects: [TickProject]
     let duration: TimeInterval
     var showsArchivedBadge = false
 
     var body: some View {
         HStack(spacing: 12) {
-            TickProjectBadge(color: TickProjectAccent.color(for: project, in: projects), systemImage: "folder.fill")
+            TickProjectBadge(color: TickProjectAccent.color(for: project.id), systemImage: "folder.fill")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)

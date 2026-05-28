@@ -300,7 +300,7 @@ private struct AutoTickRuleRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                TickProjectBadge(color: TickProjectAccent.color(for: rule.projectID), systemImage: "location.fill")
+                TickProjectBadge(color: projectAccent, systemImage: "location.fill")
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(rule.name)
@@ -341,8 +341,12 @@ private struct AutoTickRuleRowView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .tickCard(tint: statusTint, isHighlighted: rule.isEnabled)
+        .tickCard(tint: projectAccent, isHighlighted: rule.isEnabled)
         .accessibilityElement(children: .contain)
+    }
+
+    private var projectAccent: Color {
+        TickProjectAccent.color(for: rule.projectID)
     }
 
     private var statusTint: Color {

@@ -190,6 +190,47 @@ final class TickTests: XCTestCase {
         })
     }
 
+    func testDayProjectChartKeepsProjectIdentity() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 2
+
+        let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let projectA = TickProject(id: UUID(), name: "Alpha", createdAt: referenceDate)
+        let projectB = TickProject(id: UUID(), name: "Beta", createdAt: referenceDate)
+        let sessionA = TimeSession(
+            projectID: projectA.id,
+            title: "",
+            notes: "",
+            startedAt: nil,
+            endedAt: nil,
+            manualDuration: 1_800,
+            entrySource: .manual,
+            createdAt: referenceDate
+        )
+        let sessionB = TimeSession(
+            projectID: projectB.id,
+            title: "",
+            notes: "",
+            startedAt: nil,
+            endedAt: nil,
+            manualDuration: 3_600,
+            entrySource: .manual,
+            createdAt: referenceDate
+        )
+
+        let entries = TickChartDataBuilder.dayProjectEntries(
+            for: .week,
+            projects: [projectB, projectA],
+            sessions: [sessionB, sessionA],
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(entries.map(\.projectID), [projectA.id, projectB.id])
+        XCTAssertEqual(entries.map(\.duration), [1_800, 3_600])
+    }
+
     func testActiveRunningSessionContributesChartDurationAtDisplayDate() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -303,16 +344,20 @@ final class TickTests: XCTestCase {
     func testProjectAccentAssignmentIsStable() {
         let projectID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
 
-        XCTAssertEqual(TickProjectAccent.index(for: projectID.uuidString), TickProjectAccent.index(for: projectID.uuidString))
-        XCTAssertEqual(TickProjectAccent.index(for: "PiSignage"), TickProjectAccent.index(for: "PiSignage"))
+        XCTAssertEqual(TickProjectAccent.index(for: projectID), TickProjectAccent.index(for: projectID))
     }
 
     @MainActor
     func testProjectAccentAssignmentDistributesSampleProjects() {
-        let sampleProjectNames = ["PiSignage", "Earth Pulse", "Coloring Room", "Briefly"]
-        let accentIndexes = Set(sampleProjectNames.map(TickProjectAccent.index(for:)))
+        let sampleProjectIDs = [
+            UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000004")!
+        ]
+        let accentIndexes = Set(sampleProjectIDs.map(TickProjectAccent.index(for:)))
 
-        XCTAssertEqual(accentIndexes.count, sampleProjectNames.count)
+        XCTAssertEqual(accentIndexes.count, sampleProjectIDs.count)
     }
 
     @MainActor

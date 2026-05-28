@@ -15,8 +15,9 @@ struct SummariesView: View {
                     sessions: viewModel.sessions,
                     referenceDate: timeline.date
                 )
-                let dayChartEntries = TickChartDataBuilder.dayEntries(
+                let dayProjectChartEntries = TickChartDataBuilder.dayProjectEntries(
                     for: selectedPeriod,
+                    projects: viewModel.projects,
                     sessions: viewModel.sessions,
                     referenceDate: timeline.date
                 )
@@ -65,30 +66,14 @@ struct SummariesView: View {
 
                     if selectedPeriod != .day {
                         Section("Time by Day") {
-                            if dayChartEntries.allSatisfy({ $0.duration == 0 }) {
+                            if dayProjectChartEntries.isEmpty {
                                     Text("No time recorded in this period.")
                                     .foregroundStyle(.secondary)
                             } else {
-                                Chart(dayChartEntries) { entry in
-                                    BarMark(
-                                        x: .value("Day", entry.date, unit: .day),
-                                        y: .value("Duration", entry.hours)
-                                    )
-                                    .foregroundStyle(TickPalette.primaryAction)
-                                    .accessibilityLabel(entry.date.formatted(date: .abbreviated, time: .omitted))
-                                    .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
-                                }
-                                .chartXAxis {
-                                    AxisMarks(values: .stride(by: .day)) { value in
-                                        AxisGridLine()
-                                        AxisTick()
-                                        AxisValueLabel(format: selectedPeriod == .week ? .dateTime.weekday(.narrow) : .dateTime.day())
-                                    }
-                                }
-                                .chartYAxisLabel("Hours")
-                                .frame(minHeight: 220)
-                                .accessibilityElement(children: .ignore)
-                                .accessibilityLabel(dayChartAccessibilityLabel(for: dayChartEntries))
+                                SummaryDayProjectChart(
+                                    entries: dayProjectChartEntries,
+                                    selectedPeriod: selectedPeriod
+                                )
                             }
                         }
                     }
@@ -100,6 +85,7 @@ struct SummariesView: View {
                         } else {
                             ForEach(summary.durationByProject) { projectSummary in
                                 SummaryProjectRow(
+                                    projectID: projectSummary.projectID,
                                     projectName: projectSummary.projectName,
                                     value: TickDurationFormatter.shortString(from: projectSummary.duration)
                                 )
@@ -121,13 +107,50 @@ struct SummariesView: View {
 
         return "Time by Space chart, \(details)."
     }
+}
 
-    private func dayChartAccessibilityLabel(for entries: [TickDayChartEntry]) -> String {
+private struct SummaryDayProjectChart: View {
+    let entries: [TickDayProjectChartEntry]
+    let selectedPeriod: SummaryPeriod
+
+    var body: some View {
+        Chart(entries) { entry in
+            BarMark(
+                x: .value("Day", entry.date, unit: .day),
+                y: .value("Duration", entry.hours)
+            )
+            .foregroundStyle(TickProjectAccent.color(for: entry.projectID))
+            .accessibilityLabel(accessibilityLabel(for: entry))
+            .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day)) { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel(format: axisLabelFormat)
+            }
+        }
+        .chartYAxisLabel("Hours")
+        .frame(minHeight: 220)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(chartAccessibilityLabel)
+    }
+
+    private var axisLabelFormat: Date.FormatStyle {
+        selectedPeriod == .week ? .dateTime.weekday(.narrow) : .dateTime.day()
+    }
+
+    private var chartAccessibilityLabel: String {
         let details = entries.map { entry in
-            "\(entry.date.formatted(date: .abbreviated, time: .omitted)) \(TickDurationFormatter.shortString(from: entry.duration))"
+            "\(entry.date.formatted(date: .abbreviated, time: .omitted)) \(entry.projectName) \(TickDurationFormatter.shortString(from: entry.duration))"
         }.joined(separator: ", ")
 
         return "Time by Day chart, \(details)."
+    }
+
+    private func accessibilityLabel(for entry: TickDayProjectChartEntry) -> String {
+        let date = entry.date.formatted(date: .abbreviated, time: .omitted)
+        return "\(entry.projectName), \(date)"
     }
 }
 
@@ -161,12 +184,13 @@ private struct SummaryHeroCard: View {
 }
 
 private struct SummaryProjectRow: View {
+    let projectID: TickProject.ID
     let projectName: String
     let value: String
 
     var body: some View {
         HStack(spacing: 12) {
-            TickProjectBadge(color: TickProjectAccent.color(for: projectName))
+            TickProjectBadge(color: TickProjectAccent.color(for: projectID))
 
             Text(projectName)
 
