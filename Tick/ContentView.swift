@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("selectedSpaceID") private var selectedSpaceID = ""
     @State private var viewModel: TickViewModel
 
     @MainActor
@@ -37,6 +38,7 @@ struct ContentView: View {
                 }
         }
         .task {
+            restoreSelectedSpaceIfNeeded()
             await viewModel.loadIfNeeded()
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -48,7 +50,8 @@ struct ContentView: View {
                 await viewModel.reload()
             }
         }
-        .onChange(of: viewModel.selectedProjectID) { _, _ in
+        .onChange(of: viewModel.selectedProjectID) { _, selectedProjectID in
+            selectedSpaceID = selectedProjectID?.uuidString ?? ""
             Task {
                 await viewModel.refreshWidgetSnapshot()
             }
@@ -70,6 +73,14 @@ struct ContentView: View {
                 viewModel.clearError()
             }
         }
+    }
+
+    private func restoreSelectedSpaceIfNeeded() {
+        guard viewModel.selectedProjectID == nil else {
+            return
+        }
+
+        viewModel.selectedProjectID = UUID(uuidString: selectedSpaceID)
     }
 }
 
