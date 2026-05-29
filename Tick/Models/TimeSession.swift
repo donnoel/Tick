@@ -16,6 +16,8 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
     var startedAt: Date?
     var endedAt: Date?
     var manualDuration: TimeInterval?
+    var pausedAt: Date?
+    var accumulatedPausedDuration: TimeInterval?
     var entrySource: SessionEntrySource
     var autoTickRuleID: AutoTickRule.ID?
     let createdAt: Date
@@ -28,6 +30,8 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
         startedAt: Date?,
         endedAt: Date?,
         manualDuration: TimeInterval?,
+        pausedAt: Date? = nil,
+        accumulatedPausedDuration: TimeInterval? = nil,
         entrySource: SessionEntrySource,
         autoTickRuleID: AutoTickRule.ID? = nil,
         createdAt: Date = .now
@@ -39,6 +43,8 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
         self.startedAt = startedAt
         self.endedAt = endedAt
         self.manualDuration = manualDuration
+        self.pausedAt = pausedAt
+        self.accumulatedPausedDuration = accumulatedPausedDuration
         self.entrySource = entrySource
         self.autoTickRuleID = autoTickRuleID
         self.createdAt = createdAt
@@ -49,6 +55,10 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
             startedAt != nil &&
             endedAt == nil &&
             manualDuration == nil
+    }
+
+    var isPaused: Bool {
+        isActive && pausedAt != nil
     }
 
     var referenceDate: Date {
@@ -64,10 +74,8 @@ nonisolated struct TimeSession: Codable, Equatable, Hashable, Identifiable {
             return 0
         }
 
-        if let endedAt {
-            return max(0, endedAt.timeIntervalSince(startedAt))
-        }
-
-        return max(0, date.timeIntervalSince(startedAt))
+        let effectiveEndDate = endedAt ?? pausedAt ?? date
+        let elapsedDuration = effectiveEndDate.timeIntervalSince(startedAt)
+        return max(0, elapsedDuration - (accumulatedPausedDuration ?? 0))
     }
 }

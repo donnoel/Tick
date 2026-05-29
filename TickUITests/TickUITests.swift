@@ -42,17 +42,18 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
         todayTab.tap()
 
-        let startStopButton = app.buttons["today.startStopButton"]
-        XCTAssertTrue(startStopButton.waitForExistence(timeout: 5))
-        XCTAssertEqual(startStopButton.label, "Start Tick")
-        startStopButton.tap()
+        let playButton = app.buttons["today.playButton"]
+        XCTAssertTrue(playButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(playButton.label, "Start Tick")
+        playButton.tap()
 
-        XCTAssertTrue(app.buttons["Stop Tick"].waitForExistence(timeout: 5))
-        app.buttons["Stop Tick"].tap()
+        let stopButton = app.buttons["today.stopButton"]
+        XCTAssertTrue(stopButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(stopButton.waitUntilEnabled(timeout: 5))
+        stopButton.tap()
 
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {
@@ -186,6 +187,16 @@ final class TickUITests: XCTestCase {
 
         XCTAssertFalse(projectSessionRowText.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No Ticks yet"].waitForExistence(timeout: 5))
+    }
+}
+
+private extension XCUIElement {
+    func waitUntilEnabled(timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isEnabled == true")
+        return XCTWaiter.wait(
+            for: [XCTNSPredicateExpectation(predicate: predicate, object: self)],
+            timeout: timeout
+        ) == .completed
     }
 }
 

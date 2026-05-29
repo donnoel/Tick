@@ -40,9 +40,39 @@ nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable {
     var startedAt: Date?
     var endedAt: Date?
     var manualDuration: TimeInterval?
+    var pausedAt: Date?
+    var accumulatedPausedDuration: TimeInterval?
     var entrySource: String
     var autoTickRuleID: UUID?
     var createdAt: Date
+
+    init(
+        id: UUID,
+        projectID: UUID,
+        title: String,
+        notes: String,
+        startedAt: Date?,
+        endedAt: Date?,
+        manualDuration: TimeInterval?,
+        pausedAt: Date? = nil,
+        accumulatedPausedDuration: TimeInterval? = nil,
+        entrySource: String,
+        autoTickRuleID: UUID?,
+        createdAt: Date
+    ) {
+        self.id = id
+        self.projectID = projectID
+        self.title = title
+        self.notes = notes
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.manualDuration = manualDuration
+        self.pausedAt = pausedAt
+        self.accumulatedPausedDuration = accumulatedPausedDuration
+        self.entrySource = entrySource
+        self.autoTickRuleID = autoTickRuleID
+        self.createdAt = createdAt
+    }
 
     var isActive: Bool {
         (entrySource == "timer" || entrySource == "autoLocation") &&
@@ -64,11 +94,9 @@ nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable {
             return 0
         }
 
-        if let endedAt {
-            return max(0, endedAt.timeIntervalSince(startedAt))
-        }
-
-        return max(0, date.timeIntervalSince(startedAt))
+        let effectiveEndDate = endedAt ?? pausedAt ?? date
+        let elapsedDuration = effectiveEndDate.timeIntervalSince(startedAt)
+        return max(0, elapsedDuration - (accumulatedPausedDuration ?? 0))
     }
 }
 

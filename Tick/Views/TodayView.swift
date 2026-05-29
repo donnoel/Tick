@@ -60,37 +60,67 @@ struct TodayView: View {
     }
 
     private var actionButtons: some View {
-        VStack(spacing: 12) {
-            Button {
+        HStack(spacing: 14) {
+            TimerIconButton(
+                systemImage: "play.fill",
+                title: playTitle,
+                tint: TickPalette.primaryAction,
+                isProminent: canPlay
+            ) {
                 Task {
-                    if viewModel.activeSession == nil {
-                        await viewModel.startTick()
+                    if viewModel.activeSession?.isPaused == true {
+                        await viewModel.resumeTick()
                     } else {
-                        await viewModel.stopTick()
+                        await viewModel.startTick()
                     }
                 }
-            } label: {
-                Label(actionTitle, systemImage: viewModel.activeSession == nil ? "play.fill" : "stop.fill")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(viewModel.activeSession == nil ? TickPalette.primaryAction : TickPalette.running)
-            .disabled(viewModel.activeSession == nil && viewModel.selectedProjectID == nil)
-            .accessibilityIdentifier("today.startStopButton")
-            .accessibilityHint(actionAccessibilityHint)
+            .disabled(!canPlay)
+            .accessibilityIdentifier("today.playButton")
+            .accessibilityHint(playAccessibilityHint)
+
+            TimerIconButton(
+                systemImage: "pause.fill",
+                title: "Pause Tick",
+                tint: TickPalette.running,
+                isProminent: canPause
+            ) {
+                Task {
+                    await viewModel.pauseTick()
+                }
+            }
+            .disabled(!canPause)
+            .accessibilityIdentifier("today.pauseButton")
+            .accessibilityHint("Pauses the active Tick without recording the paused time.")
+
+            TimerIconButton(
+                systemImage: "stop.fill",
+                title: "Stop Tick",
+                tint: TickPalette.running,
+                isProminent: canStop
+            ) {
+                Task {
+                    await viewModel.stopTick()
+                }
+            }
+            .disabled(!canStop)
+            .accessibilityIdentifier("today.stopButton")
+            .accessibilityHint("Stops and saves the active Tick session.")
+
+            Spacer()
 
             Button {
                 isAddingTime = true
             } label: {
-                Label("Add Time", systemImage: "plus.circle")
-                    .frame(maxWidth: .infinity)
+                Image(systemName: "plus.circle")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.bordered)
-            .controlSize(.large)
             .tint(TickPalette.primaryAction)
             .disabled(viewModel.activeProjects.isEmpty)
             .accessibilityIdentifier("today.addTimeButton")
+            .accessibilityLabel("Add Time")
             .accessibilityHint("Add time manually when you forgot to start Tick.")
         }
     }
@@ -131,16 +161,33 @@ struct TodayView: View {
         }
     }
 
-    private var actionTitle: String {
-        viewModel.activeSession == nil ? "Start Tick" : "Stop Tick"
+    private var canPlay: Bool {
+        viewModel.activeSession?.isPaused == true ||
+            (viewModel.activeSession == nil && viewModel.selectedProjectID != nil)
     }
 
-    private var actionAccessibilityHint: String {
-        if viewModel.activeSession == nil {
-            return "Starts a timer immediately for the selected space."
+    private var canPause: Bool {
+        guard let activeSession = viewModel.activeSession else {
+            return false
         }
 
-        return "Stops the active timer session."
+        return !activeSession.isPaused
+    }
+
+    private var canStop: Bool {
+        viewModel.activeSession != nil
+    }
+
+    private var playTitle: String {
+        viewModel.activeSession?.isPaused == true ? "Resume Tick" : "Start Tick"
+    }
+
+    private var playAccessibilityHint: String {
+        if viewModel.activeSession?.isPaused == true {
+            return "Resumes the paused Tick."
+        }
+
+        return "Starts a timer immediately for the selected space."
     }
 
     private func projectName(for projectID: TickProject.ID) -> String {
@@ -168,7 +215,7 @@ private struct TodayHeroCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Label(activeSession == nil ? "Today’s Total" : "Running", systemImage: activeSession == nil ? "clock" : "timer")
+                Label(statusTitle, systemImage: statusSystemImage)
                     .font(.headline)
                     .foregroundStyle(activeSession == nil ? TickPalette.primaryAction : TickPalette.running)
 
@@ -217,9 +264,58 @@ private struct TodayHeroCard: View {
 
     private var accessibilityLabel: String {
         if let activeSession {
-            return "Running Tick, elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(secondaryText)"
+            let status = activeSession.isPaused ? "Paused Tick" : "Running Tick"
+            return "\(status), elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(secondaryText)"
         }
 
         return "Today's total recorded time, \(TickDurationFormatter.shortString(from: totalDuration))"
+    }
+
+    private var statusTitle: String {
+        guard let activeSession else {
+            return "Today’s Total"
+        }
+
+        return activeSession.isPaused ? "Paused" : "Running"
+    }
+
+    private var statusSystemImage: String {
+        guard let activeSession else {
+            return "clock"
+        }
+
+        return activeSession.isPaused ? "pause.circle" : "timer"
+    }
+}
+
+private struct TimerIconButton: View {
+    let systemImage: String
+    let title: String
+    let tint: Color
+    let isProminent: Bool
+    let action: () -> Void
+
+    var body: some View {
+        if isProminent {
+            button
+                .buttonStyle(.borderedProminent)
+                .clipShape(Circle())
+                .tint(tint)
+                .accessibilityLabel(title)
+        } else {
+            button
+                .buttonStyle(.bordered)
+                .clipShape(Circle())
+                .tint(tint)
+                .accessibilityLabel(title)
+        }
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.title3.weight(.semibold))
+                .frame(width: 50, height: 50)
+        }
     }
 }

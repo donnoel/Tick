@@ -48,18 +48,18 @@ nonisolated enum TickAccessoryWidgetContentBuilder {
             )
         }
 
-        let elapsed = compactDurationString(from: elapsedDuration(from: snapshot.activeStartedAt, at: date))
+        let total = compactDurationString(from: snapshot.todayTotalDuration)
         let projectName = snapshot.activeProjectName ?? "Ticks"
 
         return TickAccessoryWidgetContent(
             state: .active,
             rectangularTitle: projectName,
-            rectangularDetail: elapsed,
+            rectangularDetail: total,
             rectangularFootnote: "Running",
-            circularText: elapsed,
-            circularSystemImage: elapsed.count > 4 ? "timer" : nil,
-            inlineText: "\(projectName) running \(elapsed)",
-            accessibilityLabel: "\(projectName) running. Elapsed time \(elapsed)."
+            circularText: total,
+            circularSystemImage: total.count > 4 ? "timer" : nil,
+            inlineText: "\(projectName): \(total) today",
+            accessibilityLabel: "\(projectName) running. \(total) today."
         )
     }
 
@@ -73,14 +73,6 @@ nonisolated enum TickAccessoryWidgetContentBuilder {
         }
 
         return "\(minutes)m"
-    }
-
-    private static func elapsedDuration(from startDate: Date?, at date: Date) -> TimeInterval {
-        guard let startDate else {
-            return 0
-        }
-
-        return max(0, date.timeIntervalSince(startDate))
     }
 
     private static func accessibilityParts(_ parts: [String?]) -> [String] {

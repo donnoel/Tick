@@ -632,7 +632,30 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(content.rectangularTitle, "PiSignage")
         XCTAssertEqual(content.rectangularDetail, "42m")
         XCTAssertEqual(content.rectangularFootnote, "Running")
-        XCTAssertEqual(content.inlineText, "PiSignage running 42m")
+        XCTAssertEqual(content.inlineText, "PiSignage: 42m today")
+    }
+
+    func testAccessoryActiveContentShowsTodayTotalInsteadOfElapsedTime() {
+        let snapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: nil,
+            defaultProjectName: nil,
+            activeSessionID: UUID(),
+            activeProjectName: "PiSignage",
+            activeSessionTitle: "UI work",
+            activeStartedAt: Date(timeIntervalSince1970: 100),
+            todayTotalDuration: 15_180,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let content = TickAccessoryWidgetContentBuilder.content(
+            from: snapshot,
+            at: Date(timeIntervalSince1970: 640)
+        )
+
+        XCTAssertEqual(content.state, .active)
+        XCTAssertEqual(content.rectangularDetail, "4h 13m")
+        XCTAssertEqual(content.circularText, "4h 13m")
+        XCTAssertEqual(content.inlineText, "PiSignage: 4h 13m today")
     }
 
     func testAccessoryCircularIdleAndActiveContent() {
@@ -672,6 +695,25 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(idleContent.circularSystemImage, "timer")
         XCTAssertEqual(activeContent.circularText, "2h 0m")
         XCTAssertEqual(activeContent.circularSystemImage, "timer")
+    }
+
+    func testWidgetStoredSessionDurationExcludesPausedTime() {
+        let session = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: UUID(),
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            pausedAt: Date(timeIntervalSince1970: 160),
+            accumulatedPausedDuration: 30,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertEqual(session.duration(at: Date(timeIntervalSince1970: 400)), 30)
     }
 
     func testWidgetStartDoesNotCreateDuplicateActiveSessions() async throws {
@@ -788,6 +830,50 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(firstStart)
         XCTAssertFalse(secondStart)
         XCTAssertEqual(viewModel.sessions.filter(\.isActive).count, 1)
+    }
+
+    @MainActor
+    func testViewModelPauseFreezesDurationUntilResume() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Tick", createdAt: Date(timeIntervalSince1970: 0))
+
+        await viewModel.startTick(at: Date(timeIntervalSince1970: 100))
+        let didPause = await viewModel.pauseTick(at: Date(timeIntervalSince1970: 160))
+
+        XCTAssertTrue(didPause)
+        XCTAssertTrue(viewModel.activeSession?.isPaused == true)
+        XCTAssertEqual(viewModel.activeSession?.duration(at: Date(timeIntervalSince1970: 220)), 60)
+
+        let didResume = await viewModel.resumeTick(at: Date(timeIntervalSince1970: 220))
+
+        XCTAssertTrue(didResume)
+        XCTAssertFalse(viewModel.activeSession?.isPaused == true)
+        XCTAssertEqual(viewModel.activeSession?.duration(at: Date(timeIntervalSince1970: 250)), 90)
+    }
+
+    @MainActor
+    func testStoppingPausedTickDoesNotIncludePausedTime() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Tick", createdAt: Date(timeIntervalSince1970: 0))
+
+        await viewModel.startTick(at: Date(timeIntervalSince1970: 100))
+        await viewModel.pauseTick(at: Date(timeIntervalSince1970: 160))
+        let didStop = await viewModel.stopTick(at: Date(timeIntervalSince1970: 400))
+
+        XCTAssertTrue(didStop)
+        XCTAssertNil(viewModel.activeSession)
+        XCTAssertEqual(viewModel.sessions.first?.endedAt, Date(timeIntervalSince1970: 160))
+        XCTAssertEqual(viewModel.sessions.first?.duration(at: Date(timeIntervalSince1970: 400)), 60)
     }
 
     @MainActor

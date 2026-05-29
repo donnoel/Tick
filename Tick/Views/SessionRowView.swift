@@ -78,6 +78,10 @@ struct SessionRowView: View {
         }
 
         if session.isActive {
+            if session.isPaused {
+                return "Paused at \(formattedTime(session.pausedAt))"
+            }
+
             return "Running since \(formattedTime(session.startedAt))"
         }
 

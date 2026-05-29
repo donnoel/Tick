@@ -261,8 +261,46 @@ final class TickViewModel {
         }
 
         let startedAt = activeSession.startedAt ?? date
-        sessions[activeIndex].endedAt = date < startedAt ? startedAt : date
+        let pauseDate = activeSession.pausedAt
+        let endedAt = pauseDate ?? date
+        sessions[activeIndex].endedAt = endedAt < startedAt ? startedAt : endedAt
+        sessions[activeIndex].pausedAt = nil
         sessions.sort { $0.referenceDate > $1.referenceDate }
+        await persist()
+        return true
+    }
+
+    @discardableResult
+    func pauseTick(at date: Date = .now) async -> Bool {
+        guard let activeSession, let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
+            errorMessage = "There is no active Tick to pause."
+            return false
+        }
+
+        guard !activeSession.isPaused else {
+            return true
+        }
+
+        let startedAt = activeSession.startedAt ?? date
+        sessions[activeIndex].pausedAt = date < startedAt ? startedAt : date
+        await persist()
+        return true
+    }
+
+    @discardableResult
+    func resumeTick(at date: Date = .now) async -> Bool {
+        guard let activeSession, let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
+            errorMessage = "There is no paused Tick to resume."
+            return false
+        }
+
+        guard let pausedAt = activeSession.pausedAt else {
+            return true
+        }
+
+        let pauseDuration = max(0, date.timeIntervalSince(pausedAt))
+        sessions[activeIndex].accumulatedPausedDuration = (activeSession.accumulatedPausedDuration ?? 0) + pauseDuration
+        sessions[activeIndex].pausedAt = nil
         await persist()
         return true
     }
@@ -667,6 +705,8 @@ final class TickViewModel {
                     startedAt: session.startedAt,
                     endedAt: session.endedAt,
                     manualDuration: session.manualDuration,
+                    pausedAt: session.pausedAt,
+                    accumulatedPausedDuration: session.accumulatedPausedDuration,
                     entrySource: session.entrySource.rawValue,
                     autoTickRuleID: session.autoTickRuleID,
                     createdAt: session.createdAt
@@ -740,7 +780,10 @@ final class TickViewModel {
         }
 
         let startedAt = sessions[sessionIndex].startedAt ?? date
-        sessions[sessionIndex].endedAt = date < startedAt ? startedAt : date
+        let pauseDate = sessions[sessionIndex].pausedAt
+        let endedAt = pauseDate ?? date
+        sessions[sessionIndex].endedAt = endedAt < startedAt ? startedAt : endedAt
+        sessions[sessionIndex].pausedAt = nil
         sessions.sort { $0.referenceDate > $1.referenceDate }
         await persist()
         return true
