@@ -4,7 +4,7 @@ enum TickPalette {
     static let appBackground = Color(.systemGroupedBackground)
     static let cardBackground = Color(.secondarySystemGroupedBackground)
     static let primaryAction = Color.blue
-    static let running = Color.orange
+    static let running = Color.indigo
     static let locationReady = Color.green
 }
 
