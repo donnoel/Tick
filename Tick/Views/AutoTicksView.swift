@@ -104,7 +104,11 @@ struct AutoTicksView: View {
                     NavigationLink(value: rule.id) {
                         AutoTickRuleRowView(
                             rule: rule,
-                            projectName: projectName(for: rule.projectID)
+                            projectName: projectName(for: rule.projectID),
+                            projectAccent: TickProjectAccent.color(
+                                for: rule.projectID,
+                                among: viewModel.projects.map(\.id)
+                            )
                         )
                     }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -296,6 +300,7 @@ private struct LocationStatusCard: View {
 private struct AutoTickRuleRowView: View {
     let rule: AutoTickRule
     let projectName: String
+    let projectAccent: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -343,10 +348,6 @@ private struct AutoTickRuleRowView: View {
         .padding(14)
         .tickCard(tint: projectAccent, isHighlighted: rule.isEnabled)
         .accessibilityElement(children: .contain)
-    }
-
-    private var projectAccent: Color {
-        TickProjectAccent.color(for: rule.projectID)
     }
 
     private var statusTint: Color {

@@ -21,6 +21,7 @@ struct SummariesView: View {
                     sessions: viewModel.sessions,
                     referenceDate: timeline.date
                 )
+                let projectIDs = viewModel.projects.map(\.id)
 
                 List {
                     Section {
@@ -53,7 +54,7 @@ struct SummariesView: View {
                                     x: .value("Duration", entry.hours),
                                     y: .value("Space", entry.projectName)
                                 )
-                                .foregroundStyle(TickProjectAccent.color(for: entry.projectID))
+                                .foregroundStyle(TickProjectAccent.color(for: entry.projectID, among: projectIDs))
                                 .accessibilityLabel(entry.projectName)
                                 .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
                             }
@@ -72,7 +73,8 @@ struct SummariesView: View {
                             } else {
                                 SummaryDayProjectChart(
                                     entries: dayProjectChartEntries,
-                                    selectedPeriod: selectedPeriod
+                                    selectedPeriod: selectedPeriod,
+                                    projectIDs: projectIDs
                                 )
                             }
                         }
@@ -85,9 +87,9 @@ struct SummariesView: View {
                         } else {
                             ForEach(summary.durationByProject) { projectSummary in
                                 SummaryProjectRow(
-                                    projectID: projectSummary.projectID,
                                     projectName: projectSummary.projectName,
-                                    value: TickDurationFormatter.shortString(from: projectSummary.duration)
+                                    value: TickDurationFormatter.shortString(from: projectSummary.duration),
+                                    color: TickProjectAccent.color(for: projectSummary.projectID, among: projectIDs)
                                 )
                             }
                         }
@@ -112,6 +114,7 @@ struct SummariesView: View {
 private struct SummaryDayProjectChart: View {
     let entries: [TickDayProjectChartEntry]
     let selectedPeriod: SummaryPeriod
+    let projectIDs: [TickProject.ID]
 
     var body: some View {
         Chart(entries) { entry in
@@ -119,7 +122,7 @@ private struct SummaryDayProjectChart: View {
                 x: .value("Day", entry.date, unit: .day),
                 y: .value("Duration", entry.hours)
             )
-            .foregroundStyle(TickProjectAccent.color(for: entry.projectID))
+            .foregroundStyle(TickProjectAccent.color(for: entry.projectID, among: projectIDs))
             .accessibilityLabel(accessibilityLabel(for: entry))
             .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
         }
@@ -184,13 +187,13 @@ private struct SummaryHeroCard: View {
 }
 
 private struct SummaryProjectRow: View {
-    let projectID: TickProject.ID
     let projectName: String
     let value: String
+    let color: Color
 
     var body: some View {
         HStack(spacing: 12) {
-            TickProjectBadge(color: TickProjectAccent.color(for: projectID))
+            TickProjectBadge(color: color)
 
             Text(projectName)
 

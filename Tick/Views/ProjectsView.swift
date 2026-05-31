@@ -9,6 +9,8 @@ struct ProjectsView: View {
     var body: some View {
         NavigationStack {
             List {
+                let projectIDs = viewModel.projects.map(\.id)
+
                 if viewModel.activeProjects.isEmpty {
                     ContentUnavailableView(
                         "No Spaces",
@@ -23,7 +25,8 @@ struct ProjectsView: View {
                             } label: {
                                 ProjectRowView(
                                     project: project,
-                                    duration: viewModel.totalDuration(for: project.id)
+                                    duration: viewModel.totalDuration(for: project.id),
+                                    color: TickProjectAccent.color(for: project.id, among: projectIDs)
                                 )
                             }
                             .accessibilityHint("Opens space details.")
@@ -52,6 +55,7 @@ struct ProjectsView: View {
                                 ProjectRowView(
                                     project: project,
                                     duration: viewModel.totalDuration(for: project.id),
+                                    color: TickProjectAccent.color(for: project.id, among: projectIDs),
                                     showsArchivedBadge: true
                                 )
                             }
@@ -161,11 +165,12 @@ struct ProjectsView: View {
 private struct ProjectRowView: View {
     let project: TickProject
     let duration: TimeInterval
+    let color: Color
     var showsArchivedBadge = false
 
     var body: some View {
         HStack(spacing: 12) {
-            TickProjectBadge(color: TickProjectAccent.color(for: project.id), systemImage: "folder.fill")
+            TickProjectBadge(color: color, systemImage: "folder.fill")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)

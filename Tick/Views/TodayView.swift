@@ -128,6 +128,7 @@ struct TodayView: View {
     private func todaySessions(at date: Date) -> some View {
         let sessions = viewModel.sessions(on: date)
         let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: sessions)
+        let projectIDs = viewModel.projects.map(\.id)
 
         return VStack(alignment: .leading, spacing: 12) {
             Text("Today's Ticks")
@@ -150,7 +151,8 @@ struct TodayView: View {
                                 projectID: session.projectID,
                                 projectName: projectName(for: session.projectID),
                                 displayDate: date,
-                                defaultTitle: fallbackTitles[session.id] ?? "Tick"
+                                defaultTitle: fallbackTitles[session.id] ?? "Tick",
+                                accentColor: TickProjectAccent.color(for: session.projectID, among: projectIDs)
                             )
                         }
                         .buttonStyle(.plain)

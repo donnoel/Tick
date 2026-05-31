@@ -28,8 +28,32 @@ enum TickProjectAccent {
         colors[index(for: projectID)]
     }
 
+    static func color(for projectID: UUID, among projectIDs: [UUID]) -> Color {
+        let assignedIndex = index(for: projectID, among: projectIDs)
+
+        if assignedIndex < colors.count {
+            return colors[assignedIndex]
+        }
+
+        return Color(
+            hue: Double((assignedIndex * 47) % 360) / 360,
+            saturation: 0.72,
+            brightness: 0.82
+        )
+    }
+
     static func index(for projectID: UUID) -> Int {
         index(for: projectID.uuidString)
+    }
+
+    static func index(for projectID: UUID, among projectIDs: [UUID]) -> Int {
+        var uniqueProjectIDs: [UUID] = []
+
+        for candidateID in projectIDs + [projectID] where !uniqueProjectIDs.contains(candidateID) {
+            uniqueProjectIDs.append(candidateID)
+        }
+
+        return uniqueProjectIDs.firstIndex(of: projectID) ?? index(for: projectID)
     }
 
     static func index(for seed: String) -> Int {

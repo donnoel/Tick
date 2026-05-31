@@ -12,11 +12,12 @@ struct SessionRowView: View {
     let displayDate: Date
     let defaultTitle: String
     var detailStyle: DetailStyle = .time
+    var accentColor: Color?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             TickProjectBadge(
-                color: accentColor,
+                color: rowAccentColor,
                 systemImage: session.entrySource == .autoLocation ? "location.fill" : "circle.fill"
             )
 
@@ -38,8 +39,8 @@ struct SessionRowView: View {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(accentColor.opacity(0.14), in: Capsule())
-                            .foregroundStyle(accentColor)
+                            .background(rowAccentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(rowAccentColor)
                             .accessibilityLabel(sourceBadgeAccessibilityLabel)
                     }
                 }
@@ -58,13 +59,13 @@ struct SessionRowView: View {
             }
         }
         .padding(12)
-        .tickCard(tint: accentColor, isHighlighted: session.isActive)
+        .tickCard(tint: rowAccentColor, isHighlighted: session.isActive)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
     }
 
-    private var accentColor: Color {
-        TickProjectAccent.color(for: projectID)
+    private var rowAccentColor: Color {
+        accentColor ?? TickProjectAccent.color(for: projectID)
     }
 
     private var title: String {

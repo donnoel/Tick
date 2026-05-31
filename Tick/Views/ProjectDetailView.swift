@@ -8,13 +8,15 @@ struct ProjectDetailView: View {
 
     var body: some View {
         let currentProject = viewModel.project(for: project.id) ?? project
+        let projectAccent = TickProjectAccent.color(for: currentProject.id, among: viewModel.projects.map(\.id))
 
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
             List {
                 Section {
                     ProjectSummaryCard(
                         project: currentProject,
-                        duration: viewModel.totalDuration(for: currentProject.id, at: timeline.date)
+                        duration: viewModel.totalDuration(for: currentProject.id, at: timeline.date),
+                        color: projectAccent
                     )
                 }
                 .listRowBackground(Color.clear)
@@ -64,7 +66,8 @@ struct ProjectDetailView: View {
                                     projectName: currentProject.name,
                                     displayDate: timeline.date,
                                     defaultTitle: SessionFallbackTitleProvider.fallbackTitle(for: session, in: projectSessions),
-                                    detailStyle: .date
+                                    detailStyle: .date,
+                                    accentColor: projectAccent
                                 )
                             }
                             .buttonStyle(.plain)
@@ -147,11 +150,12 @@ struct ProjectDetailView: View {
 private struct ProjectSummaryCard: View {
     let project: TickProject
     let duration: TimeInterval
+    let color: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
-                TickProjectBadge(color: TickProjectAccent.color(for: project.id), systemImage: "folder.fill")
+                TickProjectBadge(color: color, systemImage: "folder.fill")
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(project.name)
@@ -175,7 +179,7 @@ private struct ProjectSummaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .tickCard(tint: TickProjectAccent.color(for: project.id))
+        .tickCard(tint: color)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(project.name), \(TickDurationFormatter.shortString(from: duration)) total recorded, created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
     }

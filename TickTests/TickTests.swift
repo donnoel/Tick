@@ -2,6 +2,43 @@ import XCTest
 @testable import Tick
 
 final class TickTests: XCTestCase {
+    func testProjectAccentAssignmentUsesVisibleProjectOrderForUniqueColors() {
+        let projectIDs = [
+            UUID(uuidString: "00000000-0000-0000-0000-000000000101")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000102")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000103")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000104")!
+        ]
+
+        XCTAssertEqual(
+            projectIDs.map { TickProjectAccent.index(for: $0, among: projectIDs) },
+            [0, 1, 2, 3]
+        )
+    }
+
+    func testProjectAccentResolvesPaletteCollisionsWithinProjectSet() {
+        var projectIDsByAccentIndex: [Int: TickProject.ID] = [:]
+        var collidingProjectIDs: [TickProject.ID] = []
+
+        for value in 0..<1_000 {
+            let projectID = UUID(uuidString: String(format: "00000000-0000-0000-0000-%012X", value))!
+            let accentIndex = TickProjectAccent.index(for: projectID)
+
+            if let existingProjectID = projectIDsByAccentIndex[accentIndex] {
+                collidingProjectIDs = [existingProjectID, projectID]
+                break
+            }
+
+            projectIDsByAccentIndex[accentIndex] = projectID
+        }
+
+        XCTAssertEqual(collidingProjectIDs.count, 2)
+        XCTAssertEqual(
+            Set(collidingProjectIDs.map { TickProjectAccent.index(for: $0, among: collidingProjectIDs) }).count,
+            collidingProjectIDs.count
+        )
+    }
+
     func testTimerDurationUsesStartedAndEndedDates() {
         let projectID = UUID()
         let startDate = Date(timeIntervalSince1970: 100)
