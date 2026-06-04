@@ -269,7 +269,7 @@ struct ProjectDetailView: View {
 
     private func beginRenamingVoiceMemo(_ voiceMemo: VoiceMemo) {
         voiceMemoIDBeingRenamed = voiceMemo.id
-        voiceMemoRenameTitle = voiceMemo.title
+        voiceMemoRenameTitle = ""
     }
 
     private func renameVoiceMemo() {

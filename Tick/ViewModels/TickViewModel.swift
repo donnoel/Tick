@@ -231,7 +231,7 @@ final class TickViewModel {
         }
 
         await persist()
-        await persistVoiceMemos()
+        await persistVoiceMemos(deletedVoiceMemoIDs: deletedVoiceMemos.map(\.id))
         await deleteVoiceMemoFiles(deletedVoiceMemos)
         return true
     }
@@ -635,7 +635,8 @@ final class TickViewModel {
                 title: trimmedTitle.isEmpty ? "Voice memo" : trimmedTitle,
                 fileName: recordingVoiceMemoFileName,
                 duration: duration,
-                createdAt: recordingVoiceMemoStartedAt ?? .now
+                createdAt: recordingVoiceMemoStartedAt ?? .now,
+                updatedAt: .now
             )
 
             clearVoiceMemoRecordingState()
@@ -675,7 +676,7 @@ final class TickViewModel {
     }
 
     @discardableResult
-    func updateVoiceMemoTitle(id: VoiceMemo.ID, title: String) async -> Bool {
+    func updateVoiceMemoTitle(id: VoiceMemo.ID, title: String, updatedAt: Date = .now) async -> Bool {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedTitle.isEmpty else {
@@ -689,6 +690,7 @@ final class TickViewModel {
         }
 
         voiceMemos[voiceMemoIndex].title = trimmedTitle
+        voiceMemos[voiceMemoIndex].updatedAt = updatedAt
         voiceMemos.sort { $0.createdAt > $1.createdAt }
         await persistVoiceMemos()
         return true
@@ -708,7 +710,7 @@ final class TickViewModel {
             playingVoiceMemoID = nil
         }
 
-        await persistVoiceMemos()
+        await persistVoiceMemos(deletedVoiceMemoIDs: [id])
         await deleteVoiceMemoFiles([voiceMemo])
         return true
     }
@@ -812,9 +814,9 @@ final class TickViewModel {
     }
 
     @discardableResult
-    private func persistVoiceMemos() async -> Bool {
+    private func persistVoiceMemos(deletedVoiceMemoIDs: [VoiceMemo.ID] = []) async -> Bool {
         do {
-            try await voiceMemoStore.save(voiceMemos)
+            try await voiceMemoStore.save(voiceMemos, deletedVoiceMemoIDs: deletedVoiceMemoIDs)
             errorMessage = nil
             return true
         } catch {

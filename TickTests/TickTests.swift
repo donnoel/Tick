@@ -394,7 +394,8 @@ final class TickTests: XCTestCase {
         )
         let store = TickVoiceMemoStore(
             metadataFileURL: urls.metadataFileURL,
-            voiceMemoDirectoryURL: urls.audioDirectoryURL
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            usesICloud: false
         )
 
         let audioURL = try await store.preparedFileURL(for: voiceMemo.fileName)
@@ -430,7 +431,8 @@ final class TickTests: XCTestCase {
         let dataStore = TickDataStore(fileURL: dataFileURL)
         let voiceMemoStore = TickVoiceMemoStore(
             metadataFileURL: voiceMemoURLs.metadataFileURL,
-            voiceMemoDirectoryURL: voiceMemoURLs.audioDirectoryURL
+            voiceMemoDirectoryURL: voiceMemoURLs.audioDirectoryURL,
+            usesICloud: false
         )
 
         try await dataStore.save(TickStorageSnapshot(projects: [project], sessions: []))
@@ -472,7 +474,8 @@ final class TickTests: XCTestCase {
         let dataStore = TickDataStore(fileURL: dataFileURL)
         let voiceMemoStore = TickVoiceMemoStore(
             metadataFileURL: voiceMemoURLs.metadataFileURL,
-            voiceMemoDirectoryURL: voiceMemoURLs.audioDirectoryURL
+            voiceMemoDirectoryURL: voiceMemoURLs.audioDirectoryURL,
+            usesICloud: false
         )
 
         try await dataStore.save(TickStorageSnapshot(projects: [project], sessions: []))
@@ -487,6 +490,119 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(viewModel.voiceMemos(for: project.id).first?.title, "Client notes")
         let loadedVoiceMemos = try await voiceMemoStore.load()
         XCTAssertEqual(loadedVoiceMemos.first?.title, "Client notes")
+    }
+
+    func testVoiceMemoStoreCopiesLocalMetadataAndAudioToICloudStore() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let voiceMemo = VoiceMemo(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000654")!,
+            projectID: UUID(),
+            title: "Local memo",
+            duration: 42,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let store = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: urls.iCloudMetadataFileURL,
+            iCloudVoiceMemoDirectoryURL: urls.iCloudAudioDirectoryURL
+        )
+
+        let localAudioURL = try await store.preparedFileURL(for: voiceMemo.fileName)
+        try Data([1, 2, 3]).write(to: localAudioURL)
+        try await store.save([voiceMemo])
+
+        let loadedVoiceMemos = try await store.load()
+        let iCloudAudioURL = urls.iCloudAudioDirectoryURL.appendingPathComponent(voiceMemo.fileName)
+        let iCloudSnapshot = try decodeVoiceMemoSnapshot(at: urls.iCloudMetadataFileURL)
+
+        XCTAssertEqual(loadedVoiceMemos, [voiceMemo])
+        XCTAssertEqual(iCloudSnapshot.voiceMemos, [voiceMemo])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: iCloudAudioURL.path))
+    }
+
+    func testVoiceMemoStoreCopiesICloudMetadataAndAudioToLocalStore() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let voiceMemo = VoiceMemo(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000655")!,
+            projectID: UUID(),
+            title: "Remote memo",
+            duration: 42,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let iCloudAudioURL = urls.iCloudAudioDirectoryURL.appendingPathComponent(voiceMemo.fileName)
+        try FileManager.default.createDirectory(at: urls.iCloudAudioDirectoryURL, withIntermediateDirectories: true)
+        try Data([4, 5, 6]).write(to: iCloudAudioURL)
+        try encodeVoiceMemoSnapshot(
+            TickVoiceMemoStorageSnapshot(voiceMemos: [voiceMemo]),
+            at: urls.iCloudMetadataFileURL
+        )
+        let store = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: urls.iCloudMetadataFileURL,
+            iCloudVoiceMemoDirectoryURL: urls.iCloudAudioDirectoryURL
+        )
+
+        let loadedVoiceMemos = try await store.load()
+        let localAudioURL = urls.audioDirectoryURL.appendingPathComponent(voiceMemo.fileName)
+        let localSnapshot = try decodeVoiceMemoSnapshot(at: urls.metadataFileURL)
+
+        XCTAssertEqual(loadedVoiceMemos, [voiceMemo])
+        XCTAssertEqual(localSnapshot.voiceMemos, [voiceMemo])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: localAudioURL.path))
+    }
+
+    func testVoiceMemoStoreDeletionTombstoneWinsOverOlderICloudMemo() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let voiceMemoID = UUID(uuidString: "00000000-0000-0000-0000-000000000656")!
+        let voiceMemo = VoiceMemo(
+            id: voiceMemoID,
+            projectID: UUID(),
+            title: "Deleted memo",
+            duration: 42,
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            updatedAt: Date(timeIntervalSince1970: 1_000)
+        )
+        try encodeVoiceMemoSnapshot(
+            TickVoiceMemoStorageSnapshot(voiceMemos: [voiceMemo]),
+            at: urls.iCloudMetadataFileURL
+        )
+        let iCloudAudioURL = urls.iCloudAudioDirectoryURL.appendingPathComponent(voiceMemo.fileName)
+        try FileManager.default.createDirectory(at: urls.iCloudAudioDirectoryURL, withIntermediateDirectories: true)
+        try Data([7, 8, 9]).write(to: iCloudAudioURL)
+        let store = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: urls.iCloudMetadataFileURL,
+            iCloudVoiceMemoDirectoryURL: urls.iCloudAudioDirectoryURL
+        )
+
+        try await store.save(
+            [],
+            deletedVoiceMemoIDs: [voiceMemoID],
+            deletedAt: Date(timeIntervalSince1970: 2_000)
+        )
+        let loadedVoiceMemos = try await store.load()
+        let iCloudSnapshot = try decodeVoiceMemoSnapshot(at: urls.iCloudMetadataFileURL)
+
+        XCTAssertTrue(loadedVoiceMemos.isEmpty)
+        XCTAssertTrue(iCloudSnapshot.voiceMemos.isEmpty)
+        XCTAssertEqual(iCloudSnapshot.deletedVoiceMemos.first?.id, voiceMemoID)
+        XCTAssertEqual(iCloudSnapshot.deletedVoiceMemos.first?.fileName, voiceMemo.fileName)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: iCloudAudioURL.path))
     }
 
     func testProjectAccentAssignmentIsStable() {
@@ -1587,16 +1703,41 @@ final class TickTests: XCTestCase {
     private func temporaryVoiceMemoStoreURLs() -> (
         directoryURL: URL,
         metadataFileURL: URL,
-        audioDirectoryURL: URL
+        audioDirectoryURL: URL,
+        iCloudMetadataFileURL: URL,
+        iCloudAudioDirectoryURL: URL
     ) {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let iCloudDirectoryURL = directoryURL.appendingPathComponent("iCloud", isDirectory: true)
 
         return (
             directoryURL,
             directoryURL.appendingPathComponent("tick-voice-memos.json"),
-            directoryURL.appendingPathComponent("VoiceMemos", isDirectory: true)
+            directoryURL.appendingPathComponent("VoiceMemos", isDirectory: true),
+            iCloudDirectoryURL.appendingPathComponent("tick-voice-memos.json"),
+            iCloudDirectoryURL.appendingPathComponent("VoiceMemos", isDirectory: true)
         )
+    }
+
+    private func encodeVoiceMemoSnapshot(_ snapshot: TickVoiceMemoStorageSnapshot, at fileURL: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let data = try encoder.encode(snapshot)
+        try data.write(to: fileURL, options: [.atomic])
+    }
+
+    private func decodeVoiceMemoSnapshot(at fileURL: URL) throws -> TickVoiceMemoStorageSnapshot {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let data = try Data(contentsOf: fileURL)
+        return try decoder.decode(TickVoiceMemoStorageSnapshot.self, from: data)
     }
 
     func testUntitledSessionTitlesNumbersOnlyUntitledSessionsInInputOrder() {

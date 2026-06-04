@@ -2,6 +2,7 @@ import Foundation
 
 nonisolated enum TickSharedStorage {
     static let appGroupIdentifier = "group.dn.tick"
+    static let iCloudContainerIdentifier = "iCloud.dn.tick"
     static let dataFileName = "tick-data.json"
     static let widgetSnapshotFileName = "tick-widget-snapshot.json"
     static let voiceMemoMetadataFileName = "tick-voice-memos.json"
@@ -25,6 +26,14 @@ nonisolated enum TickSharedStorage {
 
     static func voiceMemoDirectoryURL(fileManager: FileManager = .default) -> URL {
         containerURL(fileManager: fileManager).appendingPathComponent(voiceMemoDirectoryName, isDirectory: true)
+    }
+
+    static func iCloudVoiceMemoMetadataFileURL(fileManager: FileManager = .default) -> URL? {
+        iCloudVoiceMemoContainerURL(fileManager: fileManager)?.appendingPathComponent(voiceMemoMetadataFileName)
+    }
+
+    static func iCloudVoiceMemoDirectoryURL(fileManager: FileManager = .default) -> URL? {
+        iCloudVoiceMemoContainerURL(fileManager: fileManager)?.appendingPathComponent(voiceMemoDirectoryName, isDirectory: true)
     }
 
     /// UI-test only reset hook, enabled by `-resetDataForUITests`.
@@ -52,6 +61,12 @@ nonisolated enum TickSharedStorage {
 
     private static func applicationSupportContainerURL(fileManager: FileManager) -> URL {
         fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Tick", isDirectory: true)
+    }
+
+    private static func iCloudVoiceMemoContainerURL(fileManager: FileManager) -> URL? {
+        fileManager.url(forUbiquityContainerIdentifier: iCloudContainerIdentifier)?
+            .appendingPathComponent("Documents", isDirectory: true)
             .appendingPathComponent("Tick", isDirectory: true)
     }
 }
