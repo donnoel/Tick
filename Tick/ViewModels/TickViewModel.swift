@@ -9,6 +9,7 @@ final class TickViewModel {
     private let voiceMemoStore: TickVoiceMemoStore
     private let locationService: AutoTickLocationService
     private let iCloudSyncStore: TickICloudSyncStore?
+    private let voiceMemoICloudSyncStore: TickVoiceMemoICloudSyncStore?
     private let voiceMemoAudioController: TickVoiceMemoAudioController
     @ObservationIgnored private var iCloudSyncObserver: NSObjectProtocol?
     @ObservationIgnored private var recordingVoiceMemoID: VoiceMemo.ID?
@@ -34,6 +35,7 @@ final class TickViewModel {
         self.voiceMemoStore = TickVoiceMemoStore()
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = TickICloudSyncStore()
+        self.voiceMemoICloudSyncStore = TickVoiceMemoICloudSyncStore()
         self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
@@ -52,6 +54,7 @@ final class TickViewModel {
         self.voiceMemoStore = TickVoiceMemoStore()
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = nil
+        self.voiceMemoICloudSyncStore = nil
         self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
@@ -69,6 +72,7 @@ final class TickViewModel {
         self.voiceMemoStore = voiceMemoStore
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = nil
+        self.voiceMemoICloudSyncStore = nil
         self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
@@ -85,6 +89,7 @@ final class TickViewModel {
         store: TickDataStore,
         locationService: AutoTickLocationService,
         iCloudSyncStore: TickICloudSyncStore? = nil,
+        voiceMemoICloudSyncStore: TickVoiceMemoICloudSyncStore? = nil,
         voiceMemoStore: TickVoiceMemoStore = TickVoiceMemoStore(),
         voiceMemoAudioController: TickVoiceMemoAudioController? = nil
     ) {
@@ -92,6 +97,7 @@ final class TickViewModel {
         self.voiceMemoStore = voiceMemoStore
         self.locationService = locationService
         self.iCloudSyncStore = iCloudSyncStore
+        self.voiceMemoICloudSyncStore = voiceMemoICloudSyncStore
         self.voiceMemoAudioController = voiceMemoAudioController ?? TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
@@ -123,7 +129,7 @@ final class TickViewModel {
     }
 
     private func configureICloudSyncCallbacks() {
-        guard iCloudSyncStore != nil else {
+        guard iCloudSyncStore != nil || voiceMemoICloudSyncStore != nil else {
             return
         }
 
@@ -134,6 +140,7 @@ final class TickViewModel {
         ) { [weak self] _ in
             Task { @MainActor in
                 await self?.applyRemoteICloudSnapshotIfNeeded()
+                await self?.reloadVoiceMemos()
             }
         }
     }
@@ -642,7 +649,7 @@ final class TickViewModel {
             clearVoiceMemoRecordingState()
             voiceMemos.insert(voiceMemo, at: 0)
             voiceMemos.sort { $0.createdAt > $1.createdAt }
-            await persistVoiceMemos()
+            await persistVoiceMemos(audioFileNamesToSync: [voiceMemo.fileName])
             return true
         } catch {
             errorMessage = "Tick could not stop that voice memo. \(error.localizedDescription)"
@@ -692,7 +699,7 @@ final class TickViewModel {
         voiceMemos[voiceMemoIndex].title = trimmedTitle
         voiceMemos[voiceMemoIndex].updatedAt = updatedAt
         voiceMemos.sort { $0.createdAt > $1.createdAt }
-        await persistVoiceMemos()
+        await persistVoiceMemos(audioFileNamesToSync: [])
         return true
     }
 
@@ -814,9 +821,17 @@ final class TickViewModel {
     }
 
     @discardableResult
-    private func persistVoiceMemos(deletedVoiceMemoIDs: [VoiceMemo.ID] = []) async -> Bool {
+    private func persistVoiceMemos(
+        deletedVoiceMemoIDs: [VoiceMemo.ID] = [],
+        audioFileNamesToSync: Set<String>? = nil
+    ) async -> Bool {
         do {
-            try await voiceMemoStore.save(voiceMemos, deletedVoiceMemoIDs: deletedVoiceMemoIDs)
+            let snapshot = try await voiceMemoStore.save(
+                voiceMemos,
+                deletedVoiceMemoIDs: deletedVoiceMemoIDs,
+                audioFileNamesToSync: audioFileNamesToSync
+            )
+            try voiceMemoICloudSyncStore?.save(snapshot)
             errorMessage = nil
             return true
         } catch {
@@ -827,10 +842,40 @@ final class TickViewModel {
 
     private func reloadVoiceMemos() async {
         do {
-            voiceMemos = try await voiceMemoStore.load().sorted { $0.createdAt > $1.createdAt }
+            let localSnapshot = try await voiceMemoStore.loadSnapshot()
+            let resolvedSnapshot = try await resolveVoiceMemoICloudSnapshot(localSnapshot)
+            voiceMemos = resolvedSnapshot.voiceMemos.sorted { $0.createdAt > $1.createdAt }
         } catch {
             errorMessage = "Tick could not load saved voice memos. \(error.localizedDescription)"
         }
+    }
+
+    private func resolveVoiceMemoICloudSnapshot(
+        _ localSnapshot: TickVoiceMemoStorageSnapshot
+    ) async throws -> TickVoiceMemoStorageSnapshot {
+        guard let voiceMemoICloudSyncStore else {
+            return localSnapshot
+        }
+
+        guard let remoteSnapshot = try voiceMemoICloudSyncStore.loadSnapshot() else {
+            if !localSnapshot.isEmpty {
+                try voiceMemoICloudSyncStore.save(localSnapshot)
+            }
+
+            return localSnapshot
+        }
+
+        let resolvedSnapshot = TickVoiceMemoStore.merged(localSnapshot, remoteSnapshot)
+
+        if resolvedSnapshot != localSnapshot {
+            try await voiceMemoStore.save(resolvedSnapshot)
+        }
+
+        if resolvedSnapshot != remoteSnapshot {
+            try voiceMemoICloudSyncStore.save(resolvedSnapshot)
+        }
+
+        return resolvedSnapshot
     }
 
     private func deleteVoiceMemoFiles(_ voiceMemos: [VoiceMemo]) async {

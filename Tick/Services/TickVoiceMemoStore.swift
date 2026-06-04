@@ -18,6 +18,12 @@ nonisolated struct TickVoiceMemoStorageSnapshot: Codable, Equatable {
     }
 }
 
+extension TickVoiceMemoStorageSnapshot {
+    nonisolated var isEmpty: Bool {
+        voiceMemos.isEmpty && deletedVoiceMemos.isEmpty
+    }
+}
+
 actor TickVoiceMemoStore {
     private let localMetadataFileURL: URL
     private let localVoiceMemoDirectoryURL: URL
@@ -52,18 +58,25 @@ actor TickVoiceMemoStore {
     }
 
     func load() throws -> [VoiceMemo] {
+        let snapshot = try loadSnapshot()
+        return snapshot.voiceMemos
+    }
+
+    func loadSnapshot() throws -> TickVoiceMemoStorageSnapshot {
         let snapshot = try resolvedSnapshot()
         try saveSnapshot(snapshot)
         try syncAudioFiles(for: snapshot.voiceMemos)
         try deleteAudioFiles(for: snapshot.deletedVoiceMemos)
-        return snapshot.voiceMemos
+        return snapshot
     }
 
+    @discardableResult
     func save(
         _ voiceMemos: [VoiceMemo],
         deletedVoiceMemoIDs: [VoiceMemo.ID] = [],
-        deletedAt: Date = .now
-    ) throws {
+        deletedAt: Date = .now,
+        audioFileNamesToSync: Set<String>? = nil
+    ) throws -> TickVoiceMemoStorageSnapshot {
         var snapshot = try resolvedSnapshot()
         let incomingSnapshot = TickVoiceMemoStorageSnapshot(
             voiceMemos: voiceMemos,
@@ -77,8 +90,21 @@ actor TickVoiceMemoStore {
         )
         snapshot = Self.merged(snapshot, incomingSnapshot)
         try saveSnapshot(snapshot)
-        try syncAudioFiles(for: snapshot.voiceMemos)
+        try syncAudioFiles(for: snapshot.voiceMemos, fileNames: audioFileNamesToSync)
         try deleteAudioFiles(for: snapshot.deletedVoiceMemos)
+        return snapshot
+    }
+
+    @discardableResult
+    func save(
+        _ snapshot: TickVoiceMemoStorageSnapshot,
+        audioFileNamesToSync: Set<String>? = nil
+    ) throws -> TickVoiceMemoStorageSnapshot {
+        let mergedSnapshot = Self.merged(try resolvedSnapshot(), snapshot)
+        try saveSnapshot(mergedSnapshot)
+        try syncAudioFiles(for: mergedSnapshot.voiceMemos, fileNames: audioFileNamesToSync)
+        try deleteAudioFiles(for: mergedSnapshot.deletedVoiceMemos)
+        return mergedSnapshot
     }
 
     func preparedFileURL(for fileName: String) throws -> URL {
@@ -150,15 +176,24 @@ actor TickVoiceMemoStore {
         try data.write(to: fileURL, options: [.atomic])
     }
 
-    private func syncAudioFiles(for voiceMemos: [VoiceMemo]) throws {
-        guard let iCloudVoiceMemoDirectoryURL else {
+    private func syncAudioFiles(for voiceMemos: [VoiceMemo], fileNames: Set<String>? = nil) throws {
+        guard let iCloudVoiceMemoDirectoryURL,
+              fileNames?.isEmpty != true else {
+            return
+        }
+
+        let voiceMemosToSync = fileNames.map { names in
+            voiceMemos.filter { names.contains($0.fileName) }
+        } ?? voiceMemos
+
+        guard !voiceMemosToSync.isEmpty else {
             return
         }
 
         try fileManager.createDirectory(at: localVoiceMemoDirectoryURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: iCloudVoiceMemoDirectoryURL, withIntermediateDirectories: true)
 
-        for voiceMemo in voiceMemos {
+        for voiceMemo in voiceMemosToSync {
             let localFileURL = fileURL(for: voiceMemo.fileName)
             let iCloudFileURL = iCloudVoiceMemoDirectoryURL.appendingPathComponent(voiceMemo.fileName)
             let localExists = fileManager.fileExists(atPath: localFileURL.path)
@@ -194,7 +229,7 @@ actor TickVoiceMemoStore {
         voiceMemos.first { $0.id == voiceMemoID }?.fileName
     }
 
-    private static func merged(
+    static func merged(
         _ lhs: TickVoiceMemoStorageSnapshot,
         _ rhs: TickVoiceMemoStorageSnapshot
     ) -> TickVoiceMemoStorageSnapshot {

@@ -277,6 +277,7 @@ struct ProjectDetailView: View {
             return
         }
         let title = voiceMemoRenameTitle
+        clearVoiceMemoRenameState()
 
         Task {
             let didRename = await viewModel.updateVoiceMemoTitle(
@@ -284,9 +285,7 @@ struct ProjectDetailView: View {
                 title: title
             )
 
-            if didRename {
-                clearVoiceMemoRenameState()
-            } else {
+            if !didRename {
                 voiceMemoMessage = viewModel.errorMessage ?? "Tick could not rename that voice memo."
             }
         }
