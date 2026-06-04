@@ -32,24 +32,6 @@ struct ProjectDetailView: View {
                     }
                 }
 
-                Section("Space") {
-                    if currentProject.isArchived {
-                        Button {
-                            restoreProject(currentProject.id)
-                        } label: {
-                            Label("Restore Space", systemImage: "arrow.uturn.backward.circle")
-                        }
-                        .accessibilityHint("Moves this space back to Active Spaces.")
-                    } else {
-                        Button {
-                            archiveProject(currentProject.id)
-                        } label: {
-                            Label("Archive Space", systemImage: "archivebox")
-                        }
-                        .accessibilityHint("Moves this space to Archived Spaces without deleting it.")
-                    }
-                }
-
                 Section("Voice Memos") {
                     if currentProject.isArchived {
                         Label("Restore this space before recording new voice memos.", systemImage: "mic.slash")
@@ -156,6 +138,29 @@ struct ProjectDetailView: View {
         }
         .navigationTitle(currentProject.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    if currentProject.isArchived {
+                        Button {
+                            restoreProject(currentProject.id)
+                        } label: {
+                            Label("Restore Space", systemImage: "arrow.uturn.backward.circle")
+                        }
+                    } else {
+                        Button(role: .destructive) {
+                            archiveProject(currentProject.id)
+                        } label: {
+                            Label("Archive Space", systemImage: "archivebox")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Space actions")
+                .accessibilityHint("Shows actions for this space.")
+            }
+        }
         .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
             Button("OK", role: .cancel) {}
         } message: {
