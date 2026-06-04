@@ -378,6 +378,117 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(snapshot.autoTickRules.isEmpty)
     }
 
+    func testVoiceMemoStoreRoundTripsMetadataAndDeletesAudioFile() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let projectID = UUID()
+        let voiceMemo = VoiceMemo(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000321")!,
+            projectID: projectID,
+            title: "Planning note",
+            duration: 42,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let store = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL
+        )
+
+        let audioURL = try await store.preparedFileURL(for: voiceMemo.fileName)
+        try Data([1, 2, 3]).write(to: audioURL)
+        try await store.save([voiceMemo])
+        let loadedVoiceMemos = try await store.load()
+
+        XCTAssertEqual(loadedVoiceMemos, [voiceMemo])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+
+        try await store.deleteAudioFile(for: voiceMemo)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
+    @MainActor
+    func testDeletingProjectRemovesProjectVoiceMemosAndAudioFiles() async throws {
+        let dataFileURL = temporaryStoreURL()
+        let voiceMemoURLs = temporaryVoiceMemoStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: dataFileURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: voiceMemoURLs.directoryURL)
+        }
+
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 10))
+        let voiceMemo = VoiceMemo(
+            projectID: project.id,
+            title: "Client thought",
+            fileName: "client-thought.m4a",
+            duration: 12,
+            createdAt: Date(timeIntervalSince1970: 20)
+        )
+        let dataStore = TickDataStore(fileURL: dataFileURL)
+        let voiceMemoStore = TickVoiceMemoStore(
+            metadataFileURL: voiceMemoURLs.metadataFileURL,
+            voiceMemoDirectoryURL: voiceMemoURLs.audioDirectoryURL
+        )
+
+        try await dataStore.save(TickStorageSnapshot(projects: [project], sessions: []))
+        try await voiceMemoStore.save([voiceMemo])
+        let audioURL = try await voiceMemoStore.preparedFileURL(for: voiceMemo.fileName)
+        try Data([4, 5, 6]).write(to: audioURL)
+
+        let viewModel = TickViewModel(store: dataStore, voiceMemoStore: voiceMemoStore)
+        await viewModel.loadIfNeeded()
+
+        XCTAssertEqual(viewModel.voiceMemos(for: project.id), [voiceMemo])
+
+        let didDelete = await viewModel.deleteProject(id: project.id)
+
+        XCTAssertTrue(didDelete)
+        XCTAssertTrue(viewModel.voiceMemos(for: project.id).isEmpty)
+        let loadedVoiceMemos = try await voiceMemoStore.load()
+        XCTAssertTrue(loadedVoiceMemos.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
+    @MainActor
+    func testRenamingVoiceMemoPersistsTrimmedTitle() async throws {
+        let dataFileURL = temporaryStoreURL()
+        let voiceMemoURLs = temporaryVoiceMemoStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: dataFileURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: voiceMemoURLs.directoryURL)
+        }
+
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 10))
+        let voiceMemo = VoiceMemo(
+            projectID: project.id,
+            title: "Voice memo",
+            fileName: "voice-memo.m4a",
+            duration: 12,
+            createdAt: Date(timeIntervalSince1970: 20)
+        )
+        let dataStore = TickDataStore(fileURL: dataFileURL)
+        let voiceMemoStore = TickVoiceMemoStore(
+            metadataFileURL: voiceMemoURLs.metadataFileURL,
+            voiceMemoDirectoryURL: voiceMemoURLs.audioDirectoryURL
+        )
+
+        try await dataStore.save(TickStorageSnapshot(projects: [project], sessions: []))
+        try await voiceMemoStore.save([voiceMemo])
+
+        let viewModel = TickViewModel(store: dataStore, voiceMemoStore: voiceMemoStore)
+        await viewModel.loadIfNeeded()
+
+        let didRename = await viewModel.updateVoiceMemoTitle(id: voiceMemo.id, title: "  Client notes  ")
+
+        XCTAssertTrue(didRename)
+        XCTAssertEqual(viewModel.voiceMemos(for: project.id).first?.title, "Client notes")
+        let loadedVoiceMemos = try await voiceMemoStore.load()
+        XCTAssertEqual(loadedVoiceMemos.first?.title, "Client notes")
+    }
+
     func testProjectAccentAssignmentIsStable() {
         let projectID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
 
@@ -1470,6 +1581,21 @@ final class TickTests: XCTestCase {
             directoryURL,
             directoryURL.appendingPathComponent("tick-data.json"),
             directoryURL.appendingPathComponent("tick-widget-snapshot.json")
+        )
+    }
+
+    private func temporaryVoiceMemoStoreURLs() -> (
+        directoryURL: URL,
+        metadataFileURL: URL,
+        audioDirectoryURL: URL
+    ) {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+
+        return (
+            directoryURL,
+            directoryURL.appendingPathComponent("tick-voice-memos.json"),
+            directoryURL.appendingPathComponent("VoiceMemos", isDirectory: true)
         )
     }
 

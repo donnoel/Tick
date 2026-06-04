@@ -6,25 +6,35 @@ import WidgetKit
 @Observable
 final class TickViewModel {
     private let store: TickDataStore
+    private let voiceMemoStore: TickVoiceMemoStore
     private let locationService: AutoTickLocationService
     private let iCloudSyncStore: TickICloudSyncStore?
+    private let voiceMemoAudioController: TickVoiceMemoAudioController
     @ObservationIgnored private var iCloudSyncObserver: NSObjectProtocol?
+    @ObservationIgnored private var recordingVoiceMemoID: VoiceMemo.ID?
+    @ObservationIgnored private var recordingVoiceMemoFileName: String?
+    @ObservationIgnored private var recordingVoiceMemoStartedAt: Date?
 
     private(set) var projects: [TickProject] = []
     private(set) var sessions: [TimeSession] = []
     private(set) var autoTickRules: [AutoTickRule] = []
+    private(set) var voiceMemos: [VoiceMemo] = []
     private(set) var autoTickLocationAuthorizationStatus: AutoTickLocationAuthorizationStatus
     private(set) var latestAutoTickCoordinate: AutoTickCoordinate?
     private(set) var autoTickLocationMessage: String
     private(set) var autoTickLocationErrorMessage: String?
+    private(set) var recordingVoiceMemoProjectID: TickProject.ID?
+    private(set) var playingVoiceMemoID: VoiceMemo.ID?
     var selectedProjectID: TickProject.ID?
     var errorMessage: String?
     private(set) var hasLoaded = false
 
     init() {
         self.store = TickDataStore()
+        self.voiceMemoStore = TickVoiceMemoStore()
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = TickICloudSyncStore()
+        self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
         self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
@@ -34,12 +44,15 @@ final class TickViewModel {
 
         configureLocationServiceCallbacks()
         configureICloudSyncCallbacks()
+        configureVoiceMemoCallbacks()
     }
 
     init(store: TickDataStore) {
         self.store = store
+        self.voiceMemoStore = TickVoiceMemoStore()
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = nil
+        self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
         self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
@@ -48,12 +61,38 @@ final class TickViewModel {
         self.autoTickLocationErrorMessage = locationState.errorMessage
 
         configureLocationServiceCallbacks()
+        configureVoiceMemoCallbacks()
     }
 
-    init(store: TickDataStore, locationService: AutoTickLocationService, iCloudSyncStore: TickICloudSyncStore? = nil) {
+    init(store: TickDataStore, voiceMemoStore: TickVoiceMemoStore) {
         self.store = store
+        self.voiceMemoStore = voiceMemoStore
+        self.locationService = AutoTickLocationService()
+        self.iCloudSyncStore = nil
+        self.voiceMemoAudioController = TickVoiceMemoAudioController()
+
+        let locationState = locationService.currentState
+        self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
+        self.latestAutoTickCoordinate = locationState.latestCoordinate
+        self.autoTickLocationMessage = locationState.statusMessage
+        self.autoTickLocationErrorMessage = locationState.errorMessage
+
+        configureLocationServiceCallbacks()
+        configureVoiceMemoCallbacks()
+    }
+
+    init(
+        store: TickDataStore,
+        locationService: AutoTickLocationService,
+        iCloudSyncStore: TickICloudSyncStore? = nil,
+        voiceMemoStore: TickVoiceMemoStore = TickVoiceMemoStore(),
+        voiceMemoAudioController: TickVoiceMemoAudioController? = nil
+    ) {
+        self.store = store
+        self.voiceMemoStore = voiceMemoStore
         self.locationService = locationService
         self.iCloudSyncStore = iCloudSyncStore
+        self.voiceMemoAudioController = voiceMemoAudioController ?? TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState
         self.autoTickLocationAuthorizationStatus = locationState.authorizationStatus
@@ -63,6 +102,7 @@ final class TickViewModel {
 
         configureLocationServiceCallbacks()
         configureICloudSyncCallbacks()
+        configureVoiceMemoCallbacks()
     }
 
     deinit {
@@ -98,6 +138,16 @@ final class TickViewModel {
         }
     }
 
+    private func configureVoiceMemoCallbacks() {
+        voiceMemoAudioController.playbackDidFinish = { [weak self] voiceMemoID in
+            guard self?.playingVoiceMemoID == voiceMemoID else {
+                return
+            }
+
+            self?.playingVoiceMemoID = nil
+        }
+    }
+
     var activeProjects: [TickProject] {
         projects
             .filter { !$0.isArchived }
@@ -127,6 +177,7 @@ final class TickViewModel {
                 localModifiedAt: localModifiedAt
             )
             apply(storageSnapshot: resolvedSnapshot)
+            await reloadVoiceMemos()
             hasLoaded = true
             refreshAutoTickMonitoring()
             await refreshWidgetSnapshot()
@@ -172,12 +223,16 @@ final class TickViewModel {
         projects.remove(at: projectIndex)
         sessions.removeAll { $0.projectID == id }
         autoTickRules.removeAll { $0.projectID == id }
+        let deletedVoiceMemos = voiceMemos.filter { $0.projectID == id }
+        voiceMemos.removeAll { $0.projectID == id }
 
         if selectedProjectID == id {
             selectedProjectID = activeProjects.first?.id
         }
 
         await persist()
+        await persistVoiceMemos()
+        await deleteVoiceMemoFiles(deletedVoiceMemos)
         return true
     }
 
@@ -515,6 +570,149 @@ final class TickViewModel {
             .sorted { $0.referenceDate > $1.referenceDate }
     }
 
+    func voiceMemos(for projectID: TickProject.ID) -> [VoiceMemo] {
+        voiceMemos
+            .filter { $0.projectID == projectID }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    func isRecordingVoiceMemo(for projectID: TickProject.ID) -> Bool {
+        recordingVoiceMemoProjectID == projectID
+    }
+
+    @discardableResult
+    func startRecordingVoiceMemo(for projectID: TickProject.ID, at date: Date = .now) async -> Bool {
+        guard let project = project(for: projectID) else {
+            errorMessage = "Tick could not find that space."
+            return false
+        }
+
+        guard !project.isArchived else {
+            errorMessage = "Restore this space before recording a voice memo."
+            return false
+        }
+
+        guard recordingVoiceMemoProjectID == nil else {
+            errorMessage = "Stop the current voice memo before starting another one."
+            return false
+        }
+
+        let voiceMemoID = VoiceMemo.ID()
+        let fileName = "\(voiceMemoID.uuidString).m4a"
+
+        do {
+            let fileURL = try await voiceMemoStore.preparedFileURL(for: fileName)
+            try await voiceMemoAudioController.startRecording(to: fileURL)
+
+            recordingVoiceMemoID = voiceMemoID
+            recordingVoiceMemoFileName = fileName
+            recordingVoiceMemoStartedAt = date
+            recordingVoiceMemoProjectID = projectID
+            playingVoiceMemoID = nil
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = "Tick could not start that voice memo. \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    @discardableResult
+    func stopRecordingVoiceMemo(title: String = "Voice memo") async -> Bool {
+        guard let recordingVoiceMemoID,
+              let recordingVoiceMemoFileName,
+              let recordingVoiceMemoProjectID else {
+            errorMessage = "There is no active voice memo to stop."
+            return false
+        }
+
+        do {
+            let duration = try voiceMemoAudioController.stopRecording()
+            let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let voiceMemo = VoiceMemo(
+                id: recordingVoiceMemoID,
+                projectID: recordingVoiceMemoProjectID,
+                title: trimmedTitle.isEmpty ? "Voice memo" : trimmedTitle,
+                fileName: recordingVoiceMemoFileName,
+                duration: duration,
+                createdAt: recordingVoiceMemoStartedAt ?? .now
+            )
+
+            clearVoiceMemoRecordingState()
+            voiceMemos.insert(voiceMemo, at: 0)
+            voiceMemos.sort { $0.createdAt > $1.createdAt }
+            await persistVoiceMemos()
+            return true
+        } catch {
+            errorMessage = "Tick could not stop that voice memo. \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    @discardableResult
+    func playVoiceMemo(id: VoiceMemo.ID) async -> Bool {
+        guard recordingVoiceMemoProjectID == nil else {
+            errorMessage = "Stop the active recording before playing a voice memo."
+            return false
+        }
+
+        guard let voiceMemo = voiceMemos.first(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that voice memo."
+            return false
+        }
+
+        do {
+            let fileURL = await voiceMemoStore.fileURL(for: voiceMemo.fileName)
+            try voiceMemoAudioController.playVoiceMemo(id: id, fileURL: fileURL)
+            playingVoiceMemoID = playingVoiceMemoID == id ? nil : id
+            errorMessage = nil
+            return true
+        } catch {
+            playingVoiceMemoID = nil
+            errorMessage = "Tick could not play that voice memo. \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    @discardableResult
+    func updateVoiceMemoTitle(id: VoiceMemo.ID, title: String) async -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedTitle.isEmpty else {
+            errorMessage = "Voice memo title cannot be empty."
+            return false
+        }
+
+        guard let voiceMemoIndex = voiceMemos.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that voice memo."
+            return false
+        }
+
+        voiceMemos[voiceMemoIndex].title = trimmedTitle
+        voiceMemos.sort { $0.createdAt > $1.createdAt }
+        await persistVoiceMemos()
+        return true
+    }
+
+    @discardableResult
+    func deleteVoiceMemo(id: VoiceMemo.ID) async -> Bool {
+        guard let voiceMemoIndex = voiceMemos.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that voice memo."
+            return false
+        }
+
+        let voiceMemo = voiceMemos.remove(at: voiceMemoIndex)
+
+        if playingVoiceMemoID == id {
+            voiceMemoAudioController.stopPlaying()
+            playingVoiceMemoID = nil
+        }
+
+        await persistVoiceMemos()
+        await deleteVoiceMemoFiles([voiceMemo])
+        return true
+    }
+
     @discardableResult
     func updateSession(
         id: TimeSession.ID,
@@ -613,6 +811,34 @@ final class TickViewModel {
         }
     }
 
+    @discardableResult
+    private func persistVoiceMemos() async -> Bool {
+        do {
+            try await voiceMemoStore.save(voiceMemos)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = "Tick could not save your voice memos. \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func reloadVoiceMemos() async {
+        do {
+            voiceMemos = try await voiceMemoStore.load().sorted { $0.createdAt > $1.createdAt }
+        } catch {
+            errorMessage = "Tick could not load saved voice memos. \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteVoiceMemoFiles(_ voiceMemos: [VoiceMemo]) async {
+        do {
+            try await voiceMemoStore.deleteAudioFiles(for: voiceMemos)
+        } catch {
+            errorMessage = "Tick removed the voice memo record but could not delete the audio file. \(error.localizedDescription)"
+        }
+    }
+
     private func resolveICloudSnapshot(
         localSnapshot: TickStorageSnapshot,
         localModifiedAt: Date?
@@ -668,6 +894,13 @@ final class TickViewModel {
             sessions: sessions,
             autoTickRules: autoTickRules
         )
+    }
+
+    private func clearVoiceMemoRecordingState() {
+        recordingVoiceMemoID = nil
+        recordingVoiceMemoFileName = nil
+        recordingVoiceMemoStartedAt = nil
+        recordingVoiceMemoProjectID = nil
     }
 
     private func apply(storageSnapshot: TickStorageSnapshot) {

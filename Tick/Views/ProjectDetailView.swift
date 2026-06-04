@@ -5,6 +5,9 @@ struct ProjectDetailView: View {
     let project: TickProject
     @State private var deletionMessage: String?
     @State private var projectActionMessage: String?
+    @State private var voiceMemoMessage: String?
+    @State private var voiceMemoIDBeingRenamed: VoiceMemo.ID?
+    @State private var voiceMemoRenameTitle = ""
 
     var body: some View {
         let currentProject = viewModel.project(for: project.id) ?? project
@@ -44,6 +47,75 @@ struct ProjectDetailView: View {
                             Label("Archive Space", systemImage: "archivebox")
                         }
                         .accessibilityHint("Moves this space to Archived Spaces without deleting it.")
+                    }
+                }
+
+                Section("Voice Memos") {
+                    if currentProject.isArchived {
+                        Label("Restore this space before recording new voice memos.", systemImage: "mic.slash")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Voice memo recording unavailable for archived space.")
+                    } else if viewModel.isRecordingVoiceMemo(for: currentProject.id) {
+                        HStack {
+                            Label("Recording", systemImage: "mic.fill")
+                                .foregroundStyle(.red)
+                                .font(.subheadline.weight(.semibold))
+
+                            Spacer()
+
+                            Button {
+                                stopRecordingVoiceMemo()
+                            } label: {
+                                Image(systemName: "stop.fill")
+                                    .font(.headline)
+                                    .frame(width: 44, height: 44)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .accessibilityLabel("Stop recording")
+                            .accessibilityHint("Stops and saves this voice memo.")
+                        }
+                    } else {
+                        Button {
+                            startRecordingVoiceMemo(currentProject.id)
+                        } label: {
+                            Label("Record Voice Memo", systemImage: "mic")
+                        }
+                        .accessibilityHint("Starts a local voice memo for this space.")
+                    }
+
+                    let voiceMemos = viewModel.voiceMemos(for: currentProject.id)
+                    if voiceMemos.isEmpty {
+                        ContentUnavailableView(
+                            "No Voice Memos",
+                            systemImage: "waveform",
+                            description: Text("Recorded memos for this space will appear here.")
+                        )
+                    } else {
+                        ForEach(voiceMemos) { voiceMemo in
+                            VoiceMemoRowView(
+                                voiceMemo: voiceMemo,
+                                isPlaying: viewModel.playingVoiceMemoID == voiceMemo.id
+                            ) {
+                                playVoiceMemo(voiceMemo.id)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    deleteVoiceMemo(voiceMemo.id)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+
+                                Button {
+                                    beginRenamingVoiceMemo(voiceMemo)
+                                } label: {
+                                    Label("Rename", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+                            }
+                            .accessibilityHint("Plays this voice memo. Swipe for rename and delete actions.")
+                        }
                     }
                 }
 
@@ -94,6 +166,26 @@ struct ProjectDetailView: View {
         } message: {
             Text(projectActionMessage ?? "Tick could not update that space.")
         }
+        .alert("Could Not Update Voice Memo", isPresented: voiceMemoAlertIsPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(voiceMemoMessage ?? "Tick could not update that voice memo.")
+        }
+        .alert("Rename Voice Memo", isPresented: voiceMemoRenameAlertIsPresented) {
+            TextField("Title", text: $voiceMemoRenameTitle)
+                .textInputAutocapitalization(.sentences)
+
+            Button("Cancel", role: .cancel) {
+                clearVoiceMemoRenameState()
+            }
+
+            Button("Save") {
+                renameVoiceMemo()
+            }
+            .disabled(voiceMemoRenameTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("Give this voice memo a short title.")
+        }
     }
 
     private var deletionAlertIsPresented: Binding<Bool> {
@@ -116,6 +208,26 @@ struct ProjectDetailView: View {
         }
     }
 
+    private var voiceMemoAlertIsPresented: Binding<Bool> {
+        Binding {
+            voiceMemoMessage != nil
+        } set: { isPresented in
+            if !isPresented {
+                voiceMemoMessage = nil
+            }
+        }
+    }
+
+    private var voiceMemoRenameAlertIsPresented: Binding<Bool> {
+        Binding {
+            voiceMemoIDBeingRenamed != nil
+        } set: { isPresented in
+            if !isPresented {
+                clearVoiceMemoRenameState()
+            }
+        }
+    }
+
     private func deleteSessions(at indexSet: IndexSet, from sessions: [TimeSession]) {
         Task {
             for index in indexSet {
@@ -126,6 +238,72 @@ struct ProjectDetailView: View {
                 }
             }
         }
+    }
+
+    private func startRecordingVoiceMemo(_ projectID: TickProject.ID) {
+        Task {
+            let didStart = await viewModel.startRecordingVoiceMemo(for: projectID)
+            if !didStart {
+                voiceMemoMessage = viewModel.errorMessage ?? "Tick could not start that voice memo."
+            }
+        }
+    }
+
+    private func stopRecordingVoiceMemo() {
+        Task {
+            let didStop = await viewModel.stopRecordingVoiceMemo()
+            if !didStop {
+                voiceMemoMessage = viewModel.errorMessage ?? "Tick could not stop that voice memo."
+            }
+        }
+    }
+
+    private func playVoiceMemo(_ voiceMemoID: VoiceMemo.ID) {
+        Task {
+            let didPlay = await viewModel.playVoiceMemo(id: voiceMemoID)
+            if !didPlay {
+                voiceMemoMessage = viewModel.errorMessage ?? "Tick could not play that voice memo."
+            }
+        }
+    }
+
+    private func beginRenamingVoiceMemo(_ voiceMemo: VoiceMemo) {
+        voiceMemoIDBeingRenamed = voiceMemo.id
+        voiceMemoRenameTitle = voiceMemo.title
+    }
+
+    private func renameVoiceMemo() {
+        guard let voiceMemoIDBeingRenamed else {
+            return
+        }
+        let title = voiceMemoRenameTitle
+
+        Task {
+            let didRename = await viewModel.updateVoiceMemoTitle(
+                id: voiceMemoIDBeingRenamed,
+                title: title
+            )
+
+            if didRename {
+                clearVoiceMemoRenameState()
+            } else {
+                voiceMemoMessage = viewModel.errorMessage ?? "Tick could not rename that voice memo."
+            }
+        }
+    }
+
+    private func deleteVoiceMemo(_ voiceMemoID: VoiceMemo.ID) {
+        Task {
+            let didDelete = await viewModel.deleteVoiceMemo(id: voiceMemoID)
+            if !didDelete {
+                voiceMemoMessage = viewModel.errorMessage ?? "Tick could not delete that voice memo."
+            }
+        }
+    }
+
+    private func clearVoiceMemoRenameState() {
+        voiceMemoIDBeingRenamed = nil
+        voiceMemoRenameTitle = ""
     }
 
     private func archiveProject(_ projectID: TickProject.ID) {
@@ -182,5 +360,36 @@ private struct ProjectSummaryCard: View {
         .tickCard(tint: color)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(project.name), \(TickDurationFormatter.shortString(from: duration)) total recorded, created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
+    }
+}
+
+private struct VoiceMemoRowView: View {
+    let voiceMemo: VoiceMemo
+    let isPlaying: Bool
+    let togglePlayback: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: togglePlayback) {
+                Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                    .font(.title2)
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isPlaying ? "Stop voice memo" : "Play voice memo")
+            .accessibilityHint(isPlaying ? "Stops playback." : "Plays this voice memo.")
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(voiceMemo.title)
+                    .font(.subheadline.weight(.semibold))
+
+                Text("\(voiceMemo.createdAt.formatted(date: .abbreviated, time: .shortened)) - \(TickDurationFormatter.shortString(from: voiceMemo.duration))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(voiceMemo.title), \(TickDurationFormatter.shortString(from: voiceMemo.duration)), recorded \(voiceMemo.createdAt.formatted(date: .abbreviated, time: .shortened))")
+        }
     }
 }
