@@ -37,6 +37,7 @@ struct TickWidgetProvider: TimelineProvider {
 
 struct TickWidgetView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.colorScheme) private var colorScheme
     let entry: TickWidgetEntry
 
     var body: some View {
@@ -75,8 +76,8 @@ struct TickWidgetView: View {
     private var widgetBackground: some View {
         LinearGradient(
             colors: [
-                TickWidgetStyle.backgroundTop,
-                TickWidgetStyle.backgroundBottom
+                TickWidgetStyle.backgroundTop(for: colorScheme),
+                TickWidgetStyle.backgroundBottom(for: colorScheme)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -142,22 +143,31 @@ struct TickWidgetView: View {
     }
 
     private var activeView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            widgetHeader(title: "Running", systemImage: "record.circle.fill", tint: TickWidgetStyle.running)
+        let isSmall = family == .systemSmall
+
+        return VStack(alignment: .leading, spacing: isSmall ? 6 : 8) {
+            widgetHeader(
+                title: "Running",
+                systemImage: "record.circle.fill",
+                tint: TickWidgetStyle.running,
+                showsToday: !isSmall
+            )
 
             Text(entry.snapshot.activeProjectName ?? "Ticks")
-                .font(.headline.weight(.semibold))
+                .font((isSmall ? Font.subheadline : Font.headline).weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
-            Text(entry.snapshot.activeSessionTitle ?? "Tick")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if !isSmall {
+                Text(entry.snapshot.activeSessionTitle ?? "Tick")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
 
             if let activeStartedAt = entry.snapshot.activeStartedAt {
                 Text(activeStartedAt, style: .timer)
-                    .font(.system(size: family == .systemSmall ? 32 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityLabel("Elapsed time")
@@ -177,7 +187,12 @@ struct TickWidgetView: View {
         return min(max(hours / 8, 0), 1)
     }
 
-    private func widgetHeader(title: String, systemImage: String, tint: Color = TickWidgetStyle.primary) -> some View {
+    private func widgetHeader(
+        title: String,
+        systemImage: String,
+        tint: Color = TickWidgetStyle.primary,
+        showsToday: Bool = true
+    ) -> some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage)
                 .font(.caption.weight(.bold))
@@ -190,9 +205,11 @@ struct TickWidgetView: View {
 
             Spacer(minLength: 4)
 
-            Text("Today")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
+            if showsToday {
+                Text("Today")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -217,7 +234,9 @@ struct TickWidgetView: View {
         tint: Color,
         intent: I
     ) -> some View {
-        HStack(spacing: 10) {
+        let buttonSize: CGFloat = family == .systemSmall ? 34 : 38
+
+        return HStack(spacing: 10) {
             HStack(spacing: 4) {
                 Circle()
                     .fill(tint)
@@ -236,7 +255,7 @@ struct TickWidgetView: View {
             Button(intent: intent) {
                 Image(systemName: systemImage)
                     .font(.subheadline.weight(.bold))
-                    .frame(width: 38, height: 38)
+                    .frame(width: buttonSize, height: buttonSize)
                     .background(tint, in: Circle())
                     .foregroundStyle(.white)
             }
@@ -345,8 +364,24 @@ private enum TickWidgetState {
 private enum TickWidgetStyle {
     static let primary = Color(red: 0.12, green: 0.45, blue: 0.94)
     static let running = Color(red: 0.48, green: 0.28, blue: 0.92)
-    static let backgroundTop = Color(red: 0.97, green: 0.99, blue: 1.0)
-    static let backgroundBottom = Color(red: 0.91, green: 0.94, blue: 1.0)
+
+    static func backgroundTop(for colorScheme: ColorScheme) -> Color {
+        switch colorScheme {
+        case .dark:
+            Color(red: 0.10, green: 0.12, blue: 0.18)
+        default:
+            Color(red: 0.97, green: 0.99, blue: 1.0)
+        }
+    }
+
+    static func backgroundBottom(for colorScheme: ColorScheme) -> Color {
+        switch colorScheme {
+        case .dark:
+            Color(red: 0.16, green: 0.18, blue: 0.28)
+        default:
+            Color(red: 0.91, green: 0.94, blue: 1.0)
+        }
+    }
 }
 
 private struct TickWidgetProgressBar: View {

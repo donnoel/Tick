@@ -118,7 +118,7 @@ struct SessionDetailView: View {
             options.append(currentProject)
         }
 
-        return options.sorted { $0.createdAt < $1.createdAt }
+        return TickProject.sortedByDisplayOrder(options)
     }
 
     private func projectName(for projectID: TickProject.ID) -> String {

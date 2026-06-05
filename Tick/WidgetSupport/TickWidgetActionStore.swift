@@ -80,7 +80,13 @@ nonisolated final class TickWidgetActionStore {
 
         let activeProjects = storageSnapshot.projects
             .filter { !$0.isArchived }
-            .sorted { $0.createdAt < $1.createdAt }
+            .sorted { lhs, rhs in
+                if lhs.sortOrder == rhs.sortOrder {
+                    return lhs.createdAt < rhs.createdAt
+                }
+
+                return lhs.sortOrder < rhs.sortOrder
+            }
 
         guard !activeProjects.isEmpty else {
             try saveWidgetSnapshot(.empty(lastUpdatedAt: date))

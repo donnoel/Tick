@@ -35,7 +35,13 @@ nonisolated enum TickWidgetSnapshotBuilder {
     ) -> TickWidgetSnapshot {
         let activeProjects = storageSnapshot.projects
             .filter { !$0.isArchived }
-            .sorted { $0.createdAt < $1.createdAt }
+            .sorted { lhs, rhs in
+                if lhs.sortOrder == rhs.sortOrder {
+                    return lhs.createdAt < rhs.createdAt
+                }
+
+                return lhs.sortOrder < rhs.sortOrder
+            }
         let verifiedDefaultProject = activeProjects.first { $0.id == defaultProjectID } ?? activeProjects.first
         let activeSession = storageSnapshot.sessions.first { $0.isActive }
         let activeProject = activeSession.flatMap { session in

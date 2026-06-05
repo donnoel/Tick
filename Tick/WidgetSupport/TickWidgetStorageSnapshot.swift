@@ -30,6 +30,30 @@ nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable {
     var name: String
     var createdAt: Date
     var isArchived: Bool
+    var sortOrder: Double
+
+    init(
+        id: UUID,
+        name: String,
+        createdAt: Date,
+        isArchived: Bool,
+        sortOrder: Double? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+        self.isArchived = isArchived
+        self.sortOrder = sortOrder ?? createdAt.timeIntervalSinceReferenceDate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
+        sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? createdAt.timeIntervalSinceReferenceDate
+    }
 }
 
 nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable {

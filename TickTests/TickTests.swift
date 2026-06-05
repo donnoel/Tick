@@ -378,6 +378,25 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(snapshot.autoTickRules.isEmpty)
     }
 
+    func testProjectDecodingDefaultsMissingSortOrderToCreatedDate() throws {
+        let data = Data(
+            #"""
+            {
+                "id": "00000000-0000-0000-0000-000000000111",
+                "name": "Legacy",
+                "createdAt": "1970-01-01T00:00:10Z",
+                "isArchived": false
+            }
+            """#.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let project = try decoder.decode(TickProject.self, from: data)
+
+        XCTAssertEqual(project.sortOrder, project.createdAt.timeIntervalSinceReferenceDate)
+    }
+
     func testVoiceMemoStoreRoundTripsMetadataAndDeletesAudioFile() async throws {
         let urls = temporaryVoiceMemoStoreURLs()
         defer {
@@ -1177,6 +1196,28 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(didRestore)
         XCTAssertTrue(viewModel.projects.contains(where: { $0.id == projectID && !$0.isArchived }))
         XCTAssertTrue(viewModel.activeProjects.contains(where: { $0.id == projectID }))
+    }
+
+    @MainActor
+    func testMovingActiveProjectsPersistsDisplayOrder() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Alpha", createdAt: Date(timeIntervalSince1970: 0))
+        await viewModel.addProject(name: "Beta", createdAt: Date(timeIntervalSince1970: 1))
+        await viewModel.addProject(name: "Gamma", createdAt: Date(timeIntervalSince1970: 2))
+        let projectIDs = viewModel.activeProjects.map(\.id)
+
+        let didMove = await viewModel.moveActiveProjects(from: IndexSet(integer: 1), to: 0)
+
+        XCTAssertTrue(didMove)
+        XCTAssertEqual(viewModel.activeProjects.map(\.id), [projectIDs[1], projectIDs[0], projectIDs[2]])
+
+        let reloadedViewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await reloadedViewModel.reload()
+
+        XCTAssertEqual(reloadedViewModel.activeProjects.map(\.id), [projectIDs[1], projectIDs[0], projectIDs[2]])
     }
 
     @MainActor

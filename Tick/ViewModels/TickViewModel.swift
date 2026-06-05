@@ -156,11 +156,7 @@ final class TickViewModel {
     }
 
     var activeProjects: [TickProject] {
-        projects
-            .filter { !$0.isArchived }
-            .sorted { lhs, rhs in
-                lhs.createdAt < rhs.createdAt
-            }
+        TickProject.sortedByDisplayOrder(projects.filter { !$0.isArchived })
     }
 
     var activeSession: TimeSession? {
@@ -205,7 +201,7 @@ final class TickViewModel {
 
         let project = TickProject(name: trimmedName, createdAt: createdAt)
         projects.append(project)
-        projects.sort { $0.createdAt < $1.createdAt }
+        projects = TickProject.sortedByDisplayOrder(projects)
 
         if selectedProjectID == nil {
             selectedProjectID = project.id
@@ -241,6 +237,16 @@ final class TickViewModel {
         await persistVoiceMemos(deletedVoiceMemoIDs: deletedVoiceMemos.map(\.id))
         await deleteVoiceMemoFiles(deletedVoiceMemos)
         return true
+    }
+
+    @discardableResult
+    func moveActiveProjects(from source: IndexSet, to destination: Int) async -> Bool {
+        await moveProjects(from: source, to: destination, isIncluded: { !$0.isArchived })
+    }
+
+    @discardableResult
+    func moveArchivedProjects(from source: IndexSet, to destination: Int) async -> Bool {
+        await moveProjects(from: source, to: destination, isIncluded: \.isArchived)
     }
 
     @discardableResult
@@ -565,6 +571,71 @@ final class TickViewModel {
 
     func project(for id: TickProject.ID) -> TickProject? {
         projects.first { $0.id == id }
+    }
+
+    private func moveProjects(
+        from source: IndexSet,
+        to destination: Int,
+        isIncluded: (TickProject) -> Bool
+    ) async -> Bool {
+        let orderedProjects = TickProject.sortedByDisplayOrder(projects)
+        let movableProjects = orderedProjects.filter(isIncluded)
+
+        guard source.allSatisfy({ movableProjects.indices.contains($0) }),
+              destination >= 0,
+              destination <= movableProjects.count else {
+            errorMessage = "Tick could not reorder those spaces."
+            return false
+        }
+
+        guard !source.isEmpty else {
+            return true
+        }
+
+        let reorderedMovableProjects = Self.reorderedProjects(
+            movableProjects,
+            moving: source,
+            to: destination
+        )
+        var replacementIndex = 0
+        let reorderedProjects = orderedProjects.map { project in
+            guard isIncluded(project) else {
+                return project
+            }
+
+            defer { replacementIndex += 1 }
+            return reorderedMovableProjects[replacementIndex]
+        }
+
+        for (sortOrder, project) in reorderedProjects.enumerated() {
+            guard let projectIndex = projects.firstIndex(where: { $0.id == project.id }) else {
+                continue
+            }
+
+            projects[projectIndex].sortOrder = Double(sortOrder)
+        }
+
+        projects = TickProject.sortedByDisplayOrder(projects)
+        await persist()
+        return true
+    }
+
+    private static func reorderedProjects(
+        _ projects: [TickProject],
+        moving source: IndexSet,
+        to destination: Int
+    ) -> [TickProject] {
+        var reorderedProjects = projects
+        let movedProjects = source.sorted().map { reorderedProjects[$0] }
+
+        for index in source.sorted(by: >) {
+            reorderedProjects.remove(at: index)
+        }
+
+        let removedBeforeDestination = source.filter { $0 < destination }.count
+        let insertionIndex = destination - removedBeforeDestination
+        reorderedProjects.insert(contentsOf: movedProjects, at: insertionIndex)
+        return reorderedProjects
     }
 
     func session(for id: TimeSession.ID) -> TimeSession? {
@@ -951,7 +1022,7 @@ final class TickViewModel {
     }
 
     private func apply(storageSnapshot: TickStorageSnapshot) {
-        projects = storageSnapshot.projects.sorted { $0.createdAt < $1.createdAt }
+        projects = TickProject.sortedByDisplayOrder(storageSnapshot.projects)
         sessions = storageSnapshot.sessions.sorted { $0.referenceDate > $1.referenceDate }
         autoTickRules = storageSnapshot.autoTickRules.sorted { $0.createdAt < $1.createdAt }
 
@@ -973,7 +1044,8 @@ final class TickViewModel {
                     id: project.id,
                     name: project.name,
                     createdAt: project.createdAt,
-                    isArchived: project.isArchived
+                    isArchived: project.isArchived,
+                    sortOrder: project.sortOrder
                 )
             },
             sessions: sessions.map { session in

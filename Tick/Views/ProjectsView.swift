@@ -42,6 +42,9 @@ struct ProjectsView: View {
                         .onDelete { indexSet in
                             deleteProjects(at: indexSet, from: viewModel.activeProjects)
                         }
+                        .onMove { source, destination in
+                            moveActiveProjects(from: source, to: destination)
+                        }
                     }
                 }
 
@@ -72,6 +75,9 @@ struct ProjectsView: View {
                         .onDelete { indexSet in
                             deleteProjects(at: indexSet, from: archivedProjects)
                         }
+                        .onMove { source, destination in
+                            moveArchivedProjects(from: source, to: destination)
+                        }
                     }
                 }
             }
@@ -79,6 +85,13 @@ struct ProjectsView: View {
             .background(TickPalette.appBackground)
             .navigationTitle("Spaces")
             .toolbar {
+                if canReorderProjects {
+                    ToolbarItem(placement: .topBarLeading) {
+                        EditButton()
+                            .accessibilityHint("Shows controls for reordering and deleting spaces.")
+                    }
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAddingProject = true
@@ -126,9 +139,11 @@ struct ProjectsView: View {
     }
 
     private var archivedProjects: [TickProject] {
-        viewModel.projects
-            .filter(\.isArchived)
-            .sorted { $0.createdAt < $1.createdAt }
+        TickProject.sortedByDisplayOrder(viewModel.projects.filter(\.isArchived))
+    }
+
+    private var canReorderProjects: Bool {
+        viewModel.activeProjects.count > 1 || archivedProjects.count > 1
     }
 
     private func deleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
@@ -157,6 +172,24 @@ struct ProjectsView: View {
             let didRestore = await viewModel.restoreProject(id: projectID)
             if !didRestore {
                 projectActionMessage = viewModel.errorMessage ?? "Tick could not restore that space."
+            }
+        }
+    }
+
+    private func moveActiveProjects(from source: IndexSet, to destination: Int) {
+        Task {
+            let didMove = await viewModel.moveActiveProjects(from: source, to: destination)
+            if !didMove {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not reorder those spaces."
+            }
+        }
+    }
+
+    private func moveArchivedProjects(from source: IndexSet, to destination: Int) {
+        Task {
+            let didMove = await viewModel.moveArchivedProjects(from: source, to: destination)
+            if !didMove {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not reorder those spaces."
             }
         }
     }
