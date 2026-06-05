@@ -52,12 +52,14 @@ struct TickWidgetView: View {
                 homeScreenView
             }
         }
-        .containerBackground(.background, for: .widget)
+        .containerBackground(for: .widget) {
+            widgetBackground
+        }
         .widgetURL(URL(string: "tick://today"))
     }
 
     private var homeScreenView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             switch state {
             case .noProjects:
                 noProjectsView
@@ -68,6 +70,17 @@ struct TickWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var widgetBackground: some View {
+        LinearGradient(
+            colors: [
+                TickWidgetStyle.backgroundTop,
+                TickWidgetStyle.backgroundBottom
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     private var state: TickWidgetState {
@@ -87,73 +100,161 @@ struct TickWidgetView: View {
     }
 
     private var noProjectsView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ticks")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            widgetHeader(title: "Ticks", systemImage: "timer")
 
             Text("Create a space to start recording.")
-                .font(.subheadline)
+                .font(.headline)
                 .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .minimumScaleFactor(0.82)
+
+            Spacer(minLength: 0)
+
+            Label("Open Tick", systemImage: "chevron.forward")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(TickWidgetStyle.primary)
         }
         .accessibilityElement(children: .combine)
     }
 
     private var idleView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Ticks")
-                .font(.headline)
+            widgetHeader(title: "Ticks", systemImage: "timer")
 
             Text(shortDurationString(from: entry.snapshot.todayTotalDuration))
-                .font(.title2.monospacedDigit().weight(.semibold))
+                .font(.system(size: family == .systemSmall ? 36 : 44, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
 
             if let projectName = entry.snapshot.defaultProjectName {
-                Text(projectName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(family == .systemSmall ? 1 : 2)
+                widgetDetailRow(systemImage: "folder.fill", text: projectName)
             }
+
+            TickWidgetProgressBar(progress: todayProgress)
+                .accessibilityHidden(true)
 
             Spacer(minLength: 0)
 
-            Button(intent: StartTickIntent()) {
-                Label("Start", systemImage: "play.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .accessibilityHint("Starts a Tick for the default space.")
+            actionFooter(title: "Start Tick", caption: "Ready", systemImage: "play.fill", tint: TickWidgetStyle.primary, intent: StartTickIntent())
         }
     }
 
     private var activeView: some View {
         VStack(alignment: .leading, spacing: 8) {
+            widgetHeader(title: "Running", systemImage: "record.circle.fill", tint: TickWidgetStyle.running)
+
             Text(entry.snapshot.activeProjectName ?? "Ticks")
-                .font(.headline)
-                .lineLimit(family == .systemSmall ? 1 : 2)
+                .font(.headline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(entry.snapshot.activeSessionTitle ?? "Tick")
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
             if let activeStartedAt = entry.snapshot.activeStartedAt {
                 Text(activeStartedAt, style: .timer)
-                    .font(.title2.monospacedDigit().weight(.semibold))
+                    .font(.system(size: family == .systemSmall ? 32 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
                     .accessibilityLabel("Elapsed time")
             } else {
                 Text("Running")
-                    .font(.title2.weight(.semibold))
+                    .font(.title2.weight(.bold))
             }
 
             Spacer(minLength: 0)
 
-            Button(intent: StopTickIntent()) {
-                Label("Stop", systemImage: "stop.fill")
-                    .frame(maxWidth: .infinity)
+            actionFooter(title: "Stop Tick", caption: "Running", systemImage: "stop.fill", tint: TickWidgetStyle.running, intent: StopTickIntent())
+        }
+    }
+
+    private var todayProgress: Double {
+        let hours = entry.snapshot.todayTotalDuration / 3_600
+        return min(max(hours / 8, 0), 1)
+    }
+
+    private func widgetHeader(title: String, systemImage: String, tint: Color = TickWidgetStyle.primary) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(.headline.weight(.semibold))
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            Text("Today")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func widgetDetailRow(systemImage: String, text: String) -> some View {
+        Label {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(family == .systemSmall ? 1 : 2)
+                .minimumScaleFactor(0.82)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(TickWidgetStyle.primary)
+        }
+    }
+
+    private func actionFooter<I: AppIntent>(
+        title: String,
+        caption: String,
+        systemImage: String,
+        tint: Color,
+        intent: I
+    ) -> some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 5, height: 5)
+
+                Text(caption)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .accessibilityHint("Stops the active Tick session.")
+            .accessibilityHidden(true)
+
+            Spacer(minLength: 4)
+
+            Button(intent: intent) {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.bold))
+                    .frame(width: 38, height: 38)
+                    .background(tint, in: Circle())
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(title)
+            .accessibilityHint(actionHint(for: title))
+        }
+        .padding(.top, 2)
+    }
+
+    private func actionHint(for title: String) -> String {
+        switch title {
+        case "Start Tick":
+            return "Starts a Tick for the default space."
+        case "Stop Tick":
+            return "Stops the active Tick session."
+        default:
+            return title
         }
     }
 
@@ -239,6 +340,31 @@ private enum TickWidgetState {
     case noProjects
     case idle
     case active
+}
+
+private enum TickWidgetStyle {
+    static let primary = Color(red: 0.12, green: 0.45, blue: 0.94)
+    static let running = Color(red: 0.48, green: 0.28, blue: 0.92)
+    static let backgroundTop = Color(red: 0.97, green: 0.99, blue: 1.0)
+    static let backgroundBottom = Color(red: 0.91, green: 0.94, blue: 1.0)
+}
+
+private struct TickWidgetProgressBar: View {
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.secondary.opacity(0.14))
+
+                Capsule()
+                    .fill(TickWidgetStyle.primary.opacity(0.82))
+                    .frame(width: max(8, proxy.size.width * progress))
+            }
+        }
+        .frame(height: 5)
+    }
 }
 
 struct TickWidget: Widget {
