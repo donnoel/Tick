@@ -1221,6 +1221,22 @@ final class TickTests: XCTestCase {
     }
 
     @MainActor
+    func testAddingProjectSelectsNewProject() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "First", createdAt: Date(timeIntervalSince1970: 0))
+        let firstProjectID = viewModel.selectedProjectID
+
+        await viewModel.addProject(name: "Second", createdAt: Date(timeIntervalSince1970: 1))
+
+        XCTAssertNotNil(firstProjectID)
+        XCTAssertEqual(viewModel.selectedProjectID, viewModel.activeProjects.last?.id)
+        XCTAssertNotEqual(viewModel.selectedProjectID, firstProjectID)
+    }
+
+    @MainActor
     func testArchivingSelectedProjectUpdatesSelectionToAnotherActiveProject() async {
         let fileURL = temporaryStoreURL()
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }

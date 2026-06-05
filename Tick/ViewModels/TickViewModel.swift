@@ -203,9 +203,7 @@ final class TickViewModel {
         projects.append(project)
         projects = TickProject.sortedByDisplayOrder(projects)
 
-        if selectedProjectID == nil {
-            selectedProjectID = project.id
-        }
+        selectedProjectID = project.id
 
         await persist()
         return true
