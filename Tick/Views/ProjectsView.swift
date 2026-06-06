@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProjectsView: View {
     let viewModel: TickViewModel
+    @AppStorage("spacesSortMode") private var spacesSortMode = ProjectSortMode.mostActive.rawValue
     @State private var isAddingProject = false
     @State private var deletionMessage: String?
     @State private var projectActionMessage: String?
@@ -10,8 +11,14 @@ struct ProjectsView: View {
         NavigationStack {
             List {
                 let projectIDs = viewModel.projects.map(\.id)
+                let orderedActiveProjects = activeProjects
 
-                if viewModel.activeProjects.isEmpty {
+                Section {
+                    ProjectSortModePicker(selection: $spacesSortMode)
+                }
+                .listRowBackground(Color.clear)
+
+                if orderedActiveProjects.isEmpty {
                     ContentUnavailableView(
                         "No Spaces",
                         systemImage: "folder.badge.plus",
@@ -19,32 +26,20 @@ struct ProjectsView: View {
                     )
                 } else {
                     Section("Active Spaces") {
-                        ForEach(viewModel.activeProjects) { project in
-                            NavigationLink {
-                                ProjectDetailView(viewModel: viewModel, project: project)
-                            } label: {
-                                ProjectRowView(
-                                    project: project,
-                                    duration: viewModel.totalDuration(for: project.id),
-                                    color: TickProjectAccent.color(for: project.id, among: projectIDs)
-                                )
-                            }
-                            .accessibilityHint("Opens space details.")
-                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                Button("Archive") {
-                                    archiveProject(project.id)
-                                }
-                                .tint(.orange)
-                                .accessibilityLabel("Archive space")
-                                .accessibilityHint("Moves this space to Archived Spaces without deleting it.")
-                            }
+                        ForEach(orderedActiveProjects) { project in
+                            activeProjectRow(project, projectIDs: projectIDs)
                         }
                         .onDelete { indexSet in
-                            deleteProjects(at: indexSet, from: viewModel.activeProjects)
+                            deleteProjects(at: indexSet, from: orderedActiveProjects)
                         }
                         .onMove { source, destination in
+                            guard selectedSortMode == .manual else {
+                                return
+                            }
+
                             moveActiveProjects(from: source, to: destination)
                         }
+                        .moveDisabled(selectedSortMode != .manual)
                     }
                 }
 
@@ -52,32 +47,19 @@ struct ProjectsView: View {
                 if !archivedProjects.isEmpty {
                     Section("Archived Spaces") {
                         ForEach(archivedProjects) { project in
-                            NavigationLink {
-                                ProjectDetailView(viewModel: viewModel, project: project)
-                            } label: {
-                                ProjectRowView(
-                                    project: project,
-                                    duration: viewModel.totalDuration(for: project.id),
-                                    color: TickProjectAccent.color(for: project.id, among: projectIDs),
-                                    showsArchivedBadge: true
-                                )
-                            }
-                            .accessibilityHint("Opens space details.")
-                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                Button("Restore") {
-                                    restoreProject(project.id)
-                                }
-                                .tint(.green)
-                                .accessibilityLabel("Restore space")
-                                .accessibilityHint("Moves this space back to Active Spaces.")
-                            }
+                            archivedProjectRow(project, projectIDs: projectIDs)
                         }
                         .onDelete { indexSet in
                             deleteProjects(at: indexSet, from: archivedProjects)
                         }
                         .onMove { source, destination in
+                            guard selectedSortMode == .manual else {
+                                return
+                            }
+
                             moveArchivedProjects(from: source, to: destination)
                         }
+                        .moveDisabled(selectedSortMode != .manual)
                     }
                 }
 
@@ -93,7 +75,7 @@ struct ProjectsView: View {
             .background(TickPalette.appBackground)
             .navigationTitle("Spaces")
             .toolbar {
-                if canReorderProjects {
+                if canReorderProjects && selectedSortMode == .manual {
                     ToolbarItem(placement: .topBarLeading) {
                         EditButton()
                             .accessibilityHint("Shows controls for reordering and deleting spaces.")
@@ -126,6 +108,10 @@ struct ProjectsView: View {
         }
     }
 
+    private var selectedSortMode: ProjectSortMode {
+        ProjectSortMode(rawValue: spacesSortMode) ?? .mostActive
+    }
+
     private var deletionAlertIsPresented: Binding<Bool> {
         Binding {
             deletionMessage != nil
@@ -150,8 +136,22 @@ struct ProjectsView: View {
         TickProject.sortedByDisplayOrder(viewModel.projects.filter(\.isArchived))
     }
 
+    private var activeProjects: [TickProject] {
+        let projects = viewModel.activeProjects
+
+        switch selectedSortMode {
+        case .mostActive:
+            return TickProject.sortedByActivity(
+                projects,
+                durationsByProjectID: durationsByProjectID(for: projects)
+            )
+        case .manual:
+            return projects
+        }
+    }
+
     private var canReorderProjects: Bool {
-        viewModel.activeProjects.count > 1 || archivedProjects.count > 1
+        activeProjects.count > 1 || archivedProjects.count > 1
     }
 
     private var totalSpacesDuration: TimeInterval {
@@ -205,6 +205,84 @@ struct ProjectsView: View {
             if !didMove {
                 projectActionMessage = viewModel.errorMessage ?? "Tick could not reorder those spaces."
             }
+        }
+    }
+
+    private func durationsByProjectID(for projects: [TickProject]) -> [TickProject.ID: TimeInterval] {
+        Dictionary(uniqueKeysWithValues: projects.map { project in
+            (project.id, viewModel.totalDuration(for: project.id))
+        })
+    }
+
+    private func activeProjectRow(_ project: TickProject, projectIDs: [TickProject.ID]) -> some View {
+        NavigationLink {
+            ProjectDetailView(viewModel: viewModel, project: project)
+        } label: {
+            ProjectRowView(
+                project: project,
+                duration: viewModel.totalDuration(for: project.id),
+                color: TickProjectAccent.color(for: project.id, among: projectIDs)
+            )
+        }
+        .accessibilityHint("Opens space details.")
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button("Archive") {
+                archiveProject(project.id)
+            }
+            .tint(.orange)
+            .accessibilityLabel("Archive space")
+            .accessibilityHint("Moves this space to Archived Spaces without deleting it.")
+        }
+    }
+
+    private func archivedProjectRow(_ project: TickProject, projectIDs: [TickProject.ID]) -> some View {
+        NavigationLink {
+            ProjectDetailView(viewModel: viewModel, project: project)
+        } label: {
+            ProjectRowView(
+                project: project,
+                duration: viewModel.totalDuration(for: project.id),
+                color: TickProjectAccent.color(for: project.id, among: projectIDs),
+                showsArchivedBadge: true
+            )
+        }
+        .accessibilityHint("Opens space details.")
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button("Restore") {
+                restoreProject(project.id)
+            }
+            .tint(.green)
+            .accessibilityLabel("Restore space")
+            .accessibilityHint("Moves this space back to Active Spaces.")
+        }
+    }
+}
+
+private struct ProjectSortModePicker: View {
+    @Binding var selection: String
+
+    var body: some View {
+        Picker("Order", selection: $selection) {
+            Text(ProjectSortMode.mostActive.title)
+                .tag(ProjectSortMode.mostActive.rawValue)
+            Text(ProjectSortMode.manual.title)
+                .tag(ProjectSortMode.manual.rawValue)
+        }
+        .pickerStyle(.segmented)
+        .accessibilityHint("Chooses how active spaces are ordered.")
+    }
+}
+
+private enum ProjectSortMode: String, CaseIterable {
+    case mostActive
+    case manual
+
+    var title: String {
+        switch self {
+        case .mostActive:
+            return "Most Active"
+        case .manual:
+            return "Manual"
         }
     }
 }

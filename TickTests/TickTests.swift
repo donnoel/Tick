@@ -397,6 +397,41 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(project.sortOrder, project.createdAt.timeIntervalSinceReferenceDate)
     }
 
+    func testProjectsSortByActivityThenManualDisplayOrder() {
+        let olderProject = TickProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000201")!,
+            name: "Older",
+            createdAt: Date(timeIntervalSince1970: 0),
+            sortOrder: 1
+        )
+        let mostActiveProject = TickProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000202")!,
+            name: "Most Active",
+            createdAt: Date(timeIntervalSince1970: 1),
+            sortOrder: 2
+        )
+        let tiedProject = TickProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000203")!,
+            name: "Tied",
+            createdAt: Date(timeIntervalSince1970: 2),
+            sortOrder: 3
+        )
+
+        let sortedProjects = TickProject.sortedByActivity(
+            [tiedProject, mostActiveProject, olderProject],
+            durationsByProjectID: [
+                olderProject.id: 600,
+                mostActiveProject.id: 1_200,
+                tiedProject.id: 600
+            ]
+        )
+
+        XCTAssertEqual(
+            sortedProjects.map(\.id),
+            [mostActiveProject.id, olderProject.id, tiedProject.id]
+        )
+    }
+
     func testVoiceMemoStoreRoundTripsMetadataAndDeletesAudioFile() async throws {
         let urls = temporaryVoiceMemoStoreURLs()
         defer {

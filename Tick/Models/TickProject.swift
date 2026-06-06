@@ -39,4 +39,24 @@ nonisolated struct TickProject: Codable, Equatable, Hashable, Identifiable {
             return lhs.sortOrder < rhs.sortOrder
         }
     }
+
+    static func sortedByActivity(
+        _ projects: [TickProject],
+        durationsByProjectID: [TickProject.ID: TimeInterval]
+    ) -> [TickProject] {
+        sortedByDisplayOrder(projects).sorted { lhs, rhs in
+            let lhsDuration = durationsByProjectID[lhs.id] ?? 0
+            let rhsDuration = durationsByProjectID[rhs.id] ?? 0
+
+            if lhsDuration == rhsDuration {
+                if lhs.sortOrder == rhs.sortOrder {
+                    return lhs.createdAt < rhs.createdAt
+                }
+
+                return lhs.sortOrder < rhs.sortOrder
+            }
+
+            return lhsDuration > rhsDuration
+        }
+    }
 }
