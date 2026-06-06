@@ -80,6 +80,14 @@ struct ProjectsView: View {
                         }
                     }
                 }
+
+                if !viewModel.projects.isEmpty {
+                    Section {
+                        TotalSpacesFooter(totalDuration: totalSpacesDuration)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 28, trailing: 16))
+                }
             }
             .scrollContentBackground(.hidden)
             .background(TickPalette.appBackground)
@@ -144,6 +152,12 @@ struct ProjectsView: View {
 
     private var canReorderProjects: Bool {
         viewModel.activeProjects.count > 1 || archivedProjects.count > 1
+    }
+
+    private var totalSpacesDuration: TimeInterval {
+        viewModel.projects.reduce(0) { total, project in
+            total + viewModel.totalDuration(for: project.id)
+        }
     }
 
     private func deleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
@@ -235,5 +249,37 @@ private struct ProjectRowView: View {
     private var accessibilityLabel: String {
         let base = "\(project.name), \(TickDurationFormatter.shortString(from: duration)) recorded"
         return showsArchivedBadge ? "\(base), archived" : base
+    }
+}
+
+private struct TotalSpacesFooter: View {
+    let totalDuration: TimeInterval
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            TickProjectBadge(color: TickPalette.primaryAction, systemImage: "sum")
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Total Spaces")
+                    .font(.headline)
+
+                Text("All recorded time")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(TickDurationFormatter.shortString(from: totalDuration))
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .foregroundStyle(TickPalette.primaryAction)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .tickCard(tint: TickPalette.primaryAction, isHighlighted: true)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Total Spaces, all recorded time, \(TickDurationFormatter.shortString(from: totalDuration))")
     }
 }
