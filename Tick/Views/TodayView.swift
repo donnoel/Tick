@@ -361,7 +361,7 @@ private struct TodayHeroCard: View {
     }
 
     private var secondarySystemImage: String {
-        activeSession == nil ? "sparkles" : "chart.line.uptrend.xyaxis"
+        activeSession == nil ? "play.circle" : "chart.line.uptrend.xyaxis"
     }
 
     private var accessibilityLabel: String {
