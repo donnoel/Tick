@@ -31,7 +31,6 @@ struct TodayView: View {
         TodayHeroCard(
             totalDuration: viewModel.totalDuration(on: date, at: date),
             activeSession: viewModel.activeSession,
-            activeProjectName: viewModel.activeSession.map { projectName(for: $0.projectID) },
             displayDate: date
         )
     }
@@ -276,7 +275,6 @@ struct TodayView: View {
 private struct TodayHeroCard: View {
     let totalDuration: TimeInterval
     let activeSession: TimeSession?
-    let activeProjectName: String?
     let displayDate: Date
 
     var body: some View {
@@ -295,13 +293,6 @@ private struct TodayHeroCard: View {
                         .foregroundStyle(tint)
 
                     Spacer()
-
-                    if let activeProjectName {
-                        Text(activeProjectName)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
 
                 Text(primaryDuration)
