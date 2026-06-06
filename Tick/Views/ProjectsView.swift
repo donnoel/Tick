@@ -14,9 +14,15 @@ struct ProjectsView: View {
                 let orderedActiveProjects = activeProjects
 
                 Section {
-                    ProjectSortModePicker(selection: $spacesSortMode)
+                    HStack {
+                        ProjectSortModePicker(selection: $spacesSortMode)
+                            .frame(maxWidth: 360)
+
+                        Spacer(minLength: 0)
+                    }
                 }
                 .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
 
                 if orderedActiveProjects.isEmpty {
                     ContentUnavailableView(
