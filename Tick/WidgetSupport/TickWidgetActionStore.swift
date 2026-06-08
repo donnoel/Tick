@@ -48,7 +48,17 @@ nonisolated final class TickWidgetActionStore {
             let data = try Data(contentsOf: widgetSnapshotFileURL)
 
             if !data.isEmpty {
-                return try decoder.decode(TickWidgetSnapshot.self, from: data)
+                let cachedSnapshot = try decoder.decode(TickWidgetSnapshot.self, from: data)
+
+                if let reconciledSnapshot = try? reconciledWidgetSnapshot(
+                    for: cachedSnapshot,
+                    at: date,
+                    calendar: calendar
+                ) {
+                    return reconciledSnapshot
+                }
+
+                return cachedSnapshot
             }
         }
 
@@ -59,6 +69,26 @@ nonisolated final class TickWidgetActionStore {
             at: date,
             calendar: calendar
         )
+    }
+
+    private func reconciledWidgetSnapshot(
+        for cachedSnapshot: TickWidgetSnapshot,
+        at date: Date,
+        calendar: Calendar
+    ) throws -> TickWidgetSnapshot? {
+        let storageSnapshot = try loadStorageSnapshot()
+        let currentSnapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: storageSnapshot,
+            defaultProjectID: cachedSnapshot.defaultProjectID,
+            at: date,
+            calendar: calendar
+        )
+
+        guard currentSnapshot.activeSessionID != cachedSnapshot.activeSessionID else {
+            return nil
+        }
+
+        return currentSnapshot
     }
 
     func saveWidgetSnapshot(_ snapshot: TickWidgetSnapshot) throws {

@@ -1132,6 +1132,60 @@ final class TickTests: XCTestCase {
         XCTAssertFalse(savedSnapshot.sessions.contains(where: \.isActive))
     }
 
+    func testWidgetSnapshotLoadReconcilesStoppedSessionFromStorage() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let sessionID = UUID()
+        let stoppedSession = TickWidgetStoredSession(
+            id: sessionID,
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 300),
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let staleActiveSnapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: project.id,
+            defaultProjectName: "Studio",
+            activeSessionID: sessionID,
+            activeProjectName: "Studio",
+            activeSessionTitle: "1 Tick",
+            activeStartedAt: Date(timeIntervalSince1970: 100),
+            todayTotalDuration: 200,
+            lastUpdatedAt: Date(timeIntervalSince1970: 200)
+        )
+        let store = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [stoppedSession]),
+            at: urls.dataFileURL
+        )
+        try store.saveWidgetSnapshot(staleActiveSnapshot)
+
+        let loadedSnapshot = try store.loadWidgetSnapshot(at: Date(timeIntervalSince1970: 400))
+
+        XCTAssertNil(loadedSnapshot.activeSessionID)
+        XCTAssertNil(loadedSnapshot.activeStartedAt)
+        XCTAssertEqual(loadedSnapshot.todayTotalDuration, 200)
+    }
+
     @MainActor
     func testViewModelPreventsMultipleActiveSessions() async {
         let fileURL = temporaryStoreURL()
