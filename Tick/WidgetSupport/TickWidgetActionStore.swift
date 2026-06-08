@@ -84,7 +84,8 @@ nonisolated final class TickWidgetActionStore {
             calendar: calendar
         )
 
-        guard currentSnapshot.activeSessionID != cachedSnapshot.activeSessionID else {
+        guard currentSnapshot.activeSessionID != cachedSnapshot.activeSessionID ||
+            currentSnapshot.activePausedAt != cachedSnapshot.activePausedAt else {
             return nil
         }
 

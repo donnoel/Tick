@@ -889,7 +889,69 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(snapshot.activeProjectName, "Studio")
         XCTAssertEqual(snapshot.activeSessionTitle, "1 Tick")
         XCTAssertEqual(snapshot.activeStartedAt, Date(timeIntervalSince1970: 100))
+        XCTAssertNil(snapshot.activePausedAt)
+        XCTAssertEqual(snapshot.activeElapsedDuration, 600)
         XCTAssertEqual(snapshot.todayTotalDuration, 600)
+    }
+
+    func testWidgetSnapshotGenerationWithPausedSession() {
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let activeSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            pausedAt: Date(timeIntervalSince1970: 160),
+            accumulatedPausedDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let snapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+            defaultProjectID: nil,
+            at: Date(timeIntervalSince1970: 700)
+        )
+
+        XCTAssertEqual(snapshot.activeSessionID, activeSession.id)
+        XCTAssertEqual(snapshot.activePausedAt, Date(timeIntervalSince1970: 160))
+        XCTAssertEqual(snapshot.activeElapsedDuration, 60)
+        XCTAssertEqual(snapshot.todayTotalDuration, 60)
+        XCTAssertTrue(snapshot.isActivePaused)
+    }
+
+    func testWidgetSnapshotDecodesLegacySnapshotWithoutPausedFields() throws {
+        let id = UUID()
+        let json = """
+        {
+          "activeProjectName" : "Studio",
+          "activeSessionID" : "\(id.uuidString)",
+          "activeSessionTitle" : "1 Tick",
+          "activeStartedAt" : "1970-01-01T00:01:40Z",
+          "defaultProjectID" : null,
+          "defaultProjectName" : null,
+          "hasProjects" : true,
+          "lastUpdatedAt" : "1970-01-01T00:01:40Z",
+          "todayTotalDuration" : 600
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let snapshot = try decoder.decode(TickWidgetSnapshot.self, from: Data(json.utf8))
+
+        XCTAssertEqual(snapshot.activeSessionID, id)
+        XCTAssertNil(snapshot.activePausedAt)
+        XCTAssertNil(snapshot.activeElapsedDuration)
+        XCTAssertFalse(snapshot.isActivePaused)
     }
 
     func testAccessoryRectangularNoProjectContent() {
@@ -951,6 +1013,33 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(content.rectangularDetail, "42m")
         XCTAssertEqual(content.rectangularFootnote, "Running")
         XCTAssertEqual(content.inlineText, "PiSignage: 42m today")
+    }
+
+    func testAccessoryRectangularPausedContent() {
+        let snapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: nil,
+            defaultProjectName: nil,
+            activeSessionID: UUID(),
+            activeProjectName: "PiSignage",
+            activeSessionTitle: "1 Tick",
+            activeStartedAt: Date(timeIntervalSince1970: 100),
+            activePausedAt: Date(timeIntervalSince1970: 160),
+            activeElapsedDuration: 60,
+            todayTotalDuration: 2_520,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let content = TickAccessoryWidgetContentBuilder.content(
+            from: snapshot,
+            at: Date(timeIntervalSince1970: 2_620)
+        )
+
+        XCTAssertEqual(content.state, .active)
+        XCTAssertEqual(content.rectangularTitle, "PiSignage")
+        XCTAssertEqual(content.rectangularDetail, "42m")
+        XCTAssertEqual(content.rectangularFootnote, "Paused")
+        XCTAssertEqual(content.inlineText, "PiSignage: 42m today")
+        XCTAssertEqual(content.accessibilityLabel, "PiSignage paused. 42m today.")
     }
 
     func testAccessoryActiveContentShowsTodayTotalInsteadOfElapsedTime() {
@@ -1184,6 +1273,64 @@ final class TickTests: XCTestCase {
         XCTAssertNil(loadedSnapshot.activeSessionID)
         XCTAssertNil(loadedSnapshot.activeStartedAt)
         XCTAssertEqual(loadedSnapshot.todayTotalDuration, 200)
+    }
+
+    func testWidgetSnapshotLoadReconcilesPausedSessionFromStorage() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let sessionID = UUID()
+        let pausedSession = TickWidgetStoredSession(
+            id: sessionID,
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            pausedAt: Date(timeIntervalSince1970: 160),
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let staleRunningSnapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: project.id,
+            defaultProjectName: "Studio",
+            activeSessionID: sessionID,
+            activeProjectName: "Studio",
+            activeSessionTitle: "1 Tick",
+            activeStartedAt: Date(timeIntervalSince1970: 100),
+            activePausedAt: nil,
+            activeElapsedDuration: 300,
+            todayTotalDuration: 300,
+            lastUpdatedAt: Date(timeIntervalSince1970: 400)
+        )
+        let store = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [pausedSession]),
+            at: urls.dataFileURL
+        )
+        try store.saveWidgetSnapshot(staleRunningSnapshot)
+
+        let loadedSnapshot = try store.loadWidgetSnapshot(at: Date(timeIntervalSince1970: 500))
+
+        XCTAssertEqual(loadedSnapshot.activeSessionID, sessionID)
+        XCTAssertEqual(loadedSnapshot.activePausedAt, Date(timeIntervalSince1970: 160))
+        XCTAssertEqual(loadedSnapshot.activeElapsedDuration, 60)
+        XCTAssertEqual(loadedSnapshot.todayTotalDuration, 60)
     }
 
     @MainActor

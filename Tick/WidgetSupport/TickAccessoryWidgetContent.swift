@@ -50,16 +50,18 @@ nonisolated enum TickAccessoryWidgetContentBuilder {
 
         let total = compactDurationString(from: snapshot.todayTotalDuration)
         let projectName = snapshot.activeProjectName ?? "Ticks"
+        let status = snapshot.isActivePaused ? "Paused" : "Running"
+        let spokenStatus = snapshot.isActivePaused ? "paused" : "running"
 
         return TickAccessoryWidgetContent(
             state: .active,
             rectangularTitle: projectName,
             rectangularDetail: total,
-            rectangularFootnote: "Running",
+            rectangularFootnote: status,
             circularText: total,
             circularSystemImage: total.count > 4 ? "timer" : nil,
             inlineText: "\(projectName): \(total) today",
-            accessibilityLabel: "\(projectName) running. \(total) today."
+            accessibilityLabel: "\(projectName) \(spokenStatus). \(total) today."
         )
     }
 

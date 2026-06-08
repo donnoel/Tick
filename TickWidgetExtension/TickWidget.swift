@@ -147,8 +147,8 @@ struct TickWidgetView: View {
 
         return VStack(alignment: .leading, spacing: isSmall ? 6 : 8) {
             widgetHeader(
-                title: "Running",
-                systemImage: "record.circle.fill",
+                title: entry.snapshot.isActivePaused ? "Paused" : "Running",
+                systemImage: entry.snapshot.isActivePaused ? "pause.circle.fill" : "record.circle.fill",
                 tint: TickWidgetStyle.running,
                 showsToday: !isSmall
             )
@@ -165,7 +165,13 @@ struct TickWidgetView: View {
                     .lineLimit(1)
             }
 
-            if let activeStartedAt = entry.snapshot.activeStartedAt {
+            if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
+                Text(timerDurationString(from: activeElapsedDuration))
+                    .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .accessibilityLabel("Paused elapsed time")
+            } else if let activeStartedAt = entry.snapshot.activeStartedAt {
                 Text(activeStartedAt, style: .timer)
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
@@ -178,7 +184,13 @@ struct TickWidgetView: View {
 
             Spacer(minLength: 0)
 
-            actionFooter(title: "Stop Tick", caption: "Running", systemImage: "stop.fill", tint: TickWidgetStyle.running, intent: StopTickIntent())
+            actionFooter(
+                title: "Stop Tick",
+                caption: entry.snapshot.isActivePaused ? "Paused" : "Running",
+                systemImage: "stop.fill",
+                tint: TickWidgetStyle.running,
+                intent: StopTickIntent()
+            )
         }
     }
 
@@ -352,6 +364,19 @@ struct TickWidgetView: View {
 
     private func shortDurationString(from duration: TimeInterval) -> String {
         TickAccessoryWidgetContentBuilder.compactDurationString(from: duration)
+    }
+
+    private func timerDurationString(from duration: TimeInterval) -> String {
+        let totalSeconds = max(0, Int(duration.rounded(.down)))
+        let hours = totalSeconds / 3_600
+        let minutes = (totalSeconds % 3_600) / 60
+        let seconds = totalSeconds % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }
 

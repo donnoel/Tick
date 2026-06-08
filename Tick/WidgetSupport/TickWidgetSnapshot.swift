@@ -8,8 +8,14 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
     var activeProjectName: String?
     var activeSessionTitle: String?
     var activeStartedAt: Date?
+    var activePausedAt: Date? = nil
+    var activeElapsedDuration: TimeInterval? = nil
     var todayTotalDuration: TimeInterval
     var lastUpdatedAt: Date
+
+    var isActivePaused: Bool {
+        activeSessionID != nil && activePausedAt != nil
+    }
 
     static func empty(lastUpdatedAt: Date = .now) -> TickWidgetSnapshot {
         TickWidgetSnapshot(
@@ -20,6 +26,8 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
             activeProjectName: nil,
             activeSessionTitle: nil,
             activeStartedAt: nil,
+            activePausedAt: nil,
+            activeElapsedDuration: nil,
             todayTotalDuration: 0,
             lastUpdatedAt: lastUpdatedAt
         )
@@ -47,6 +55,7 @@ nonisolated enum TickWidgetSnapshotBuilder {
         let activeProject = activeSession.flatMap { session in
             storageSnapshot.projects.first { $0.id == session.projectID }
         }
+        let activeElapsedDuration = activeSession.map { $0.duration(at: date) }
 
         return TickWidgetSnapshot(
             hasProjects: !activeProjects.isEmpty,
@@ -56,6 +65,8 @@ nonisolated enum TickWidgetSnapshotBuilder {
             activeProjectName: activeProject?.name,
             activeSessionTitle: activeSession.flatMap { displayTitle(for: $0, sessions: storageSnapshot.sessions, calendar: calendar) },
             activeStartedAt: activeSession?.startedAt,
+            activePausedAt: activeSession?.pausedAt,
+            activeElapsedDuration: activeElapsedDuration,
             todayTotalDuration: totalDurationToday(for: storageSnapshot.sessions, at: date, calendar: calendar),
             lastUpdatedAt: date
         )
