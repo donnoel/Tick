@@ -1895,6 +1895,50 @@ final class TickTests: XCTestCase {
     }
 
     @MainActor
+    func testAutoTickArrivalResumesPausedAssociatedAutoSession() async {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+
+        await viewModel.addAutoTickRule(
+            projectID: viewModel.activeProjects[0].id,
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        let rule = viewModel.autoTickRules[0]
+        await viewModel.handleAutoTickEvent(
+            ruleID: rule.id,
+            event: .arrival,
+            at: Date(timeIntervalSince1970: 100)
+        )
+        await viewModel.pauseTick(at: Date(timeIntervalSince1970: 160))
+
+        let didResume = await viewModel.handleAutoTickEvent(
+            ruleID: rule.id,
+            event: .arrival,
+            at: Date(timeIntervalSince1970: 220)
+        )
+
+        XCTAssertTrue(didResume)
+        XCTAssertEqual(viewModel.sessions.filter(\.isActive).count, 1)
+        XCTAssertFalse(viewModel.activeSession?.isPaused == true)
+        XCTAssertEqual(viewModel.activeSession?.entrySource, .autoLocation)
+        XCTAssertEqual(viewModel.activeSession?.autoTickRuleID, rule.id)
+        XCTAssertEqual(viewModel.activeSession?.accumulatedPausedDuration, 60)
+        XCTAssertEqual(viewModel.activeSession?.duration(at: Date(timeIntervalSince1970: 250)), 90)
+    }
+
+    @MainActor
     func testAutoTickDepartureStopsOnlyAssociatedAutoSession() async {
         let fileURL = temporaryStoreURL()
         defer {

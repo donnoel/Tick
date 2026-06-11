@@ -1096,8 +1096,14 @@ final class TickViewModel {
             return false
         }
 
-        guard activeSession == nil else {
-            return false
+        if let activeSession {
+            guard activeSession.isPaused,
+                  activeSession.entrySource == .autoLocation,
+                  activeSession.autoTickRuleID == rule.id else {
+                return false
+            }
+
+            return await resumeTick(at: date)
         }
 
         let session = TimeSession(
