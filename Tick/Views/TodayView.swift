@@ -9,22 +9,30 @@ struct TodayView: View {
             TimelineView(.periodic(from: .now, by: 1)) { timeline in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
+                        todayHeader(at: timeline.date)
                         totalHeader(at: timeline.date)
 
                         projectSelector
                         actionButtons
                         todaySessions(at: timeline.date)
                     }
+                    .frame(maxWidth: 980, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal)
                     .padding(.vertical, 12)
                 }
                 .background(TodayBackground())
             }
             .navigationTitle("Start Ticking")
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTime) {
                 ManualTimeEntryView(viewModel: viewModel)
             }
         }
+    }
+
+    private func todayHeader(at date: Date) -> some View {
+        TodayHeader(displayDate: date)
     }
 
     private func totalHeader(at date: Date) -> some View {
@@ -269,6 +277,39 @@ struct TodayView: View {
                     (session.id, "\(index + 1) Tick")
                 }
         )
+    }
+}
+
+private struct TodayHeader: View {
+    let displayDate: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Start Ticking")
+                .font(.largeTitle.weight(.bold))
+                .minimumScaleFactor(0.78)
+                .lineLimit(1)
+
+            Text(displayDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 22)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 14)
+        .background {
+            LinearGradient(
+                colors: [
+                    TickPalette.primaryAction.opacity(0.10),
+                    Color.cyan.opacity(0.06),
+                    Color.clear
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+        }
     }
 }
 
