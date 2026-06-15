@@ -186,7 +186,7 @@ struct TodayView: View {
             }
 
             if sessions.isEmpty {
-                Label("No time recorded yet today.", systemImage: "sparkles")
+                Label("No time recorded yet today.", systemImage: "clock.badge")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
