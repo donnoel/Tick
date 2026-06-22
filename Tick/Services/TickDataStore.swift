@@ -37,7 +37,11 @@ actor TickDataStore {
             return .empty
         }
 
-        return try decoder.decode(TickStorageSnapshot.self, from: data)
+        do {
+            return try decoder.decode(TickStorageSnapshot.self, from: data)
+        } catch {
+            return try recoverCorruptStore()
+        }
     }
 
     func save(_ snapshot: TickStorageSnapshot) throws {
@@ -74,5 +78,25 @@ actor TickDataStore {
             withIntermediateDirectories: true
         )
         try fileManager.copyItem(at: legacyFileURL, to: fileURL)
+    }
+
+    private func recoverCorruptStore() throws -> TickStorageSnapshot {
+        let backupURL = corruptBackupFileURL()
+
+        try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
+            try fileManager.moveItem(at: coordinatedURL, to: backupURL)
+        }
+
+        return .empty
+    }
+
+    private func corruptBackupFileURL() -> URL {
+        let directoryURL = fileURL.deletingLastPathComponent()
+        let baseName = fileURL.deletingPathExtension().lastPathComponent
+        let fileExtension = fileURL.pathExtension
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let backupName = "\(baseName).corrupt-\(timestamp)-\(UUID().uuidString).\(fileExtension)"
+
+        return directoryURL.appendingPathComponent(backupName)
     }
 }

@@ -114,7 +114,8 @@ final class TickUITests: XCTestCase {
 
         let projectNameField = app.textFields["addProject.nameField"]
         XCTAssertTrue(projectNameField.waitForExistence(timeout: 5))
-        projectNameField.tap()
+        XCTAssertTrue(projectNameField.waitUntilHittable(timeout: 5))
+        projectNameField.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         projectNameField.typeText(projectName)
 
         let saveProjectButton = app.buttons["addProject.saveButton"]
@@ -265,6 +266,14 @@ final class TickUITests: XCTestCase {
 private extension XCUIElement {
     func waitUntilEnabled(timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isEnabled == true")
+        return XCTWaiter.wait(
+            for: [XCTNSPredicateExpectation(predicate: predicate, object: self)],
+            timeout: timeout
+        ) == .completed
+    }
+
+    func waitUntilHittable(timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isHittable == true")
         return XCTWaiter.wait(
             for: [XCTNSPredicateExpectation(predicate: predicate, object: self)],
             timeout: timeout

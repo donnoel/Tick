@@ -18,6 +18,7 @@ final class TickViewModel {
     @ObservationIgnored private var iCloudApplyTaskID = 0
     @ObservationIgnored private var widgetSnapshotRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var widgetSnapshotRefreshTaskID = 0
+    @ObservationIgnored private var lastPersistedStorageSnapshot: TickStorageSnapshot?
     @ObservationIgnored private var recordingVoiceMemoID: VoiceMemo.ID?
     @ObservationIgnored private var recordingVoiceMemoFileName: String?
     @ObservationIgnored private var recordingVoiceMemoStartedAt: Date?
@@ -209,6 +210,7 @@ final class TickViewModel {
                 localModifiedAt: localModifiedAt
             )
             apply(storageSnapshot: resolvedSnapshot)
+            lastPersistedStorageSnapshot = resolvedSnapshot
             await reloadVoiceMemos()
             hasLoaded = true
             refreshAutoTickMonitoring()
@@ -916,14 +918,20 @@ final class TickViewModel {
     }
 
     private func persist() async {
-        let snapshot = TickStorageSnapshot(
+        let proposedSnapshot = TickStorageSnapshot(
             projects: projects,
             sessions: sessions,
             autoTickRules: autoTickRules
         )
 
         do {
+            let snapshot = try await snapshotForPersist(proposedSnapshot)
             try await store.save(snapshot)
+            lastPersistedStorageSnapshot = snapshot
+            if snapshot != proposedSnapshot {
+                apply(storageSnapshot: snapshot)
+            }
+
             do {
                 try iCloudSyncStore?.save(snapshot)
                 errorMessage = nil
@@ -1044,6 +1052,7 @@ final class TickViewModel {
 
             if resolvedSnapshot != currentStorageSnapshot {
                 apply(storageSnapshot: resolvedSnapshot)
+                lastPersistedStorageSnapshot = resolvedSnapshot
                 refreshAutoTickMonitoring()
                 await refreshWidgetSnapshot()
             }
@@ -1057,6 +1066,35 @@ final class TickViewModel {
             projects: projects,
             sessions: sessions,
             autoTickRules: autoTickRules
+        )
+    }
+
+    private func snapshotForPersist(_ proposedSnapshot: TickStorageSnapshot) async throws -> TickStorageSnapshot {
+        guard let lastPersistedStorageSnapshot else {
+            return proposedSnapshot
+        }
+
+        let latestStoredSnapshot = try await store.load()
+        guard latestStoredSnapshot != lastPersistedStorageSnapshot else {
+            return proposedSnapshot
+        }
+
+        return Self.mergedSnapshotForPersist(
+            base: lastPersistedStorageSnapshot,
+            proposed: proposedSnapshot,
+            latestStored: latestStoredSnapshot
+        )
+    }
+
+    private static func mergedSnapshotForPersist(
+        base: TickStorageSnapshot,
+        proposed: TickStorageSnapshot,
+        latestStored: TickStorageSnapshot
+    ) -> TickStorageSnapshot {
+        TickStorageSnapshot(
+            projects: proposed.projects == base.projects ? latestStored.projects : proposed.projects,
+            sessions: proposed.sessions == base.sessions ? latestStored.sessions : proposed.sessions,
+            autoTickRules: proposed.autoTickRules == base.autoTickRules ? latestStored.autoTickRules : proposed.autoTickRules
         )
     }
 

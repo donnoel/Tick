@@ -330,6 +330,32 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(loadedSnapshot, snapshot)
     }
 
+    func testDataStoreQuarantinesCorruptSnapshotAndReturnsEmpty() async throws {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("not-json".utf8).write(to: fileURL, options: [.atomic])
+        let store = TickDataStore(fileURL: fileURL)
+
+        let snapshot = try await store.load()
+        let backupURLs = try FileManager.default.contentsOfDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.lastPathComponent.hasPrefix("tick-data.corrupt-") }
+
+        XCTAssertEqual(snapshot, .empty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+        XCTAssertEqual(backupURLs.count, 1)
+        XCTAssertEqual(try Data(contentsOf: backupURLs[0]), Data("not-json".utf8))
+    }
+
     func testICloudResolutionUsesNewerRemoteSnapshot() {
         let project = TickProject(name: "Synced", createdAt: Date(timeIntervalSince1970: 100))
         let localSnapshot = TickStorageSnapshot.empty
@@ -1333,6 +1359,47 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(loadedSnapshot.todayTotalDuration, 60)
     }
 
+    func testWidgetSnapshotLoadReconcilesChangedProjectFromStorage() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let projectID = UUID()
+        let storedProject = TickWidgetStoredProject(
+            id: projectID,
+            name: "Renamed Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let staleSnapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: projectID,
+            defaultProjectName: "Studio",
+            activeSessionID: nil,
+            activeProjectName: nil,
+            activeSessionTitle: nil,
+            activeStartedAt: nil,
+            todayTotalDuration: 0,
+            lastUpdatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let store = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [storedProject], sessions: []),
+            at: urls.dataFileURL
+        )
+        try store.saveWidgetSnapshot(staleSnapshot)
+
+        let loadedSnapshot = try store.loadWidgetSnapshot(at: Date(timeIntervalSince1970: 200))
+
+        XCTAssertEqual(loadedSnapshot.defaultProjectName, "Renamed Studio")
+        XCTAssertEqual(loadedSnapshot.defaultProjectID, projectID)
+    }
+
     @MainActor
     func testViewModelPreventsMultipleActiveSessions() async {
         let fileURL = temporaryStoreURL()
@@ -1454,6 +1521,36 @@ final class TickTests: XCTestCase {
         await reloadedViewModel.reload()
 
         XCTAssertEqual(reloadedViewModel.activeProjects.map(\.id), [projectIDs[1], projectIDs[0], projectIDs[2]])
+    }
+
+    @MainActor
+    func testAppSavePreservesWidgetSessionWrittenAfterLoad() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let store = TickDataStore(fileURL: urls.dataFileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: []))
+
+        let viewModel = TickViewModel(store: store)
+        await viewModel.loadIfNeeded()
+
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+        let widgetResult = try widgetStore.startTick(at: Date(timeIntervalSince1970: 100))
+
+        await viewModel.addProject(name: "Admin", createdAt: Date(timeIntervalSince1970: 1))
+
+        let savedSnapshot = try await store.load()
+
+        XCTAssertTrue(widgetResult.didChange)
+        XCTAssertEqual(savedSnapshot.projects.map(\.name), ["Studio", "Admin"])
+        XCTAssertEqual(savedSnapshot.sessions.filter(\.isActive).count, 1)
+        XCTAssertEqual(savedSnapshot.sessions.first?.projectID, project.id)
     }
 
     @MainActor
