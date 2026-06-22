@@ -1664,6 +1664,76 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(savedSnapshot.sessions.first?.projectID, project.id)
     }
 
+    func testWidgetStartMirrorsStorageSnapshotToICloudStore() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let keyValueStore = InMemoryKeyValueStore()
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL,
+            iCloudSyncStore: TickWidgetICloudSyncStore(keyValueStore: keyValueStore)
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: []),
+            at: urls.dataFileURL
+        )
+
+        let result = try widgetStore.startTick(at: Date(timeIntervalSince1970: 100))
+        let envelope = try XCTUnwrap(TickICloudSyncStore(keyValueStore: keyValueStore).loadEnvelope())
+
+        XCTAssertTrue(result.didChange)
+        XCTAssertEqual(envelope.snapshot.projects.map(\.id), [project.id])
+        XCTAssertEqual(envelope.snapshot.sessions.count, 1)
+        XCTAssertEqual(envelope.snapshot.sessions.first?.projectID, project.id)
+        XCTAssertTrue(envelope.snapshot.sessions.first?.isActive == true)
+    }
+
+    @MainActor
+    func testAppSaveMirrorsMergedWidgetSessionToICloudStore() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let keyValueStore = InMemoryKeyValueStore()
+        let store = TickDataStore(fileURL: urls.dataFileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: []))
+
+        let viewModel = TickViewModel(
+            store: store,
+            locationService: AutoTickLocationService(),
+            iCloudSyncStore: TickICloudSyncStore(keyValueStore: keyValueStore)
+        )
+        await viewModel.loadIfNeeded()
+
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL,
+            iCloudSyncStore: TickWidgetICloudSyncStore(keyValueStore: keyValueStore)
+        )
+        let widgetResult = try widgetStore.startTick(at: Date(timeIntervalSince1970: 100))
+
+        await viewModel.addProject(name: "Admin", createdAt: Date(timeIntervalSince1970: 1))
+
+        let envelope = try XCTUnwrap(TickICloudSyncStore(keyValueStore: keyValueStore).loadEnvelope())
+
+        XCTAssertTrue(widgetResult.didChange)
+        XCTAssertEqual(envelope.snapshot.projects.map(\.name), ["Studio", "Admin"])
+        XCTAssertEqual(envelope.snapshot.sessions.filter(\.isActive).count, 1)
+        XCTAssertEqual(envelope.snapshot.sessions.first?.projectID, project.id)
+    }
+
     @MainActor
     func testAddingProjectSelectsNewProject() async {
         let fileURL = temporaryStoreURL()
@@ -2350,5 +2420,21 @@ final class TickTests: XCTestCase {
         )
         let data = try encoder.encode(snapshot)
         try data.write(to: fileURL, options: [.atomic])
+    }
+}
+
+private final class InMemoryKeyValueStore: TickKeyValueStore {
+    private var values: [String: Data] = [:]
+
+    func data(forKey defaultName: String) -> Data? {
+        values[defaultName]
+    }
+
+    func set(_ value: Any?, forKey defaultName: String) {
+        values[defaultName] = value as? Data
+    }
+
+    func synchronize() -> Bool {
+        true
     }
 }

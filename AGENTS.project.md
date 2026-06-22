@@ -31,7 +31,7 @@ Explicitly out of scope for this phase:
 ## Architecture snapshot
 App entry and navigation:
 - `TickApp` opens `ContentView`.
-- `ContentView` owns a root `TickViewModel` and presents a `TabView` with Today, Spaces, and Summaries.
+- `ContentView` owns a root `TickViewModel` and presents a `TabView` with Today, Spaces, Auto Ticks, and Summaries.
 
 Core models:
 - `TickProject`: project identity, name, creation date, archive flag.
@@ -133,8 +133,16 @@ Still verify manually before submission:
 - Project: `Tick.xcodeproj`
 - Scheme: `Tick`
 - Target platform: iOS Simulator
-- CI runs `xcodebuild ... clean test`
+- CI creates an available iPhone simulator dynamically and runs `xcodebuild ... clean test`
 - Build warnings should be treated as failures.
+
+## Release validation checklist
+- Run a signed build on Don iPhone before release checks that depend on system services.
+- Verify Auto Tick permission prompts, current-location rule creation, and region arrival/departure behavior on device.
+- Verify Home Screen and Lock Screen widget Start/Stop actions against the shared App Group store.
+- Verify voice memo record/play/rename/delete with relaunch persistence.
+- Verify iCloud Key-Value Store sync between iPhone and iPad for spaces, sessions, Auto Tick rules, and widget-started sessions.
+- Re-check VoiceOver reading order, large Dynamic Type, and light/dark contrast before submission.
 
 ## Near-term priorities
 - Add richer validation around manual duration entry.

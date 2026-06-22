@@ -129,6 +129,8 @@ jobs:
             -resultBundlePath "$RESULT_BUNDLE" \
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
+            GCC_TREAT_WARNINGS_AS_ERRORS=YES \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             clean test
 
       - name: Upload xcodebuild artifacts

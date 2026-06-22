@@ -8,10 +8,10 @@ nonisolated final class TickWidgetICloudSyncStore {
 
     private static let snapshotKey = "tick.storageSnapshot.v1"
 
-    private let keyValueStore: NSUbiquitousKeyValueStore
+    private let keyValueStore: TickKeyValueStore
     private let encoder: JSONEncoder
 
-    init(keyValueStore: NSUbiquitousKeyValueStore = .default) {
+    init(keyValueStore: TickKeyValueStore = NSUbiquitousKeyValueStore.default) {
         self.keyValueStore = keyValueStore
 
         let encoder = JSONEncoder()

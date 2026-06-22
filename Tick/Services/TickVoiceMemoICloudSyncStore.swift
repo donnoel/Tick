@@ -8,11 +8,11 @@ nonisolated final class TickVoiceMemoICloudSyncStore {
 
     private static let snapshotKey = "tick.voiceMemoSnapshot.v1"
 
-    private let keyValueStore: NSUbiquitousKeyValueStore
+    private let keyValueStore: TickKeyValueStore
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(keyValueStore: NSUbiquitousKeyValueStore = .default) {
+    init(keyValueStore: TickKeyValueStore = NSUbiquitousKeyValueStore.default) {
         self.keyValueStore = keyValueStore
 
         let decoder = JSONDecoder()
