@@ -127,10 +127,17 @@ private struct SummaryDayProjectChart: View {
             .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day)) { _ in
+            AxisMarks(values: .stride(by: .day)) { value in
                 AxisGridLine()
                 AxisTick()
-                AxisValueLabel(format: axisLabelFormat)
+                if let date = value.as(Date.self), shouldShowAxisLabel(for: date) {
+                    AxisValueLabel {
+                        Text(date, format: axisLabelFormat)
+                            .font(.caption2.monospacedDigit())
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                }
             }
         }
         .chartYAxisLabel("Hours")
@@ -141,6 +148,21 @@ private struct SummaryDayProjectChart: View {
 
     private var axisLabelFormat: Date.FormatStyle {
         selectedPeriod == .week ? .dateTime.weekday(.narrow) : .dateTime.day()
+    }
+
+    private func shouldShowAxisLabel(for date: Date) -> Bool {
+        switch selectedPeriod {
+        case .day:
+            return false
+        case .week:
+            return true
+        case .month:
+            let calendar = Calendar.current
+            let day = calendar.component(.day, from: date)
+            let lastDay = calendar.range(of: .day, in: .month, for: date)?.count ?? 31
+
+            return day == 1 || day == lastDay || (day.isMultiple(of: 5) && day <= lastDay - 3)
+        }
     }
 
     private var chartAccessibilityLabel: String {
