@@ -12,31 +12,12 @@ final class TickUITests: XCTestCase {
     }
 
     func testCreateProjectStartStopShowsTodaySessionRow() throws {
-        let app = XCUIApplication()
-        app.launchArguments.append("-resetDataForUITests")
-        app.launch()
+        let app = launchResetApp()
 
         let projectName = "UITest Project"
         let tabBar = app.tabBars.firstMatch
 
-        let projectsTab = tabBar.buttons["Spaces"]
-        XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
-        projectsTab.tap()
-
-        let addProjectButton = app.buttons["projects.addProjectButton"]
-        XCTAssertTrue(addProjectButton.waitForExistence(timeout: 5))
-        addProjectButton.tap()
-
-        let nameField = app.textFields["addProject.nameField"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        nameField.tap()
-        nameField.typeText(projectName)
-
-        let saveProjectButton = app.buttons["addProject.saveButton"]
-        XCTAssertTrue(saveProjectButton.waitForExistence(timeout: 5))
-        saveProjectButton.tap()
-
-        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
+        createProject(named: projectName, in: app)
 
         let todayTab = tabBar.buttons["Today"]
         XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
@@ -54,6 +35,63 @@ final class TickUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1 Tick"].waitForExistence(timeout: 5))
+    }
+
+    func testSpaceAndSessionPersistAfterRelaunch() throws {
+        let app = launchResetApp()
+
+        let projectName = "Persistent UI Project"
+        let sessionTitle = "Persistent UI Session"
+
+        createProject(named: projectName, in: app)
+        addManualSession(titled: sessionTitle, in: app)
+
+        app.terminate()
+        app.launchArguments = []
+        app.launch()
+
+        let tabBar = app.tabBars.firstMatch
+        let todayTab = tabBar.buttons["Today"]
+        XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
+        todayTab.tap()
+
+        XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[sessionTitle].waitForExistence(timeout: 5))
+
+        let projectsTab = tabBar.buttons["Spaces"]
+        XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
+        projectsTab.tap()
+
+        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
+    }
+
+    func testAutoTicksEmptyAndAddRuleGuidanceWithoutLocation() throws {
+        let app = launchResetApp()
+        let tabBar = app.tabBars.firstMatch
+
+        let autoTicksTab = tabBar.buttons["Auto Ticks"]
+        XCTAssertTrue(autoTicksTab.waitForExistence(timeout: 5))
+        autoTicksTab.tap()
+
+        XCTAssertTrue(app.staticTexts["No Auto Ticks yet"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Add a place and Tick can start or stop for you."].exists)
+
+        XCTAssertTrue(app.buttons["Add Auto Tick"].firstMatch.waitForExistence(timeout: 5))
+
+        createProject(named: "Auto Tick UI Project", in: app)
+
+        autoTicksTab.tap()
+        let addAutoTickButton = app.buttons["Add Auto Tick"].firstMatch
+        XCTAssertTrue(addAutoTickButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(addAutoTickButton.waitUntilEnabled(timeout: 5))
+        addAutoTickButton.tap()
+
+        XCTAssertTrue(app.staticTexts["New Auto Tick"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Location guidance"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Use Current Location"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["Enabled"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Save"].isEnabled)
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {
@@ -124,31 +162,13 @@ final class TickUITests: XCTestCase {
     }
 
     func testProjectDetailSessionCanBeDeleted() throws {
-        let app = XCUIApplication()
-        app.launchArguments.append("-resetDataForUITests")
-        app.launch()
+        let app = launchResetApp()
 
         let projectName = "Delete UI Project"
         let sessionTitle = "Delete UI Session"
         let tabBar = app.tabBars.firstMatch
 
-        let projectsTab = tabBar.buttons["Spaces"]
-        XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
-        projectsTab.tap()
-
-        let addProjectButton = app.buttons["projects.addProjectButton"]
-        XCTAssertTrue(addProjectButton.waitForExistence(timeout: 5))
-        addProjectButton.tap()
-
-        let projectNameField = app.textFields["addProject.nameField"]
-        XCTAssertTrue(projectNameField.waitForExistence(timeout: 5))
-        projectNameField.tap()
-        projectNameField.typeText(projectName)
-
-        let saveProjectButton = app.buttons["addProject.saveButton"]
-        XCTAssertTrue(saveProjectButton.waitForExistence(timeout: 5))
-        saveProjectButton.tap()
-        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
+        createProject(named: projectName, in: app)
 
         let todayTab = tabBar.buttons["Today"]
         XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
@@ -171,6 +191,8 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts[sessionTitle].waitForExistence(timeout: 5))
 
+        let projectsTab = tabBar.buttons["Spaces"]
+        XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
         projectsTab.tap()
         XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
         app.staticTexts[projectName].tap()
@@ -187,6 +209,56 @@ final class TickUITests: XCTestCase {
 
         XCTAssertFalse(projectSessionRowText.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No Ticks yet"].waitForExistence(timeout: 5))
+    }
+
+    private func launchResetApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments.append("-resetDataForUITests")
+        app.launch()
+        return app
+    }
+
+    private func createProject(named projectName: String, in app: XCUIApplication) {
+        let projectsTab = app.tabBars.firstMatch.buttons["Spaces"]
+        XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
+        projectsTab.tap()
+
+        let addProjectButton = app.buttons["projects.addProjectButton"]
+        XCTAssertTrue(addProjectButton.waitForExistence(timeout: 5))
+        addProjectButton.tap()
+
+        let projectNameField = app.textFields["addProject.nameField"]
+        XCTAssertTrue(projectNameField.waitForExistence(timeout: 5))
+        projectNameField.tap()
+        projectNameField.typeText(projectName)
+
+        let saveProjectButton = app.buttons["addProject.saveButton"]
+        XCTAssertTrue(saveProjectButton.waitForExistence(timeout: 5))
+        saveProjectButton.tap()
+
+        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
+    }
+
+    private func addManualSession(titled sessionTitle: String, in app: XCUIApplication) {
+        let todayTab = app.tabBars.firstMatch.buttons["Today"]
+        XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
+        todayTab.tap()
+
+        let addTimeButton = app.buttons["today.addTimeButton"]
+        XCTAssertTrue(addTimeButton.waitForExistence(timeout: 5))
+        addTimeButton.tap()
+
+        let manualTitleField = app.textFields["manualTime.titleField"]
+        XCTAssertTrue(manualTitleField.waitForExistence(timeout: 5))
+        manualTitleField.tap()
+        manualTitleField.typeText(sessionTitle)
+
+        let manualSaveButton = app.buttons["manualTime.saveButton"]
+        XCTAssertTrue(manualSaveButton.waitForExistence(timeout: 5))
+        manualSaveButton.tap()
+
+        XCTAssertFalse(manualTitleField.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[sessionTitle].waitForExistence(timeout: 5))
     }
 }
 
