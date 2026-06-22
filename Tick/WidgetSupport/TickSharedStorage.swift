@@ -70,3 +70,48 @@ nonisolated enum TickSharedStorage {
             .appendingPathComponent("Tick", isDirectory: true)
     }
 }
+
+nonisolated enum TickSharedFileCoordinator {
+    static func coordinateReading<T>(
+        at url: URL,
+        _ read: (URL) throws -> T
+    ) throws -> T {
+        var coordinationError: NSError?
+        var operationResult: Result<T, Error>?
+        let coordinator = NSFileCoordinator()
+
+        coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) { coordinatedURL in
+            operationResult = Result {
+                try read(coordinatedURL)
+            }
+        }
+
+        if let coordinationError {
+            throw coordinationError
+        }
+
+        return try operationResult?.get() ?? read(url)
+    }
+
+    static func coordinateWriting<T>(
+        at url: URL,
+        options: NSFileCoordinator.WritingOptions = .forReplacing,
+        _ write: (URL) throws -> T
+    ) throws -> T {
+        var coordinationError: NSError?
+        var operationResult: Result<T, Error>?
+        let coordinator = NSFileCoordinator()
+
+        coordinator.coordinate(writingItemAt: url, options: options, error: &coordinationError) { coordinatedURL in
+            operationResult = Result {
+                try write(coordinatedURL)
+            }
+        }
+
+        if let coordinationError {
+            throw coordinationError
+        }
+
+        return try operationResult?.get() ?? write(url)
+    }
+}

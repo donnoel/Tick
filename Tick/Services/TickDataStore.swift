@@ -29,7 +29,9 @@ actor TickDataStore {
             return .empty
         }
 
-        let data = try Data(contentsOf: fileURL)
+        let data = try TickSharedFileCoordinator.coordinateReading(at: fileURL) { coordinatedURL in
+            try Data(contentsOf: coordinatedURL)
+        }
 
         guard !data.isEmpty else {
             return .empty
@@ -43,7 +45,9 @@ actor TickDataStore {
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
         let data = try encoder.encode(snapshot)
-        try data.write(to: fileURL, options: [.atomic])
+        try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
+            try data.write(to: coordinatedURL, options: [.atomic])
+        }
     }
 
     func modificationDate() throws -> Date? {
@@ -51,8 +55,10 @@ actor TickDataStore {
             return nil
         }
 
-        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-        return attributes[.modificationDate] as? Date
+        return try TickSharedFileCoordinator.coordinateReading(at: fileURL) { coordinatedURL in
+            let attributes = try fileManager.attributesOfItem(atPath: coordinatedURL.path)
+            return attributes[.modificationDate] as? Date
+        }
     }
 
     private func migrateLegacyStoreIfNeeded() throws {

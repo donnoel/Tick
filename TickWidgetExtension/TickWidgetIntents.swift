@@ -2,8 +2,8 @@ import AppIntents
 import WidgetKit
 
 struct StartTickIntent: AppIntent {
-    static var title: LocalizedStringResource = "Start Tick"
-    static var description = IntentDescription("Start recording time for the default Tick space.")
+    static let title: LocalizedStringResource = "Start Tick"
+    static let description = IntentDescription("Start recording time for the default Tick space.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let result = try TickWidgetActionStore().startTick()
@@ -13,8 +13,8 @@ struct StartTickIntent: AppIntent {
 }
 
 struct StopTickIntent: AppIntent {
-    static var title: LocalizedStringResource = "Stop Tick"
-    static var description = IntentDescription("Stop the active Tick session.")
+    static let title: LocalizedStringResource = "Stop Tick"
+    static let description = IntentDescription("Stop the active Tick session.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let result = try TickWidgetActionStore().stopTick()

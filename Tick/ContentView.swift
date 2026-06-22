@@ -46,15 +46,11 @@ struct ContentView: View {
                 return
             }
 
-            Task {
-                await viewModel.reload()
-            }
+            viewModel.scheduleReload()
         }
         .onChange(of: viewModel.selectedProjectID) { _, selectedProjectID in
             selectedSpaceID = selectedProjectID?.uuidString ?? ""
-            Task {
-                await viewModel.refreshWidgetSnapshot()
-            }
+            viewModel.scheduleWidgetSnapshotRefresh()
         }
         .alert("Tick needs attention", isPresented: errorIsPresented) {
             Button("OK") {

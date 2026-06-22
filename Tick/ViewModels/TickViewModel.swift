@@ -11,7 +11,13 @@ final class TickViewModel {
     private let iCloudSyncStore: TickICloudSyncStore?
     private let voiceMemoICloudSyncStore: TickVoiceMemoICloudSyncStore?
     private let voiceMemoAudioController: TickVoiceMemoAudioController
-    @ObservationIgnored private var iCloudSyncObserver: NSObjectProtocol?
+    @ObservationIgnored private var iCloudSyncObserver: ICloudSyncObservation?
+    @ObservationIgnored private var reloadTask: Task<Void, Never>?
+    @ObservationIgnored private var reloadTaskID = 0
+    @ObservationIgnored private var iCloudApplyTask: Task<Void, Never>?
+    @ObservationIgnored private var iCloudApplyTaskID = 0
+    @ObservationIgnored private var widgetSnapshotRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var widgetSnapshotRefreshTaskID = 0
     @ObservationIgnored private var recordingVoiceMemoID: VoiceMemo.ID?
     @ObservationIgnored private var recordingVoiceMemoFileName: String?
     @ObservationIgnored private var recordingVoiceMemoStartedAt: Date?
@@ -111,12 +117,6 @@ final class TickViewModel {
         configureVoiceMemoCallbacks()
     }
 
-    deinit {
-        if let iCloudSyncObserver {
-            NotificationCenter.default.removeObserver(iCloudSyncObserver)
-        }
-    }
-
     private func configureLocationServiceCallbacks() {
         locationService.stateDidChange = { [weak self] state in
             self?.apply(locationState: state)
@@ -133,15 +133,8 @@ final class TickViewModel {
             return
         }
 
-        iCloudSyncObserver = NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                await self?.applyRemoteICloudSnapshotIfNeeded()
-                await self?.reloadVoiceMemos()
-            }
+        iCloudSyncObserver = ICloudSyncObservation { [weak self] in
+            self?.scheduleICloudApply()
         }
     }
 
@@ -171,6 +164,42 @@ final class TickViewModel {
         await reload()
     }
 
+    func scheduleReload() {
+        reloadTask?.cancel()
+        reloadTaskID += 1
+        let taskID = reloadTaskID
+
+        reloadTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.reload()
+
+            if self.reloadTaskID == taskID {
+                self.reloadTask = nil
+            }
+        }
+    }
+
+    func scheduleWidgetSnapshotRefresh() {
+        widgetSnapshotRefreshTask?.cancel()
+        widgetSnapshotRefreshTaskID += 1
+        let taskID = widgetSnapshotRefreshTaskID
+
+        widgetSnapshotRefreshTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.refreshWidgetSnapshot()
+
+            if self.widgetSnapshotRefreshTaskID == taskID {
+                self.widgetSnapshotRefreshTask = nil
+            }
+        }
+    }
+
     func reload() async {
         do {
             let snapshot = try await store.load()
@@ -187,6 +216,25 @@ final class TickViewModel {
         } catch {
             errorMessage = "Tick could not load saved time. \(error.localizedDescription)"
             hasLoaded = true
+        }
+    }
+
+    private func scheduleICloudApply() {
+        iCloudApplyTask?.cancel()
+        iCloudApplyTaskID += 1
+        let taskID = iCloudApplyTaskID
+
+        iCloudApplyTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.applyRemoteICloudSnapshotIfNeeded()
+            await self.reloadVoiceMemos()
+
+            if self.iCloudApplyTaskID == taskID {
+                self.iCloudApplyTask = nil
+            }
         }
     }
 
@@ -1159,5 +1207,30 @@ final class TickViewModel {
 
     private func refreshAutoTickMonitoring() {
         locationService.refreshMonitoring(for: autoTickRules)
+    }
+}
+
+private final class ICloudSyncObservation: NSObject {
+    private let handler: @MainActor @Sendable () async -> Void
+
+    init(handler: @escaping @MainActor @Sendable () async -> Void) {
+        self.handler = handler
+        super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNotification),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func handleNotification() {
+        Task { @MainActor [handler] in
+            await handler()
+        }
     }
 }

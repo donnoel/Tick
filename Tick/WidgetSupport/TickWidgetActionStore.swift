@@ -44,22 +44,16 @@ nonisolated final class TickWidgetActionStore {
     }
 
     func loadWidgetSnapshot(at date: Date = .now, calendar: Calendar = .current) throws -> TickWidgetSnapshot {
-        if fileManager.fileExists(atPath: widgetSnapshotFileURL.path) {
-            let data = try Data(contentsOf: widgetSnapshotFileURL)
-
-            if !data.isEmpty {
-                let cachedSnapshot = try decoder.decode(TickWidgetSnapshot.self, from: data)
-
-                if let reconciledSnapshot = try? reconciledWidgetSnapshot(
-                    for: cachedSnapshot,
-                    at: date,
-                    calendar: calendar
-                ) {
-                    return reconciledSnapshot
-                }
-
-                return cachedSnapshot
+        if let cachedSnapshot = try loadCachedWidgetSnapshot() {
+            if let reconciledSnapshot = try? reconciledWidgetSnapshot(
+                for: cachedSnapshot,
+                at: date,
+                calendar: calendar
+            ) {
+                return reconciledSnapshot
             }
+
+            return cachedSnapshot
         }
 
         let storageSnapshot = try loadStorageSnapshot()
@@ -98,91 +92,119 @@ nonisolated final class TickWidgetActionStore {
             withIntermediateDirectories: true
         )
         let data = try encoder.encode(snapshot)
-        try data.write(to: widgetSnapshotFileURL, options: [.atomic])
+        try TickSharedFileCoordinator.coordinateWriting(at: widgetSnapshotFileURL) { coordinatedURL in
+            try data.write(to: coordinatedURL, options: [.atomic])
+        }
     }
 
     @discardableResult
     func startTick(at date: Date = .now, calendar: Calendar = .current) throws -> TickWidgetActionResult {
-        var storageSnapshot = try loadStorageSnapshot()
+        try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
+            var storageSnapshot = try loadStorageSnapshot(from: coordinatedDataFileURL)
 
-        guard storageSnapshot.sessions.first(where: \.isActive) == nil else {
-            return TickWidgetActionResult(didChange: false, message: "A Tick is already running.")
-        }
-
-        let activeProjects = storageSnapshot.projects
-            .filter { !$0.isArchived }
-            .sorted { lhs, rhs in
-                if lhs.sortOrder == rhs.sortOrder {
-                    return lhs.createdAt < rhs.createdAt
-                }
-
-                return lhs.sortOrder < rhs.sortOrder
+            guard storageSnapshot.sessions.first(where: \.isActive) == nil else {
+                return TickWidgetActionResult(didChange: false, message: "A Tick is already running.")
             }
 
-        guard !activeProjects.isEmpty else {
-            try saveWidgetSnapshot(.empty(lastUpdatedAt: date))
-            return TickWidgetActionResult(didChange: false, message: "Open Ticks to create a space first.")
-        }
+            let activeProjects = storageSnapshot.projects
+                .filter { !$0.isArchived }
+                .sorted { lhs, rhs in
+                    if lhs.sortOrder == rhs.sortOrder {
+                        return lhs.createdAt < rhs.createdAt
+                    }
 
-        let existingSnapshot = try? loadWidgetSnapshot(at: date, calendar: calendar)
-        let selectedProject = activeProjects.first { $0.id == existingSnapshot?.defaultProjectID } ?? activeProjects[0]
-        let session = TickWidgetStoredSession(
-            id: UUID(),
-            projectID: selectedProject.id,
-            title: "",
-            notes: "",
-            startedAt: date,
-            endedAt: nil,
-            manualDuration: nil,
-            entrySource: "timer",
-            autoTickRuleID: nil,
-            createdAt: date
-        )
+                    return lhs.sortOrder < rhs.sortOrder
+                }
 
-        storageSnapshot.sessions.insert(session, at: 0)
-        try saveStorageSnapshot(storageSnapshot)
-        try saveWidgetSnapshot(
-            TickWidgetSnapshotBuilder.snapshot(
-                from: storageSnapshot,
-                defaultProjectID: selectedProject.id,
-                at: date,
-                calendar: calendar
+            guard !activeProjects.isEmpty else {
+                try saveWidgetSnapshot(.empty(lastUpdatedAt: date))
+                return TickWidgetActionResult(didChange: false, message: "Open Ticks to create a space first.")
+            }
+
+            let existingSnapshot = try? loadCachedWidgetSnapshot()
+            let selectedProject = activeProjects.first { $0.id == existingSnapshot?.defaultProjectID } ?? activeProjects[0]
+            let session = TickWidgetStoredSession(
+                id: UUID(),
+                projectID: selectedProject.id,
+                title: "",
+                notes: "",
+                startedAt: date,
+                endedAt: nil,
+                manualDuration: nil,
+                entrySource: "timer",
+                autoTickRuleID: nil,
+                createdAt: date
             )
-        )
-        return TickWidgetActionResult(didChange: true, message: "Started Tick.")
+
+            storageSnapshot.sessions.insert(session, at: 0)
+            try saveStorageSnapshot(storageSnapshot, to: coordinatedDataFileURL)
+            try saveWidgetSnapshot(
+                TickWidgetSnapshotBuilder.snapshot(
+                    from: storageSnapshot,
+                    defaultProjectID: selectedProject.id,
+                    at: date,
+                    calendar: calendar
+                )
+            )
+            return TickWidgetActionResult(didChange: true, message: "Started Tick.")
+        }
     }
 
     @discardableResult
     func stopTick(at date: Date = .now, calendar: Calendar = .current) throws -> TickWidgetActionResult {
-        var storageSnapshot = try loadStorageSnapshot()
+        try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
+            var storageSnapshot = try loadStorageSnapshot(from: coordinatedDataFileURL)
 
-        guard let activeIndex = storageSnapshot.sessions.firstIndex(where: \.isActive) else {
-            return TickWidgetActionResult(didChange: false, message: "No Tick is running.")
-        }
+            guard let activeIndex = storageSnapshot.sessions.firstIndex(where: \.isActive) else {
+                return TickWidgetActionResult(didChange: false, message: "No Tick is running.")
+            }
 
-        let startedAt = storageSnapshot.sessions[activeIndex].startedAt ?? date
-        storageSnapshot.sessions[activeIndex].endedAt = date < startedAt ? startedAt : date
-        storageSnapshot.sessions.sort { $0.referenceDate > $1.referenceDate }
+            let startedAt = storageSnapshot.sessions[activeIndex].startedAt ?? date
+            storageSnapshot.sessions[activeIndex].endedAt = date < startedAt ? startedAt : date
+            storageSnapshot.sessions.sort { $0.referenceDate > $1.referenceDate }
 
-        let existingSnapshot = try? loadWidgetSnapshot(at: date, calendar: calendar)
-        try saveStorageSnapshot(storageSnapshot)
-        try saveWidgetSnapshot(
-            TickWidgetSnapshotBuilder.snapshot(
-                from: storageSnapshot,
-                defaultProjectID: existingSnapshot?.defaultProjectID,
-                at: date,
-                calendar: calendar
+            let existingSnapshot = try? loadCachedWidgetSnapshot()
+            try saveStorageSnapshot(storageSnapshot, to: coordinatedDataFileURL)
+            try saveWidgetSnapshot(
+                TickWidgetSnapshotBuilder.snapshot(
+                    from: storageSnapshot,
+                    defaultProjectID: existingSnapshot?.defaultProjectID,
+                    at: date,
+                    calendar: calendar
+                )
             )
-        )
-        return TickWidgetActionResult(didChange: true, message: "Stopped Tick.")
+            return TickWidgetActionResult(didChange: true, message: "Stopped Tick.")
+        }
     }
 
     func loadStorageSnapshot() throws -> TickWidgetStorageSnapshot {
-        guard fileManager.fileExists(atPath: dataFileURL.path) else {
+        try TickSharedFileCoordinator.coordinateReading(at: dataFileURL) { coordinatedDataFileURL in
+            try loadStorageSnapshot(from: coordinatedDataFileURL)
+        }
+    }
+
+    private func loadCachedWidgetSnapshot() throws -> TickWidgetSnapshot? {
+        guard fileManager.fileExists(atPath: widgetSnapshotFileURL.path) else {
+            return nil
+        }
+
+        let data = try TickSharedFileCoordinator.coordinateReading(at: widgetSnapshotFileURL) { coordinatedURL in
+            try Data(contentsOf: coordinatedURL)
+        }
+
+        guard !data.isEmpty else {
+            return nil
+        }
+
+        return try decoder.decode(TickWidgetSnapshot.self, from: data)
+    }
+
+    private func loadStorageSnapshot(from fileURL: URL) throws -> TickWidgetStorageSnapshot {
+        guard fileManager.fileExists(atPath: fileURL.path) else {
             return .empty
         }
 
-        let data = try Data(contentsOf: dataFileURL)
+        let data = try Data(contentsOf: fileURL)
 
         guard !data.isEmpty else {
             return .empty
@@ -191,13 +213,13 @@ nonisolated final class TickWidgetActionStore {
         return try decoder.decode(TickWidgetStorageSnapshot.self, from: data)
     }
 
-    private func saveStorageSnapshot(_ snapshot: TickWidgetStorageSnapshot) throws {
+    private func saveStorageSnapshot(_ snapshot: TickWidgetStorageSnapshot, to fileURL: URL) throws {
         try fileManager.createDirectory(
-            at: dataFileURL.deletingLastPathComponent(),
+            at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
         let data = try encoder.encode(snapshot)
-        try data.write(to: dataFileURL, options: [.atomic])
+        try data.write(to: fileURL, options: [.atomic])
         try iCloudSyncStore?.save(snapshot)
     }
 }
