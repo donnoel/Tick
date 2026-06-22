@@ -6,23 +6,36 @@ struct TodayView: View {
 
     var body: some View {
         NavigationStack {
-            TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        todayHeader(at: timeline.date)
-                        totalHeader(at: timeline.date)
+            let displayDate = Date.now
+            let todaySessions = viewModel.sessions(on: displayDate)
+            let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: todaySessions)
+            let projectIDs = viewModel.projects.map(\.id)
+            let activeSession = viewModel.activeSession
 
-                        projectSelector
-                        actionButtons
-                        todaySessions(at: timeline.date)
-                    }
-                    .frame(maxWidth: 980, alignment: .leading)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    todayHeader(at: displayDate)
+                    totalHeader(
+                        sessions: todaySessions,
+                        activeSession: activeSession,
+                        displayDate: displayDate
+                    )
+
+                    projectSelector
+                    actionButtons
+                    todaySessionsSection(
+                        todaySessions,
+                        fallbackTitles: fallbackTitles,
+                        projectIDs: projectIDs,
+                        displayDate: displayDate
+                    )
                 }
-                .background(TodayBackground())
+                .frame(maxWidth: 980, alignment: .leading)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
+                .padding(.vertical, 12)
             }
+            .background(TodayBackground())
             .navigationTitle("Start Ticking")
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTime) {
@@ -35,11 +48,18 @@ struct TodayView: View {
         TodayHeader(displayDate: date)
     }
 
-    private func totalHeader(at date: Date) -> some View {
-        TodayHeroCard(
-            totalDuration: viewModel.totalDuration(on: date, at: date),
-            activeSession: viewModel.activeSession,
-            displayDate: date
+    private func totalHeader(
+        sessions: [TimeSession],
+        activeSession: TimeSession?,
+        displayDate: Date
+    ) -> some View {
+        TodayHeroTimelineCard(
+            staticTotalDuration: staticTotalDuration(from: sessions, at: displayDate),
+            activeSession: activeSession,
+            activeSessionCountsTowardTotal: activeSession.map { activeSession in
+                sessions.contains { $0.id == activeSession.id }
+            } ?? false,
+            displayDate: displayDate
         )
     }
 
@@ -170,12 +190,13 @@ struct TodayView: View {
         .padding(.bottom, 4)
     }
 
-    private func todaySessions(at date: Date) -> some View {
-        let sessions = viewModel.sessions(on: date)
-        let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: sessions)
-        let projectIDs = viewModel.projects.map(\.id)
-
-        return VStack(alignment: .leading, spacing: 12) {
+    private func todaySessionsSection(
+        _ sessions: [TimeSession],
+        fallbackTitles: [TimeSession.ID: String],
+        projectIDs: [TickProject.ID],
+        displayDate: Date
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Today's Ticks")
                     .font(.headline)
@@ -206,11 +227,11 @@ struct TodayView: View {
                         NavigationLink {
                             SessionDetailView(viewModel: viewModel, session: session)
                         } label: {
-                            SessionRowView(
+                            LiveSessionRowView(
                                 session: session,
                                 projectID: session.projectID,
                                 projectName: projectName(for: session.projectID),
-                                displayDate: date,
+                                displayDate: displayDate,
                                 defaultTitle: fallbackTitles[session.id] ?? "Tick",
                                 accentColor: TickProjectAccent.color(for: session.projectID, among: projectIDs)
                             )
@@ -220,6 +241,16 @@ struct TodayView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func staticTotalDuration(from sessions: [TimeSession], at displayDate: Date) -> TimeInterval {
+        sessions.reduce(0) { total, session in
+            guard !session.isActive else {
+                return total
+            }
+
+            return total + session.duration(at: displayDate)
         }
     }
 
@@ -423,6 +454,69 @@ private struct TodayHeroCard: View {
 
     private var tint: Color {
         activeSession == nil ? TickPalette.primaryAction : TickPalette.running
+    }
+}
+
+private struct TodayHeroTimelineCard: View {
+    let staticTotalDuration: TimeInterval
+    let activeSession: TimeSession?
+    let activeSessionCountsTowardTotal: Bool
+    let displayDate: Date
+
+    var body: some View {
+        if let activeSession, !activeSession.isPaused {
+            TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                heroCard(activeSession: activeSession, displayDate: timeline.date)
+            }
+        } else {
+            heroCard(activeSession: activeSession, displayDate: displayDate)
+        }
+    }
+
+    private func heroCard(activeSession: TimeSession?, displayDate: Date) -> some View {
+        TodayHeroCard(
+            totalDuration: totalDuration(activeSession: activeSession, displayDate: displayDate),
+            activeSession: activeSession,
+            displayDate: displayDate
+        )
+    }
+
+    private func totalDuration(activeSession: TimeSession?, displayDate: Date) -> TimeInterval {
+        guard activeSessionCountsTowardTotal, let activeSession else {
+            return staticTotalDuration
+        }
+
+        return staticTotalDuration + activeSession.duration(at: displayDate)
+    }
+}
+
+private struct LiveSessionRowView: View {
+    let session: TimeSession
+    let projectID: TickProject.ID
+    let projectName: String
+    let displayDate: Date
+    let defaultTitle: String
+    let accentColor: Color
+
+    var body: some View {
+        if session.isActive && !session.isPaused {
+            TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                row(displayDate: timeline.date)
+            }
+        } else {
+            row(displayDate: displayDate)
+        }
+    }
+
+    private func row(displayDate: Date) -> some View {
+        SessionRowView(
+            session: session,
+            projectID: projectID,
+            projectName: projectName,
+            displayDate: displayDate,
+            defaultTitle: defaultTitle,
+            accentColor: accentColor
+        )
     }
 }
 

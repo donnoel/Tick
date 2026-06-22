@@ -103,6 +103,7 @@ struct ProjectDetailView: View {
 
                 Section("Sessions") {
                     let projectSessions = viewModel.sessions(for: currentProject.id)
+                    let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: projectSessions)
                     if projectSessions.isEmpty {
                         ContentUnavailableView(
                             "No Ticks yet",
@@ -119,7 +120,7 @@ struct ProjectDetailView: View {
                                     projectID: currentProject.id,
                                     projectName: currentProject.name,
                                     displayDate: timeline.date,
-                                    defaultTitle: SessionFallbackTitleProvider.fallbackTitle(for: session, in: projectSessions),
+                                    defaultTitle: fallbackTitles[session.id] ?? "Tick",
                                     detailStyle: .date,
                                     accentColor: projectAccent
                                 )

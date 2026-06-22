@@ -9,10 +9,12 @@ struct ProjectsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                let projectIDs = viewModel.projects.map(\.id)
-                let orderedActiveProjects = activeProjects
+            let projectIDs = viewModel.projects.map(\.id)
+            let durationsByProjectID = durationsByProjectID()
+            let orderedActiveProjects = activeProjects(durationsByProjectID: durationsByProjectID)
+            let archivedProjects = archivedProjects
 
+            List {
                 Section {
                     HStack {
                         ProjectSortModePicker(selection: $spacesSortMode)
@@ -33,7 +35,11 @@ struct ProjectsView: View {
                 } else {
                     Section("Active Spaces") {
                         ForEach(orderedActiveProjects) { project in
-                            activeProjectRow(project, projectIDs: projectIDs)
+                            activeProjectRow(
+                                project,
+                                duration: durationsByProjectID[project.id, default: 0],
+                                projectIDs: projectIDs
+                            )
                         }
                         .onDelete { indexSet in
                             deleteProjects(at: indexSet, from: orderedActiveProjects)
@@ -49,11 +55,14 @@ struct ProjectsView: View {
                     }
                 }
 
-                let archivedProjects = archivedProjects
                 if !archivedProjects.isEmpty {
                     Section("Archived Spaces") {
                         ForEach(archivedProjects) { project in
-                            archivedProjectRow(project, projectIDs: projectIDs)
+                            archivedProjectRow(
+                                project,
+                                duration: durationsByProjectID[project.id, default: 0],
+                                projectIDs: projectIDs
+                            )
                         }
                         .onDelete { indexSet in
                             deleteProjects(at: indexSet, from: archivedProjects)
@@ -71,7 +80,7 @@ struct ProjectsView: View {
 
                 if !viewModel.projects.isEmpty {
                     Section {
-                        TotalSpacesFooter(totalDuration: totalSpacesDuration)
+                        TotalSpacesFooter(totalDuration: totalSpacesDuration(durationsByProjectID: durationsByProjectID))
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 28, trailing: 16))
@@ -81,7 +90,7 @@ struct ProjectsView: View {
             .background(TickPalette.appBackground)
             .navigationTitle("Spaces")
             .toolbar {
-                if canReorderProjects && selectedSortMode == .manual {
+                if canReorderProjects(activeProjects: orderedActiveProjects, archivedProjects: archivedProjects) && selectedSortMode == .manual {
                     ToolbarItem(placement: .topBarLeading) {
                         EditButton()
                             .accessibilityHint("Shows controls for reordering and deleting spaces.")
@@ -142,28 +151,26 @@ struct ProjectsView: View {
         TickProject.sortedByDisplayOrder(viewModel.projects.filter(\.isArchived))
     }
 
-    private var activeProjects: [TickProject] {
+    private func activeProjects(durationsByProjectID: [TickProject.ID: TimeInterval]) -> [TickProject] {
         let projects = viewModel.activeProjects
 
         switch selectedSortMode {
         case .mostActive:
             return TickProject.sortedByActivity(
                 projects,
-                durationsByProjectID: durationsByProjectID(for: projects)
+                durationsByProjectID: durationsByProjectID
             )
         case .manual:
             return projects
         }
     }
 
-    private var canReorderProjects: Bool {
+    private func canReorderProjects(activeProjects: [TickProject], archivedProjects: [TickProject]) -> Bool {
         activeProjects.count > 1 || archivedProjects.count > 1
     }
 
-    private var totalSpacesDuration: TimeInterval {
-        viewModel.projects.reduce(0) { total, project in
-            total + viewModel.totalDuration(for: project.id)
-        }
+    private func totalSpacesDuration(durationsByProjectID: [TickProject.ID: TimeInterval]) -> TimeInterval {
+        durationsByProjectID.values.reduce(0, +)
     }
 
     private func deleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
@@ -214,19 +221,23 @@ struct ProjectsView: View {
         }
     }
 
-    private func durationsByProjectID(for projects: [TickProject]) -> [TickProject.ID: TimeInterval] {
-        Dictionary(uniqueKeysWithValues: projects.map { project in
-            (project.id, viewModel.totalDuration(for: project.id))
-        })
+    private func durationsByProjectID() -> [TickProject.ID: TimeInterval] {
+        viewModel.sessions.reduce(into: [:]) { durationsByProjectID, session in
+            durationsByProjectID[session.projectID, default: 0] += session.duration()
+        }
     }
 
-    private func activeProjectRow(_ project: TickProject, projectIDs: [TickProject.ID]) -> some View {
+    private func activeProjectRow(
+        _ project: TickProject,
+        duration: TimeInterval,
+        projectIDs: [TickProject.ID]
+    ) -> some View {
         NavigationLink {
             ProjectDetailView(viewModel: viewModel, project: project)
         } label: {
             ProjectRowView(
                 project: project,
-                duration: viewModel.totalDuration(for: project.id),
+                duration: duration,
                 color: TickProjectAccent.color(for: project.id, among: projectIDs)
             )
         }
@@ -241,13 +252,17 @@ struct ProjectsView: View {
         }
     }
 
-    private func archivedProjectRow(_ project: TickProject, projectIDs: [TickProject.ID]) -> some View {
+    private func archivedProjectRow(
+        _ project: TickProject,
+        duration: TimeInterval,
+        projectIDs: [TickProject.ID]
+    ) -> some View {
         NavigationLink {
             ProjectDetailView(viewModel: viewModel, project: project)
         } label: {
             ProjectRowView(
                 project: project,
-                duration: viewModel.totalDuration(for: project.id),
+                duration: duration,
                 color: TickProjectAccent.color(for: project.id, among: projectIDs),
                 showsArchivedBadge: true
             )

@@ -54,6 +54,18 @@ nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable {
         isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? createdAt.timeIntervalSinceReferenceDate
     }
+
+    static func activeSortedByDisplayOrder(_ projects: [TickWidgetStoredProject]) -> [TickWidgetStoredProject] {
+        projects
+            .filter { !$0.isArchived }
+            .sorted { lhs, rhs in
+                if lhs.sortOrder == rhs.sortOrder {
+                    return lhs.createdAt < rhs.createdAt
+                }
+
+                return lhs.sortOrder < rhs.sortOrder
+            }
+    }
 }
 
 nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable {

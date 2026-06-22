@@ -105,15 +105,7 @@ nonisolated final class TickWidgetActionStore {
                 return TickWidgetActionResult(didChange: false, message: "A Tick is already running.")
             }
 
-            let activeProjects = storageSnapshot.projects
-                .filter { !$0.isArchived }
-                .sorted { lhs, rhs in
-                    if lhs.sortOrder == rhs.sortOrder {
-                        return lhs.createdAt < rhs.createdAt
-                    }
-
-                    return lhs.sortOrder < rhs.sortOrder
-                }
+            let activeProjects = TickWidgetStoredProject.activeSortedByDisplayOrder(storageSnapshot.projects)
 
             guard !activeProjects.isEmpty else {
                 try saveWidgetSnapshot(.empty(lastUpdatedAt: date))

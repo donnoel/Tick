@@ -39,6 +39,49 @@ final class TickTests: XCTestCase {
         )
     }
 
+    func testWidgetStoredProjectActiveSortingMatchesDisplayOrder() {
+        let archivedProject = TickWidgetStoredProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000201")!,
+            name: "Archive",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: true,
+            sortOrder: -1
+        )
+        let newerTiedProject = TickWidgetStoredProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000202")!,
+            name: "Newer",
+            createdAt: Date(timeIntervalSince1970: 20),
+            isArchived: false,
+            sortOrder: 10
+        )
+        let earlierSortProject = TickWidgetStoredProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000203")!,
+            name: "First",
+            createdAt: Date(timeIntervalSince1970: 30),
+            isArchived: false,
+            sortOrder: 5
+        )
+        let olderTiedProject = TickWidgetStoredProject(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000204")!,
+            name: "Older",
+            createdAt: Date(timeIntervalSince1970: 10),
+            isArchived: false,
+            sortOrder: 10
+        )
+
+        let sortedProjects = TickWidgetStoredProject.activeSortedByDisplayOrder([
+            archivedProject,
+            newerTiedProject,
+            earlierSortProject,
+            olderTiedProject
+        ])
+
+        XCTAssertEqual(
+            sortedProjects.map(\.id),
+            [earlierSortProject.id, olderTiedProject.id, newerTiedProject.id]
+        )
+    }
+
     func testTimerDurationUsesStartedAndEndedDates() {
         let projectID = UUID()
         let startDate = Date(timeIntervalSince1970: 100)
@@ -69,6 +112,74 @@ final class TickTests: XCTestCase {
         )
 
         XCTAssertEqual(session.duration(at: Date(timeIntervalSince1970: 500)), 3_600)
+    }
+
+    func testWidgetStoredSessionMatchesTimeSessionActiveAndDurationBehavior() {
+        let projectID = UUID()
+        let ruleID = UUID()
+        let displayDate = Date(timeIntervalSince1970: 1_000)
+        let sessions = [
+            TimeSession(
+                projectID: projectID,
+                title: "",
+                notes: "",
+                startedAt: Date(timeIntervalSince1970: 100),
+                endedAt: nil,
+                manualDuration: nil,
+                entrySource: .timer
+            ),
+            TimeSession(
+                projectID: projectID,
+                title: "",
+                notes: "",
+                startedAt: Date(timeIntervalSince1970: 100),
+                endedAt: nil,
+                manualDuration: nil,
+                pausedAt: Date(timeIntervalSince1970: 400),
+                accumulatedPausedDuration: 50,
+                entrySource: .autoLocation,
+                autoTickRuleID: ruleID
+            ),
+            TimeSession(
+                projectID: projectID,
+                title: "",
+                notes: "",
+                startedAt: Date(timeIntervalSince1970: 100),
+                endedAt: Date(timeIntervalSince1970: 300),
+                manualDuration: nil,
+                entrySource: .timer
+            ),
+            TimeSession(
+                projectID: projectID,
+                title: "",
+                notes: "",
+                startedAt: Date(timeIntervalSince1970: 100),
+                endedAt: Date(timeIntervalSince1970: 300),
+                manualDuration: 500,
+                entrySource: .manual
+            )
+        ]
+
+        for session in sessions {
+            let widgetSession = TickWidgetStoredSession(
+                id: session.id,
+                projectID: session.projectID,
+                title: session.title,
+                notes: session.notes,
+                startedAt: session.startedAt,
+                endedAt: session.endedAt,
+                manualDuration: session.manualDuration,
+                pausedAt: session.pausedAt,
+                accumulatedPausedDuration: session.accumulatedPausedDuration,
+                entrySource: session.entrySource.rawValue,
+                autoTickRuleID: session.autoTickRuleID,
+                createdAt: session.createdAt
+            )
+
+            XCTAssertEqual(widgetSession.isActive, session.isActive)
+            XCTAssertEqual(widgetSession.referenceDate, session.referenceDate)
+            XCTAssertEqual(widgetSession.duration(at: displayDate), session.duration(at: displayDate))
+        }
     }
 
     func testSummaryGroupsSessionsByProjectForSelectedPeriod() {

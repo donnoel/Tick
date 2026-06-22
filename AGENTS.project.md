@@ -19,14 +19,14 @@ Current scope:
 - Today, Spaces, and Summaries tabs
 - duration-only manual time entry
 - session detail review and title/notes/space editing
-- space detail review with space-scoped session lists and session deletion
+- space detail review with space-scoped session lists, session deletion, archive/restore actions, and voice memos
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
 - daily, weekly, and monthly text summaries
 - JSON persistence in the Tick App Group container with iCloud KVS sync between the iPhone/iPad app and widget actions
 
 Explicitly out of scope for this phase:
-- CloudKit record schema sync, authentication, Live Activities, Apple Watch, billing, exports, charts, map search, route capture, location history, voice memos, and transcription
+- CloudKit record schema sync, authentication, Live Activities, Apple Watch, billing, exports, map search, route capture, location history, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
@@ -37,6 +37,7 @@ Core models:
 - `TickProject`: project identity, name, creation date, archive flag.
 - `TimeSession`: project link, optional timer dates, optional manual duration, title, notes, source, and creation date.
 - `AutoTickRule`: project link, location coordinate, radius, enabled state, and arrival/departure behavior.
+- `VoiceMemo`: space link, audio file name, duration, title, and created/updated dates.
 - `SessionEntrySource`: distinguishes timer-created, manual, and Auto Tick sessions.
 
 State and operations:
@@ -46,6 +47,7 @@ State and operations:
 - Auto Tick rule updates/deletes must persist through `TickDataStore` and refresh monitored regions.
 - `TickSummaryCalculator` handles daily, weekly, and monthly duration aggregation.
 - Widget App Intents use `TickWidgetActionStore` for small shared-data mutations.
+- Voice memo recording, playback, metadata, and audio-file persistence are coordinated through the view model and voice memo stores.
 
 Persistence:
 - `TickDataStore` is an actor-backed JSON store.
@@ -56,6 +58,7 @@ Persistence:
 - Widget Start/Stop actions use `TickWidgetICloudSyncStore` to mirror their shared-file mutations into the same iCloud key-value store.
 - Widget snapshots are stored separately as `tick-widget-snapshot.json` in the same App Group container.
 - Keep widget shared storage small. Widgets should render from `TickWidgetSnapshot`, not from broad SwiftUI view-model state.
+- Voice memo metadata is stored separately from the main Tick snapshot, with audio files in the App Group container and iCloud document storage when available.
 
 Location architecture:
 - `AutoTickLocationService` is the only type that owns `CLLocationManager`.
@@ -111,12 +114,14 @@ Still verify manually before submission:
 - Auto Tick departure must not stop timer-created or manual sessions.
 - Deleting an Auto Tick rule must remove its monitored geofence without deleting existing sessions.
 - Deleting a session must not delete its project or Auto Tick rules; active sessions must be stopped before they can be deleted.
+- Archiving a space removes it from active capture lists without deleting its sessions, Auto Tick rules, or voice memos.
+- Voice memo recording is space-scoped and unavailable for archived spaces.
 
 ## UX rules
 - Use plain, playful Tick language: Start Tick, Stop Tick, Add Time, Today's Ticks.
 - Keep capture lightweight before adding detail-heavy flows.
 - Prefer Apple-native controls over custom controls.
-- Do not require archived-space support in the UI until the product asks for it, but preserve `isArchived` in the model.
+- Keep archived spaces visible enough to restore or review their history, while keeping active capture focused on unarchived spaces.
 
 ## Coding conventions
 - Stay Apple-native. Do not add third-party dependencies.
@@ -132,7 +137,6 @@ Still verify manually before submission:
 - Build warnings should be treated as failures.
 
 ## Near-term priorities
-- Add space archiving UI.
 - Add richer validation around manual duration entry.
 - Add more UI tests once flows stabilize.
 
