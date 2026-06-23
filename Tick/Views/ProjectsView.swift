@@ -5,6 +5,7 @@ struct ProjectsView: View {
     @AppStorage("spacesSortMode") private var spacesSortMode = ProjectSortMode.mostActive.rawValue
     @State private var isAddingProject = false
     @State private var deletionMessage: String?
+    @State private var projectsPendingDeletion: [TickProject] = []
     @State private var projectActionMessage: String?
 
     var body: some View {
@@ -42,7 +43,7 @@ struct ProjectsView: View {
                             )
                         }
                         .onDelete { indexSet in
-                            deleteProjects(at: indexSet, from: orderedActiveProjects)
+                            requestDeleteProjects(at: indexSet, from: orderedActiveProjects)
                         }
                         .onMove { source, destination in
                             guard selectedSortMode == .manual else {
@@ -65,7 +66,7 @@ struct ProjectsView: View {
                             )
                         }
                         .onDelete { indexSet in
-                            deleteProjects(at: indexSet, from: archivedProjects)
+                            requestDeleteProjects(at: indexSet, from: archivedProjects)
                         }
                         .onMove { source, destination in
                             guard selectedSortMode == .manual else {
@@ -115,12 +116,55 @@ struct ProjectsView: View {
             } message: {
                 Text(deletionMessage ?? "Tick could not delete that space.")
             }
+            .confirmationDialog(
+                projectDeletionConfirmationTitle,
+                isPresented: projectDeletionConfirmationIsPresented,
+                titleVisibility: .visible
+            ) {
+                Button(projectDeletionConfirmationButtonTitle, role: .destructive) {
+                    deletePendingProjects()
+                }
+
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(projectDeletionConfirmationMessage)
+            }
             .alert("Could Not Update Space", isPresented: projectActionAlertIsPresented) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(projectActionMessage ?? "Tick could not update that space.")
             }
         }
+    }
+
+    private var projectDeletionConfirmationIsPresented: Binding<Bool> {
+        Binding {
+            !projectsPendingDeletion.isEmpty
+        } set: { isPresented in
+            if !isPresented {
+                projectsPendingDeletion = []
+            }
+        }
+    }
+
+    private var projectDeletionConfirmationTitle: String {
+        if let project = projectsPendingDeletion.first, projectsPendingDeletion.count == 1 {
+            return "Delete \(project.name)?"
+        }
+
+        return "Delete \(projectsPendingDeletion.count) Spaces?"
+    }
+
+    private var projectDeletionConfirmationButtonTitle: String {
+        projectsPendingDeletion.count == 1 ? "Delete Space" : "Delete Spaces"
+    }
+
+    private var projectDeletionConfirmationMessage: String {
+        if projectsPendingDeletion.count == 1 {
+            return "This permanently deletes the space, its sessions, Auto Tick rules, and voice memos. This cannot be undone."
+        }
+
+        return "This permanently deletes these spaces, their sessions, Auto Tick rules, and voice memos. This cannot be undone."
     }
 
     private var selectedSortMode: ProjectSortMode {
@@ -173,10 +217,23 @@ struct ProjectsView: View {
         durationsByProjectID.values.reduce(0, +)
     }
 
-    private func deleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
+    private func requestDeleteProjects(at indexSet: IndexSet, from projects: [TickProject]) {
+        projectsPendingDeletion = indexSet.compactMap { index in
+            guard projects.indices.contains(index) else {
+                return nil
+            }
+
+            return projects[index]
+        }
+    }
+
+    private func deletePendingProjects() {
+        let projectsToDelete = projectsPendingDeletion
+        projectsPendingDeletion = []
+
         Task {
-            for index in indexSet {
-                let didDelete = await viewModel.deleteProject(id: projects[index].id)
+            for project in projectsToDelete {
+                let didDelete = await viewModel.deleteProject(id: project.id)
                 if !didDelete {
                     deletionMessage = viewModel.errorMessage ?? "Tick could not delete that space."
                     return
