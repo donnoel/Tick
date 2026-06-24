@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("selectedSpaceID") private var selectedSpaceID = ""
     @State private var viewModel: TickViewModel
+    @State private var selectedTab = ContentTab.today
 
     @MainActor
     init() {
@@ -16,26 +17,30 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             TodayView(viewModel: viewModel)
                 .tabItem {
                     Label("Today", systemImage: "clock.fill")
                 }
+                .tag(ContentTab.today)
 
             ProjectsView(viewModel: viewModel)
                 .tabItem {
                     Label("Spaces", systemImage: "folder.fill")
                 }
+                .tag(ContentTab.spaces)
 
             AutoTicksView(viewModel: viewModel)
                 .tabItem {
                     Label("Auto Ticks", systemImage: "location.fill")
                 }
+                .tag(ContentTab.autoTicks)
 
             SummariesView(viewModel: viewModel)
                 .tabItem {
                     Label("Summaries", systemImage: "calendar")
                 }
+                .tag(ContentTab.summaries)
         }
         .task {
             restoreSelectedSpaceIfNeeded()
@@ -78,6 +83,13 @@ struct ContentView: View {
 
         viewModel.selectedProjectID = UUID(uuidString: selectedSpaceID)
     }
+}
+
+private enum ContentTab: Hashable {
+    case today
+    case spaces
+    case autoTicks
+    case summaries
 }
 
 #Preview {
