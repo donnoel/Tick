@@ -3,8 +3,8 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("selectedSpaceID") private var selectedSpaceID = ""
+    @AppStorage(TickUIStateStorage.selectedContentTabKey) private var selectedTab = ContentTab.today
     @State private var viewModel: TickViewModel
-    @State private var selectedTab = ContentTab.today
 
     @MainActor
     init() {
@@ -85,7 +85,15 @@ struct ContentView: View {
     }
 }
 
-private enum ContentTab: Hashable {
+nonisolated enum TickUIStateStorage {
+    static let selectedContentTabKey = "selectedContentTab"
+
+    static func resetForUITests(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: selectedContentTabKey)
+    }
+}
+
+private enum ContentTab: String, Hashable {
     case today
     case spaces
     case autoTicks
