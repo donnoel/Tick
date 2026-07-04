@@ -7,6 +7,8 @@ struct ProjectsView: View {
     @State private var deletionMessage: String?
     @State private var projectsPendingDeletion: [TickProject] = []
     @State private var projectActionMessage: String?
+    @State private var projectBeingRenamed: TickProject?
+    @State private var projectRenameName = ""
 
     var body: some View {
         NavigationStack {
@@ -134,6 +136,21 @@ struct ProjectsView: View {
             } message: {
                 Text(projectActionMessage ?? "Tick could not update that space.")
             }
+            .alert("Rename Space", isPresented: projectRenameAlertIsPresented) {
+                TextField("Name", text: $projectRenameName)
+                    .textInputAutocapitalization(.words)
+
+                Button("Cancel", role: .cancel) {
+                    clearProjectRenameState()
+                }
+
+                Button("Save") {
+                    renameProject()
+                }
+                .disabled(projectRenameName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } message: {
+                Text("Give this space a short name.")
+            }
         }
     }
 
@@ -191,6 +208,16 @@ struct ProjectsView: View {
         }
     }
 
+    private var projectRenameAlertIsPresented: Binding<Bool> {
+        Binding {
+            projectBeingRenamed != nil
+        } set: { isPresented in
+            if !isPresented {
+                clearProjectRenameState()
+            }
+        }
+    }
+
     private var archivedProjects: [TickProject] {
         TickProject.sortedByDisplayOrder(viewModel.projects.filter(\.isArchived))
     }
@@ -227,6 +254,10 @@ struct ProjectsView: View {
         }
     }
 
+    private func requestDeleteProject(_ project: TickProject) {
+        projectsPendingDeletion = [project]
+    }
+
     private func deletePendingProjects() {
         let projectsToDelete = projectsPendingDeletion
         projectsPendingDeletion = []
@@ -240,6 +271,35 @@ struct ProjectsView: View {
                 }
             }
         }
+    }
+
+    private func beginRenamingProject(_ project: TickProject) {
+        projectBeingRenamed = project
+        projectRenameName = project.name
+    }
+
+    private func renameProject() {
+        guard let projectBeingRenamed else {
+            return
+        }
+        let name = projectRenameName
+        clearProjectRenameState()
+
+        Task {
+            let didRename = await viewModel.updateProjectName(
+                id: projectBeingRenamed.id,
+                name: name
+            )
+
+            if !didRename {
+                projectActionMessage = viewModel.errorMessage ?? "Tick could not rename that space."
+            }
+        }
+    }
+
+    private func clearProjectRenameState() {
+        projectBeingRenamed = nil
+        projectRenameName = ""
     }
 
     private func archiveProject(_ projectID: TickProject.ID) {
@@ -299,6 +359,24 @@ struct ProjectsView: View {
             )
         }
         .accessibilityHint("Opens space details.")
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                requestDeleteProject(project)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .accessibilityLabel("Delete space")
+            .accessibilityHint("Shows a confirmation before permanently deleting this space.")
+
+            Button {
+                beginRenamingProject(project)
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+            .tint(.blue)
+            .accessibilityLabel("Rename space")
+            .accessibilityHint("Opens a rename field for this space.")
+        }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button("Archive") {
                 archiveProject(project.id)
@@ -325,6 +403,24 @@ struct ProjectsView: View {
             )
         }
         .accessibilityHint("Opens space details.")
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                requestDeleteProject(project)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .accessibilityLabel("Delete space")
+            .accessibilityHint("Shows a confirmation before permanently deleting this space.")
+
+            Button {
+                beginRenamingProject(project)
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+            .tint(.blue)
+            .accessibilityLabel("Rename space")
+            .accessibilityHint("Opens a rename field for this space.")
+        }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button("Restore") {
                 restoreProject(project.id)

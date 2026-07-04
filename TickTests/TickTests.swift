@@ -1751,6 +1751,46 @@ final class TickTests: XCTestCase {
     }
 
     @MainActor
+    func testRenamingProjectPersistsTrimmedName() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project to rename.")
+            return
+        }
+
+        let didRename = await viewModel.updateProjectName(id: projectID, name: "  Client Work  ")
+
+        XCTAssertTrue(didRename)
+        XCTAssertEqual(viewModel.project(for: projectID)?.name, "Client Work")
+        let loadedSnapshot = try await store.load()
+        XCTAssertEqual(loadedSnapshot.projects.first?.name, "Client Work")
+    }
+
+    @MainActor
+    func testRenamingProjectRejectsEmptyName() async {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let viewModel = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await viewModel.addProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        guard let projectID = viewModel.activeProjects.first?.id else {
+            XCTFail("Expected a project to rename.")
+            return
+        }
+
+        let didRename = await viewModel.updateProjectName(id: projectID, name: "   ")
+
+        XCTAssertFalse(didRename)
+        XCTAssertEqual(viewModel.errorMessage, "Space name cannot be empty.")
+        XCTAssertEqual(viewModel.project(for: projectID)?.name, "Studio")
+    }
+
+    @MainActor
     func testArchivingSelectedProjectUpdatesSelectionToAnotherActiveProject() async {
         let fileURL = temporaryStoreURL()
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }

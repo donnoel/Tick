@@ -260,6 +260,25 @@ final class TickViewModel {
     }
 
     @discardableResult
+    func updateProjectName(id: TickProject.ID, name: String) async -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Space name cannot be empty."
+            return false
+        }
+
+        guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
+            errorMessage = "Tick could not find that space."
+            return false
+        }
+
+        projects[projectIndex].name = trimmedName
+        await persist()
+        return true
+    }
+
+    @discardableResult
     func deleteProject(id: TickProject.ID) async -> Bool {
         guard let projectIndex = projects.firstIndex(where: { $0.id == id }) else {
             errorMessage = "Tick could not find that space."
