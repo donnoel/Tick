@@ -88,8 +88,12 @@ struct ContentView: View {
 nonisolated enum TickUIStateStorage {
     static let selectedContentTabKey = "selectedContentTab"
 
-    static func resetForUITests(defaults: UserDefaults = .standard) {
+    static func resetForNewAppLaunch(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: selectedContentTabKey)
+    }
+
+    static func resetForUITests(defaults: UserDefaults = .standard) {
+        resetForNewAppLaunch(defaults: defaults)
     }
 }
 

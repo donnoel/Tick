@@ -94,7 +94,7 @@ final class TickUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Save"].isEnabled)
     }
 
-    func testSelectedTabSurvivesAppReactivationAndRelaunch() throws {
+    func testSelectedTabSurvivesAppReactivationAndResetsOnRelaunch() throws {
         let app = launchResetApp()
         let tabBar = app.tabBars.firstMatch
 
@@ -107,25 +107,15 @@ final class TickUITests: XCTestCase {
         autoTicksTab.tap()
         XCTAssertTrue(autoTicksTab.isSelected)
 
-        app.terminate()
-        app.launchArguments = []
-        app.launch()
+        XCUIDevice.shared.press(.home)
+        app.activate()
 
         XCTAssertTrue(autoTicksTab.waitForExistence(timeout: 5))
         XCTAssertTrue(autoTicksTab.isSelected)
         XCTAssertFalse(todayTab.isSelected)
 
-        todayTab.tap()
-        XCTAssertTrue(todayTab.isSelected)
-
-        XCUIDevice.shared.press(.home)
-        app.activate()
-
-        XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
-        XCTAssertTrue(todayTab.isSelected)
-        XCTAssertFalse(autoTicksTab.isSelected)
-
         app.terminate()
+        app.launchArguments = []
         app.launch()
 
         XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
