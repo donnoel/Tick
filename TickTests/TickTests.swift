@@ -1028,7 +1028,47 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(snapshot.activeStartedAt, Date(timeIntervalSince1970: 100))
         XCTAssertNil(snapshot.activePausedAt)
         XCTAssertEqual(snapshot.activeElapsedDuration, 600)
+        XCTAssertEqual(
+            snapshot.runningTimerStartDate,
+            Date(timeIntervalSince1970: 100)
+        )
         XCTAssertEqual(snapshot.todayTotalDuration, 600)
+    }
+
+    func testWidgetSnapshotRunningTimerStartDateAccountsForResumedPauseDuration() {
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let activeSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            pausedAt: nil,
+            accumulatedPausedDuration: 600,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let snapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+            defaultProjectID: nil,
+            at: Date(timeIntervalSince1970: 2_800)
+        )
+
+        XCTAssertEqual(snapshot.activeStartedAt, Date(timeIntervalSince1970: 100))
+        XCTAssertEqual(snapshot.activeElapsedDuration, 2_100)
+        XCTAssertEqual(
+            snapshot.runningTimerStartDate,
+            Date(timeIntervalSince1970: 700)
+        )
+        XCTAssertEqual(snapshot.todayTotalDuration, 2_100)
     }
 
     func testWidgetSnapshotGenerationWithPausedSession() {
@@ -1063,6 +1103,7 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(snapshot.activeElapsedDuration, 60)
         XCTAssertEqual(snapshot.todayTotalDuration, 60)
         XCTAssertTrue(snapshot.isActivePaused)
+        XCTAssertNil(snapshot.runningTimerStartDate)
     }
 
     func testWidgetSnapshotDecodesLegacySnapshotWithoutPausedFields() throws {
@@ -1089,6 +1130,10 @@ final class TickTests: XCTestCase {
         XCTAssertNil(snapshot.activePausedAt)
         XCTAssertNil(snapshot.activeElapsedDuration)
         XCTAssertFalse(snapshot.isActivePaused)
+        XCTAssertEqual(
+            snapshot.runningTimerStartDate,
+            Date(timeIntervalSince1970: 100)
+        )
     }
 
     func testAccessoryRectangularNoProjectContent() {

@@ -17,6 +17,18 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
         activeSessionID != nil && activePausedAt != nil
     }
 
+    var runningTimerStartDate: Date? {
+        guard activeSessionID != nil, !isActivePaused else {
+            return nil
+        }
+
+        guard let activeElapsedDuration else {
+            return activeStartedAt
+        }
+
+        return lastUpdatedAt.addingTimeInterval(-max(0, activeElapsedDuration))
+    }
+
     static func empty(lastUpdatedAt: Date = .now) -> TickWidgetSnapshot {
         TickWidgetSnapshot(
             hasProjects: false,

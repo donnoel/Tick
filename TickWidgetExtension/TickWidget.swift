@@ -171,8 +171,8 @@ struct TickWidgetView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityLabel("Paused elapsed time")
-            } else if let activeStartedAt = entry.snapshot.activeStartedAt {
-                Text(activeStartedAt, style: .timer)
+            } else if let runningTimerStartDate = entry.snapshot.runningTimerStartDate {
+                Text(runningTimerStartDate, style: .timer)
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
