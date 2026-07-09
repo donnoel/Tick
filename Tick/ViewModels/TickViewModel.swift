@@ -123,9 +123,7 @@ final class TickViewModel {
             self?.apply(locationState: state)
         }
         locationService.regionEventHandler = { [weak self] ruleID, event in
-            Task { @MainActor in
-                await self?.handleAutoTickEvent(ruleID: ruleID, event: event)
-            }
+            await self?.handleAutoTickEvent(ruleID: ruleID, event: event) ?? false
         }
     }
 

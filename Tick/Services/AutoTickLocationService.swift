@@ -82,7 +82,7 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
     private static let regionIdentifierPrefix = "tick.autoTick."
 
     private let manager: CLLocationManager
-    private let notificationService = AutoTickNotificationService()
+    private let notificationService: any AutoTickNotificationSending
     private var rulesByID: [AutoTickRule.ID: AutoTickRule] = [:]
     private(set) var authorizationStatus: AutoTickLocationAuthorizationStatus
     private(set) var latestCoordinate: AutoTickCoordinate?
@@ -90,10 +90,19 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
     private(set) var errorMessage: String?
 
     var stateDidChange: ((AutoTickLocationState) -> Void)?
-    var regionEventHandler: ((AutoTickRule.ID, AutoTickRegionEvent) -> Void)?
+    var regionEventHandler: (@MainActor (AutoTickRule.ID, AutoTickRegionEvent) async -> Bool)?
 
     init(manager: CLLocationManager = CLLocationManager()) {
         self.manager = manager
+        self.notificationService = AutoTickNotificationService()
+        self.authorizationStatus = AutoTickLocationAuthorizationStatus(manager.authorizationStatus)
+        super.init()
+        manager.delegate = self
+    }
+
+    init(manager: CLLocationManager = CLLocationManager(), notificationService: any AutoTickNotificationSending) {
+        self.manager = manager
+        self.notificationService = notificationService
         self.authorizationStatus = AutoTickLocationAuthorizationStatus(manager.authorizationStatus)
         super.init()
         manager.delegate = self
@@ -222,14 +231,8 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
             return
         }
 
-        regionEventHandler?(ruleID, .arrival)
-
-        guard let rule = rulesByID[ruleID], rule.startsOnArrival else {
-            return
-        }
-
-        Task {
-            await notificationService.notifyAutoTickStarted(projectName: "Tick", ruleName: rule.name)
+        Task { @MainActor in
+            await processRegionEvent(ruleID: ruleID, event: .arrival)
         }
     }
 
@@ -238,15 +241,35 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
             return
         }
 
-        regionEventHandler?(ruleID, .departure)
+        Task { @MainActor in
+            await processRegionEvent(ruleID: ruleID, event: .departure)
+        }
+    }
 
-        guard let rule = rulesByID[ruleID], rule.stopsOnDeparture else {
-            return
+    @discardableResult
+    func processRegionEvent(ruleID: AutoTickRule.ID, event: AutoTickRegionEvent) async -> Bool {
+        let didApplyEvent = await regionEventHandler?(ruleID, event) ?? false
+
+        guard didApplyEvent, let rule = rulesByID[ruleID] else {
+            return false
         }
 
-        Task {
+        switch event {
+        case .arrival:
+            guard rule.startsOnArrival else {
+                return false
+            }
+
+            await notificationService.notifyAutoTickStarted(projectName: "Tick", ruleName: rule.name)
+        case .departure:
+            guard rule.stopsOnDeparture else {
+                return false
+            }
+
             await notificationService.notifyAutoTickStopped(projectName: "Tick", ruleName: rule.name)
         }
+
+        return true
     }
 
     private func startMonitoring(_ rule: AutoTickRule) {

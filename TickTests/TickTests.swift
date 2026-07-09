@@ -2370,6 +2370,70 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(viewModel.sessions.first(where: { $0.autoTickRuleID == officeRule.id })?.endedAt, Date(timeIntervalSince1970: 300))
     }
 
+    @MainActor
+    func testAutoTickRegionNotificationsSkipWhenEventDoesNotChangeSession() async {
+        let notifications = AutoTickNotificationSpy()
+        let service = AutoTickLocationService(notificationService: notifications)
+        let rule = AutoTickRule(
+            projectID: UUID(),
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+
+        service.refreshMonitoring(for: [rule])
+        service.regionEventHandler = { _, _ in false }
+
+        let didNotifyStart = await service.processRegionEvent(ruleID: rule.id, event: .arrival)
+        let didNotifyStop = await service.processRegionEvent(ruleID: rule.id, event: .departure)
+
+        XCTAssertFalse(didNotifyStart)
+        XCTAssertFalse(didNotifyStop)
+        XCTAssertTrue(notifications.startedNotifications.isEmpty)
+        XCTAssertTrue(notifications.stoppedNotifications.isEmpty)
+    }
+
+    @MainActor
+    func testAutoTickRegionNotificationsSendAfterEventChangesSession() async {
+        let notifications = AutoTickNotificationSpy()
+        let service = AutoTickLocationService(notificationService: notifications)
+        let rule = AutoTickRule(
+            projectID: UUID(),
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        var handledEvents: [AutoTickRegionEvent] = []
+
+        service.refreshMonitoring(for: [rule])
+        service.regionEventHandler = { handledRuleID, event in
+            XCTAssertEqual(handledRuleID, rule.id)
+            handledEvents.append(event)
+            return true
+        }
+
+        let didNotifyStart = await service.processRegionEvent(ruleID: rule.id, event: .arrival)
+        let didNotifyStop = await service.processRegionEvent(ruleID: rule.id, event: .departure)
+
+        XCTAssertTrue(didNotifyStart)
+        XCTAssertTrue(didNotifyStop)
+        XCTAssertEqual(handledEvents, [.arrival, .departure])
+        XCTAssertEqual(notifications.startedNotifications.count, 1)
+        XCTAssertEqual(notifications.startedNotifications.first?.projectName, "Tick")
+        XCTAssertEqual(notifications.startedNotifications.first?.ruleName, "Office")
+        XCTAssertEqual(notifications.stoppedNotifications.count, 1)
+        XCTAssertEqual(notifications.stoppedNotifications.first?.projectName, "Tick")
+        XCTAssertEqual(notifications.stoppedNotifications.first?.ruleName, "Office")
+    }
+
     func testDeniedAutoTickLocationPermissionIsNonTrackingState() {
         let status = AutoTickLocationAuthorizationStatus.denied
 
@@ -2521,5 +2585,24 @@ private final class InMemoryKeyValueStore: TickKeyValueStore {
 
     func synchronize() -> Bool {
         true
+    }
+}
+
+@MainActor
+private final class AutoTickNotificationSpy: AutoTickNotificationSending {
+    private(set) var didRequestAuthorization = false
+    private(set) var startedNotifications: [(projectName: String, ruleName: String)] = []
+    private(set) var stoppedNotifications: [(projectName: String, ruleName: String)] = []
+
+    func requestAuthorizationIfNeeded() async {
+        didRequestAuthorization = true
+    }
+
+    func notifyAutoTickStarted(projectName: String, ruleName: String) async {
+        startedNotifications.append((projectName, ruleName))
+    }
+
+    func notifyAutoTickStopped(projectName: String, ruleName: String) async {
+        stoppedNotifications.append((projectName, ruleName))
     }
 }

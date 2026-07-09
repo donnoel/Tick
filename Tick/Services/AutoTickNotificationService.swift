@@ -1,7 +1,14 @@
 import Foundation
 import UserNotifications
 
-struct AutoTickNotificationService {
+@MainActor
+protocol AutoTickNotificationSending {
+    func requestAuthorizationIfNeeded() async
+    func notifyAutoTickStarted(projectName: String, ruleName: String) async
+    func notifyAutoTickStopped(projectName: String, ruleName: String) async
+}
+
+struct AutoTickNotificationService: AutoTickNotificationSending {
     private var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
