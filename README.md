@@ -84,4 +84,4 @@ Tick/
 - [ ] Add export after the local foundation is stable
 
 ## Credits
-Built with care by Don Noel and Codex collaboration.
+Built with care by **Don Noel** and AI collaboration.
