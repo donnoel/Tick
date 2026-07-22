@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 @testable import Tick
 
@@ -2441,6 +2442,121 @@ final class TickTests: XCTestCase {
         XCTAssertFalse(status.canMonitorRegions)
         XCTAssertFalse(status.needsPermissionRequest)
         XCTAssertTrue(status.displayText.contains("denied"))
+    }
+
+    func testWhenInUseAutoTickLocationPermissionDoesNotEnableBackgroundMonitoring() {
+        let status = AutoTickLocationAuthorizationStatus.authorizedWhenInUse
+
+        XCTAssertTrue(status.canRequestCurrentLocation)
+        XCTAssertFalse(status.canMonitorRegions)
+        XCTAssertTrue(status.canRequestAlwaysAuthorization)
+        XCTAssertTrue(status.displayText.contains("Always"))
+    }
+
+    func testAlwaysAutoTickLocationPermissionEnablesBackgroundMonitoring() {
+        let status = AutoTickLocationAuthorizationStatus.authorizedAlways
+
+        XCTAssertTrue(status.canRequestCurrentLocation)
+        XCTAssertTrue(status.canMonitorRegions)
+        XCTAssertFalse(status.canRequestAlwaysAuthorization)
+    }
+
+    @MainActor
+    func testAutoTickRegionEventWaitsForSavedRulesToLoad() async {
+        let service = AutoTickLocationService(notificationService: AutoTickNotificationSpy())
+        let rule = AutoTickRule(
+            projectID: UUID(),
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        let handledEvent = expectation(description: "Queued region event handled after rules load")
+
+        service.regionEventHandler = { handledRuleID, event in
+            XCTAssertEqual(handledRuleID, rule.id)
+            XCTAssertEqual(event, .arrival)
+            handledEvent.fulfill()
+            return false
+        }
+
+        let didHandleBeforeRulesLoaded = await service.processRegionEvent(ruleID: rule.id, event: .arrival)
+        XCTAssertFalse(didHandleBeforeRulesLoaded)
+
+        service.refreshMonitoring(for: [rule])
+        await fulfillment(of: [handledEvent], timeout: 1)
+    }
+
+    @MainActor
+    func testDeterminedInsideRegionIsHandledAsArrival() async {
+        let service = AutoTickLocationService(notificationService: AutoTickNotificationSpy())
+        let rule = AutoTickRule(
+            projectID: UUID(),
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        let handledEvent = expectation(description: "Inside region handled as arrival")
+        let region = CLCircularRegion(
+            center: CLLocationCoordinate2D(latitude: rule.latitude, longitude: rule.longitude),
+            radius: rule.radiusMeters,
+            identifier: "tick.autoTick.\(rule.id.uuidString)"
+        )
+
+        service.refreshMonitoring(for: [rule])
+        service.regionEventHandler = { handledRuleID, event in
+            XCTAssertEqual(handledRuleID, rule.id)
+            XCTAssertEqual(event, .arrival)
+            handledEvent.fulfill()
+            return false
+        }
+
+        service.locationManager(CLLocationManager(), didDetermineState: .inside, for: region)
+        await fulfillment(of: [handledEvent], timeout: 1)
+    }
+
+    @MainActor
+    func testAutoTickMonitoringFailurePublishesVisibleError() {
+        let service = AutoTickLocationService(notificationService: AutoTickNotificationSpy())
+        let rule = AutoTickRule(
+            projectID: UUID(),
+            name: "Office",
+            latitude: 37.3318,
+            longitude: -122.0312,
+            radiusMeters: 150,
+            startsOnArrival: true,
+            stopsOnDeparture: true,
+            isEnabled: true
+        )
+        let region = CLCircularRegion(
+            center: CLLocationCoordinate2D(latitude: rule.latitude, longitude: rule.longitude),
+            radius: rule.radiusMeters,
+            identifier: "tick.autoTick.\(rule.id.uuidString)"
+        )
+        let expectedError = NSError(
+            domain: kCLErrorDomain,
+            code: CLError.Code.regionMonitoringFailure.rawValue,
+            userInfo: [NSLocalizedDescriptionKey: "Region monitoring failed."]
+        )
+        var publishedState: AutoTickLocationState?
+
+        service.refreshMonitoring(for: [rule])
+        service.stateDidChange = { publishedState = $0 }
+        service.locationManager(
+            CLLocationManager(),
+            monitoringDidFailFor: region,
+            withError: expectedError
+        )
+
+        XCTAssertEqual(publishedState?.statusMessage, "Tick could not monitor Office.")
+        XCTAssertEqual(publishedState?.errorMessage, "Region monitoring failed.")
     }
 
     private func temporaryStoreURL() -> URL {

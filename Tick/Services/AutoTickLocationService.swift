@@ -31,7 +31,7 @@ nonisolated enum AutoTickLocationAuthorizationStatus: Equatable {
     }
 
     var canMonitorRegions: Bool {
-        self == .authorizedWhenInUse || self == .authorizedAlways
+        self == .authorizedAlways
     }
 
     var needsPermissionRequest: Bool {
@@ -51,7 +51,7 @@ nonisolated enum AutoTickLocationAuthorizationStatus: Equatable {
         case .denied:
             "Location access is denied. Auto Ticks will stay off until permission is allowed in Settings."
         case .authorizedWhenInUse:
-            "When In Use access is allowed. Current location capture works while Tick is open, but background arrival and departure may not run reliably."
+            "When In Use access is allowed. Allow Always access for background arrival and departure automation."
         case .authorizedAlways:
             "Always access is allowed for enabled Auto Tick rules."
         case .unknown:
@@ -81,9 +81,16 @@ nonisolated struct AutoTickLocationState: Equatable {
 final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
     private static let regionIdentifierPrefix = "tick.autoTick."
 
+    private struct PendingRegionEvent {
+        let ruleID: AutoTickRule.ID
+        let event: AutoTickRegionEvent
+    }
+
     private let manager: CLLocationManager
     private let notificationService: any AutoTickNotificationSending
     private var rulesByID: [AutoTickRule.ID: AutoTickRule] = [:]
+    private var pendingRegionEvents: [PendingRegionEvent] = []
+    private var hasConfiguredRules = false
     private(set) var authorizationStatus: AutoTickLocationAuthorizationStatus
     private(set) var latestCoordinate: AutoTickCoordinate?
     private(set) var statusMessage = "Auto Ticks use location only after you create and enable a rule."
@@ -170,6 +177,8 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
 
     func refreshMonitoring(for rules: [AutoTickRule]) {
         rulesByID = Dictionary(uniqueKeysWithValues: rules.map { ($0.id, $0) })
+        hasConfiguredRules = true
+        processPendingRegionEvents()
         stopStaleMonitoring(keeping: rules)
 
         guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else {
@@ -179,14 +188,16 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
         }
 
         guard authorizationStatus.canMonitorRegions else {
+            stopStaleMonitoring(keeping: [])
             statusMessage = authorizationStatus.displayText
             publishState()
             return
         }
 
         let enabledRules = rules.filter(\.isEnabled)
+        var requestedNewMonitoring = false
         for rule in enabledRules {
-            startMonitoring(rule)
+            requestedNewMonitoring = startMonitoring(rule) || requestedNewMonitoring
         }
 
         if !enabledRules.isEmpty {
@@ -195,9 +206,14 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
             }
         }
 
-        statusMessage = enabledRules.isEmpty ?
-            "No Auto Tick rules are enabled." :
-            "Auto Ticks is monitoring enabled rules."
+        if enabledRules.isEmpty {
+            statusMessage = "No Auto Tick rules are enabled."
+        } else if requestedNewMonitoring {
+            statusMessage = "Tick is starting Auto Tick monitoring."
+            errorMessage = nil
+        } else {
+            statusMessage = "Auto Ticks is monitoring enabled rules."
+        }
         publishState()
     }
 
@@ -246,8 +262,66 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
         }
     }
 
+    func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
+        guard let ruleID = ruleID(from: region.identifier),
+              rulesByID[ruleID]?.isEnabled == true else {
+            manager.stopMonitoring(for: region)
+            return
+        }
+
+        statusMessage = "Auto Ticks is monitoring enabled rules."
+        errorMessage = nil
+        publishState()
+        manager.requestState(for: region)
+    }
+
+    func locationManager(
+        _ manager: CLLocationManager,
+        monitoringDidFailFor region: CLRegion?,
+        withError error: Error
+    ) {
+        let ruleName = region
+            .flatMap { ruleID(from: $0.identifier) }
+            .flatMap { rulesByID[$0]?.name }
+
+        statusMessage = ruleName.map { "Tick could not monitor \($0)." } ?? "Tick could not start Auto Tick monitoring."
+        errorMessage = error.localizedDescription
+        publishState()
+    }
+
+    func locationManager(
+        _ manager: CLLocationManager,
+        didDetermineState state: CLRegionState,
+        for region: CLRegion
+    ) {
+        guard let ruleID = ruleID(from: region.identifier) else {
+            return
+        }
+
+        let event: AutoTickRegionEvent
+        switch state {
+        case .inside:
+            event = .arrival
+        case .outside:
+            event = .departure
+        case .unknown:
+            return
+        }
+
+        Task { @MainActor in
+            await processRegionEvent(ruleID: ruleID, event: event)
+        }
+    }
+
     @discardableResult
     func processRegionEvent(ruleID: AutoTickRule.ID, event: AutoTickRegionEvent) async -> Bool {
+        guard rulesByID[ruleID] != nil else {
+            if !hasConfiguredRules {
+                pendingRegionEvents.append(PendingRegionEvent(ruleID: ruleID, event: event))
+            }
+            return false
+        }
+
         let didApplyEvent = await regionEventHandler?(ruleID, event) ?? false
 
         guard didApplyEvent, let rule = rulesByID[ruleID] else {
@@ -272,13 +346,14 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
         return true
     }
 
-    private func startMonitoring(_ rule: AutoTickRule) {
+    @discardableResult
+    private func startMonitoring(_ rule: AutoTickRule) -> Bool {
         let identifier = Self.regionIdentifier(for: rule.id)
 
         if let monitoredRegion = manager.monitoredRegions.first(where: { $0.identifier == identifier }) {
             guard let circularRegion = monitoredRegion as? CLCircularRegion,
                   !circularRegion.matches(rule, maximumRadius: manager.maximumRegionMonitoringDistance) else {
-                return
+                return false
             }
 
             manager.stopMonitoring(for: monitoredRegion)
@@ -293,6 +368,7 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
         region.notifyOnEntry = rule.startsOnArrival
         region.notifyOnExit = rule.stopsOnDeparture
         manager.startMonitoring(for: region)
+        return true
     }
 
     private func stopStaleMonitoring(keeping rules: [AutoTickRule]) {
@@ -307,6 +383,17 @@ final class AutoTickLocationService: NSObject, CLLocationManagerDelegate {
 
     private func publishState() {
         stateDidChange?(currentState)
+    }
+
+    private func processPendingRegionEvents() {
+        let events = pendingRegionEvents.filter { rulesByID[$0.ruleID] != nil }
+        pendingRegionEvents.removeAll()
+
+        Task { @MainActor in
+            for pendingEvent in events {
+                await processRegionEvent(ruleID: pendingEvent.ruleID, event: pendingEvent.event)
+            }
+        }
     }
 
     private static func regionIdentifier(for ruleID: AutoTickRule.ID) -> String {

@@ -1255,7 +1255,7 @@ final class TickViewModel {
         autoTickLocationMessage = locationState.statusMessage
         autoTickLocationErrorMessage = locationState.errorMessage
 
-        if previousAuthorizationStatus != locationState.authorizationStatus {
+        if hasLoaded, previousAuthorizationStatus != locationState.authorizationStatus {
             refreshAutoTickMonitoring()
         }
     }
