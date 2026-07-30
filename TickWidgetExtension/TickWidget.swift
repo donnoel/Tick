@@ -21,9 +21,26 @@ struct TickWidgetProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TickWidgetEntry>) -> Void) {
         let date = Date()
-        let entry = TickWidgetEntry(date: date, snapshot: loadSnapshot(at: date))
-        let nextRefresh = Calendar.current.date(byAdding: .minute, value: 15, to: date) ?? date.addingTimeInterval(900)
-        completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+        let snapshot = loadSnapshot(at: date)
+        let entry = TickWidgetEntry(date: date, snapshot: snapshot)
+
+        if let staleDate = snapshot.runningTimerFreshUntil {
+            let staleEntry = TickWidgetEntry(date: staleDate, snapshot: snapshot)
+            completion(
+                Timeline(
+                    entries: [entry, staleEntry],
+                    policy: .after(TickWidgetTimelineSchedule.nextRefresh(after: date))
+                )
+            )
+            return
+        }
+
+        let nextDayBoundary = TickWidgetTimelineSchedule.nextDayBoundary(after: date)
+        let nextDayEntry = TickWidgetEntry(
+            date: nextDayBoundary,
+            snapshot: loadSnapshot(at: nextDayBoundary)
+        )
+        completion(Timeline(entries: [entry, nextDayEntry], policy: .atEnd))
     }
 
     private func loadSnapshot(at date: Date = .now) -> TickWidgetSnapshot {
@@ -144,11 +161,12 @@ struct TickWidgetView: View {
 
     private var activeView: some View {
         let isSmall = family == .systemSmall
+        let isStale = entry.snapshot.isRunningTimerStale(at: entry.date)
 
         return VStack(alignment: .leading, spacing: isSmall ? 6 : 8) {
             widgetHeader(
-                title: entry.snapshot.isActivePaused ? "Paused" : "Running",
-                systemImage: entry.snapshot.isActivePaused ? "pause.circle.fill" : "record.circle.fill",
+                title: activeStatusTitle(isStale: isStale),
+                systemImage: activeStatusSystemImage(isStale: isStale),
                 tint: TickWidgetStyle.running,
                 showsToday: !isSmall
             )
@@ -165,14 +183,25 @@ struct TickWidgetView: View {
                     .lineLimit(1)
             }
 
-            if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
+            if isStale, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
+                Text(timerDurationString(from: activeElapsedDuration))
+                    .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .accessibilityLabel("Last confirmed elapsed time")
+            } else if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
                 Text(timerDurationString(from: activeElapsedDuration))
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityLabel("Paused elapsed time")
-            } else if let runningTimerStartDate = entry.snapshot.runningTimerStartDate {
-                Text(runningTimerStartDate, style: .timer)
+            } else if let runningTimerStartDate = entry.snapshot.runningTimerStartDate,
+                      let runningTimerFreshUntil = entry.snapshot.runningTimerFreshUntil {
+                Text(
+                    timerInterval: runningTimerStartDate...runningTimerFreshUntil,
+                    pauseTime: runningTimerFreshUntil,
+                    countsDown: false
+                )
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
@@ -186,12 +215,36 @@ struct TickWidgetView: View {
 
             actionFooter(
                 title: "Stop Tick",
-                caption: entry.snapshot.isActivePaused ? "Paused" : "Running",
+                caption: activeStatusCaption(isStale: isStale),
                 systemImage: "stop.fill",
                 tint: TickWidgetStyle.running,
                 intent: StopTickIntent()
             )
         }
+    }
+
+    private func activeStatusTitle(isStale: Bool) -> String {
+        if isStale {
+            return "Update Needed"
+        }
+
+        return entry.snapshot.isActivePaused ? "Paused" : "Running"
+    }
+
+    private func activeStatusSystemImage(isStale: Bool) -> String {
+        if isStale {
+            return "clock.badge.exclamationmark"
+        }
+
+        return entry.snapshot.isActivePaused ? "pause.circle.fill" : "record.circle.fill"
+    }
+
+    private func activeStatusCaption(isStale: Bool) -> String {
+        if isStale {
+            return "Last confirmed"
+        }
+
+        return entry.snapshot.isActivePaused ? "Paused" : "Running"
     }
 
     private var todayProgress: Double {

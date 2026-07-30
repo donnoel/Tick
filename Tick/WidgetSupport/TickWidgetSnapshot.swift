@@ -29,6 +29,31 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
         return lastUpdatedAt.addingTimeInterval(-max(0, activeElapsedDuration))
     }
 
+    var runningTimerFreshUntil: Date? {
+        guard runningTimerStartDate != nil else {
+            return nil
+        }
+
+        return lastUpdatedAt.addingTimeInterval(TickWidgetTimelineSchedule.activeFreshnessInterval)
+    }
+
+    func isRunningTimerStale(at date: Date) -> Bool {
+        guard let runningTimerFreshUntil else {
+            return false
+        }
+
+        return date >= runningTimerFreshUntil
+    }
+
+    func boundedRunningElapsedDuration(at date: Date) -> TimeInterval? {
+        guard let runningTimerStartDate, let runningTimerFreshUntil else {
+            return nil
+        }
+
+        let boundedDate = min(max(date, runningTimerStartDate), runningTimerFreshUntil)
+        return boundedDate.timeIntervalSince(runningTimerStartDate)
+    }
+
     static func empty(lastUpdatedAt: Date = .now) -> TickWidgetSnapshot {
         TickWidgetSnapshot(
             hasProjects: false,
@@ -43,6 +68,19 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
             todayTotalDuration: 0,
             lastUpdatedAt: lastUpdatedAt
         )
+    }
+}
+
+nonisolated enum TickWidgetTimelineSchedule {
+    static let refreshInterval: TimeInterval = 15 * 60
+    static let activeFreshnessInterval: TimeInterval = 30 * 60
+
+    static func nextRefresh(after date: Date) -> Date {
+        date.addingTimeInterval(refreshInterval)
+    }
+
+    static func nextDayBoundary(after date: Date, calendar: Calendar = .current) -> Date {
+        calendar.dateInterval(of: .day, for: date)?.end ?? date.addingTimeInterval(24 * 60 * 60)
     }
 }
 

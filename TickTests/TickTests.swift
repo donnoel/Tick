@@ -1072,6 +1072,101 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(snapshot.todayTotalDuration, 2_100)
     }
 
+    func testWidgetRunningTimerProjectionExpiresBeforeItCanGrowOvernight() {
+        let lastUpdatedAt = Date(timeIntervalSince1970: 100_000)
+        let confirmedDuration: TimeInterval = 4 * 60 * 60
+        let snapshot = TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: nil,
+            defaultProjectName: nil,
+            activeSessionID: UUID(),
+            activeProjectName: "Studio",
+            activeSessionTitle: "1 Tick",
+            activeStartedAt: lastUpdatedAt.addingTimeInterval(-confirmedDuration),
+            activeElapsedDuration: confirmedDuration,
+            todayTotalDuration: confirmedDuration,
+            lastUpdatedAt: lastUpdatedAt
+        )
+        let nextMorning = lastUpdatedAt.addingTimeInterval(14 * 60 * 60)
+
+        XCTAssertEqual(
+            snapshot.runningTimerFreshUntil,
+            lastUpdatedAt.addingTimeInterval(TickWidgetTimelineSchedule.activeFreshnessInterval)
+        )
+        XCTAssertTrue(snapshot.isRunningTimerStale(at: nextMorning))
+        XCTAssertEqual(
+            snapshot.boundedRunningElapsedDuration(at: nextMorning),
+            confirmedDuration + TickWidgetTimelineSchedule.activeFreshnessInterval
+        )
+    }
+
+    func testWidgetTimelineScheduleRollsIdleContentAtNextDayBoundary() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        let date = calendar.date(
+            from: DateComponents(year: 2026, month: 7, day: 29, hour: 18, minute: 30)
+        ) ?? .distantPast
+        let nextDayBoundary = TickWidgetTimelineSchedule.nextDayBoundary(
+            after: date,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(
+            calendar.dateComponents([.year, .month, .day, .hour, .minute], from: nextDayBoundary),
+            DateComponents(year: 2026, month: 7, day: 30, hour: 0, minute: 0)
+        )
+        XCTAssertEqual(
+            TickWidgetTimelineSchedule.nextRefresh(after: date),
+            date.addingTimeInterval(15 * 60)
+        )
+    }
+
+    func testWidgetTodayTotalResetsAtNextDayBoundary() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: .distantPast,
+            isArchived: false
+        )
+        let startedAt = calendar.date(
+            from: DateComponents(year: 2026, month: 7, day: 29, hour: 13)
+        ) ?? .distantPast
+        let endedAt = startedAt.addingTimeInterval(4 * 60 * 60)
+        let session = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: startedAt,
+            endedAt: endedAt,
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: startedAt
+        )
+        let storageSnapshot = TickWidgetStorageSnapshot(
+            projects: [project],
+            sessions: [session]
+        )
+        let sameDaySnapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: storageSnapshot,
+            defaultProjectID: nil,
+            at: endedAt,
+            calendar: calendar
+        )
+        let nextDaySnapshot = TickWidgetSnapshotBuilder.snapshot(
+            from: storageSnapshot,
+            defaultProjectID: nil,
+            at: TickWidgetTimelineSchedule.nextDayBoundary(after: endedAt, calendar: calendar),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(sameDaySnapshot.todayTotalDuration, 4 * 60 * 60)
+        XCTAssertEqual(nextDaySnapshot.todayTotalDuration, 0)
+    }
+
     func testWidgetSnapshotGenerationWithPausedSession() {
         let project = TickWidgetStoredProject(
             id: UUID(),
