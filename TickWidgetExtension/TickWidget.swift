@@ -40,7 +40,12 @@ struct TickWidgetProvider: TimelineProvider {
             date: nextDayBoundary,
             snapshot: loadSnapshot(at: nextDayBoundary)
         )
-        completion(Timeline(entries: [entry, nextDayEntry], policy: .atEnd))
+        completion(
+            Timeline(
+                entries: [entry, nextDayEntry],
+                policy: .after(TickWidgetTimelineSchedule.nextRefresh(after: date))
+            )
+        )
     }
 
     private func loadSnapshot(at date: Date = .now) -> TickWidgetSnapshot {

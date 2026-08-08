@@ -1100,7 +1100,7 @@ final class TickTests: XCTestCase {
         )
     }
 
-    func testWidgetTimelineScheduleRollsIdleContentAtNextDayBoundary() {
+    func testWidgetTimelineScheduleRefreshesIdleContentPeriodicallyAndAtNextDayBoundary() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
         let date = calendar.date(
@@ -1110,15 +1110,17 @@ final class TickTests: XCTestCase {
             after: date,
             calendar: calendar
         )
+        let nextRefresh = TickWidgetTimelineSchedule.nextRefresh(after: date)
 
         XCTAssertEqual(
             calendar.dateComponents([.year, .month, .day, .hour, .minute], from: nextDayBoundary),
             DateComponents(year: 2026, month: 7, day: 30, hour: 0, minute: 0)
         )
         XCTAssertEqual(
-            TickWidgetTimelineSchedule.nextRefresh(after: date),
+            nextRefresh,
             date.addingTimeInterval(15 * 60)
         )
+        XCTAssertLessThan(nextRefresh, nextDayBoundary)
     }
 
     func testWidgetTodayTotalResetsAtNextDayBoundary() {
