@@ -167,21 +167,36 @@ struct TickWidgetView: View {
     }
 
     private var idleView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            widgetHeader(title: "Ticks", systemImage: "timer")
+        let isSmall = family == .systemSmall
+
+        return VStack(alignment: .leading, spacing: isSmall ? 6 : 8) {
+            widgetHeader(
+                title: isSmall ? "Ready" : "Ticks",
+                systemImage: isSmall ? "play.circle.fill" : "timer",
+                showsToday: !isSmall
+            )
+
+            if isSmall {
+                Text(entry.snapshot.defaultProjectName ?? "Ticks")
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
 
             Text(shortDurationString(from: entry.snapshot.todayTotalDuration))
-                .font(.system(size: family == .systemSmall ? 36 : 44, weight: .bold, design: .rounded).monospacedDigit())
+                .font(.system(size: isSmall ? 30 : 44, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
-            if let projectName = entry.snapshot.defaultProjectName {
-                widgetDetailRow(systemImage: "folder.fill", text: projectName)
-            }
+            if !isSmall {
+                if let projectName = entry.snapshot.defaultProjectName {
+                    widgetDetailRow(systemImage: "folder.fill", text: projectName)
+                }
 
-            TickWidgetProgressBar(progress: todayProgress)
-                .accessibilityHidden(true)
+                TickWidgetProgressBar(progress: todayProgress)
+                    .accessibilityHidden(true)
+            }
 
             Spacer(minLength: 0)
 
