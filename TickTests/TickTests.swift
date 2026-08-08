@@ -1839,6 +1839,122 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(envelope.snapshot.sessions.first?.isActive == true)
     }
 
+    func testWidgetSnapshotLoadUsesNewerStoppedSessionFromICloud() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let sessionID = UUID()
+        let activeSession = TickWidgetStoredSession(
+            id: sessionID,
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        var stoppedSession = activeSession
+        stoppedSession.endedAt = Date(timeIntervalSince1970: 250)
+        let keyValueStore = InMemoryKeyValueStore()
+        let iCloudSyncStore = TickWidgetICloudSyncStore(keyValueStore: keyValueStore)
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL,
+            iCloudSyncStore: iCloudSyncStore
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+            at: urls.dataFileURL
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 200)],
+            ofItemAtPath: urls.dataFileURL.path
+        )
+        try widgetStore.saveWidgetSnapshot(
+            TickWidgetSnapshotBuilder.snapshot(
+                from: TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+                defaultProjectID: project.id,
+                at: Date(timeIntervalSince1970: 200)
+            )
+        )
+        try iCloudSyncStore.save(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [stoppedSession]),
+            updatedAt: Date(timeIntervalSince1970: 300)
+        )
+
+        let snapshot = try widgetStore.loadWidgetSnapshot(at: Date(timeIntervalSince1970: 400))
+        let localStorage = try widgetStore.loadStorageSnapshot()
+
+        XCTAssertNil(snapshot.activeSessionID)
+        XCTAssertEqual(snapshot.todayTotalDuration, 150)
+        XCTAssertEqual(localStorage.sessions.first?.endedAt, Date(timeIntervalSince1970: 250))
+    }
+
+    func testWidgetStopUsesNewerActiveSessionFromICloud() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: urls.directoryURL)
+        }
+
+        let project = TickWidgetStoredProject(
+            id: UUID(),
+            name: "Studio",
+            createdAt: Date(timeIntervalSince1970: 0),
+            isArchived: false
+        )
+        let activeSession = TickWidgetStoredSession(
+            id: UUID(),
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: "timer",
+            autoTickRuleID: nil,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let keyValueStore = InMemoryKeyValueStore()
+        let iCloudSyncStore = TickWidgetICloudSyncStore(keyValueStore: keyValueStore)
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL,
+            widgetSnapshotFileURL: urls.snapshotFileURL,
+            iCloudSyncStore: iCloudSyncStore
+        )
+
+        try await seedWidgetStore(
+            TickWidgetStorageSnapshot(projects: [project], sessions: []),
+            at: urls.dataFileURL
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 150)],
+            ofItemAtPath: urls.dataFileURL.path
+        )
+        try iCloudSyncStore.save(
+            TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
+            updatedAt: Date(timeIntervalSince1970: 200)
+        )
+
+        let result = try widgetStore.stopTick(at: Date(timeIntervalSince1970: 300))
+        let envelope = try XCTUnwrap(iCloudSyncStore.loadEnvelope())
+
+        XCTAssertTrue(result.didChange)
+        XCTAssertEqual(envelope.snapshot.sessions.first?.id, activeSession.id)
+        XCTAssertEqual(envelope.snapshot.sessions.first?.endedAt, Date(timeIntervalSince1970: 300))
+    }
+
     @MainActor
     func testAppSaveMirrorsMergedWidgetSessionToICloudStore() async throws {
         let urls = temporaryWidgetStoreURLs()

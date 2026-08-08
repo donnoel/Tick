@@ -9,15 +9,31 @@ nonisolated final class TickWidgetICloudSyncStore {
     private static let snapshotKey = "tick.storageSnapshot.v1"
 
     private let keyValueStore: TickKeyValueStore
+    private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
     init(keyValueStore: TickKeyValueStore = NSUbiquitousKeyValueStore.default) {
         self.keyValueStore = keyValueStore
 
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        self.decoder = decoder
+
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
         self.encoder = encoder
+    }
+
+    func loadEnvelope() throws -> (snapshot: TickWidgetStorageSnapshot, updatedAt: Date)? {
+        keyValueStore.synchronize()
+
+        guard let data = keyValueStore.data(forKey: Self.snapshotKey), !data.isEmpty else {
+            return nil
+        }
+
+        let envelope = try decoder.decode(Envelope.self, from: data)
+        return (envelope.snapshot, envelope.updatedAt)
     }
 
     func save(_ snapshot: TickWidgetStorageSnapshot, updatedAt: Date = .now) throws {
