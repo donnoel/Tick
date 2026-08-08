@@ -91,14 +91,36 @@ struct TickWidgetView: View {
     }
 
     private var widgetBackground: some View {
-        LinearGradient(
-            colors: [
-                TickWidgetStyle.backgroundTop(for: colorScheme),
-                TickWidgetStyle.backgroundBottom(for: colorScheme)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        ZStack(alignment: .topTrailing) {
+            LinearGradient(
+                colors: TickWidgetStyle.backgroundColors(
+                    for: colorScheme,
+                    isActive: state == .active
+                ),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            RadialGradient(
+                colors: [
+                    homeTint.opacity(colorScheme == .dark ? 0.34 : 0.22),
+                    .clear
+                ],
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: family == .systemSmall ? 130 : 220
+            )
+
+            TickWidgetTrail(tint: homeTint)
+                .padding(.top, 46)
+                .padding(.trailing, 14)
+                .opacity(colorScheme == .dark ? 0.72 : 0.58)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var homeTint: Color {
+        state == .active ? TickWidgetStyle.running : TickWidgetStyle.primary
     }
 
     private var state: TickWidgetState {
@@ -132,6 +154,9 @@ struct TickWidgetView: View {
             Label("Open Tick", systemImage: "chevron.forward")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(TickWidgetStyle.primary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(TickWidgetStyle.primary.opacity(0.12), in: Capsule())
         }
         .accessibilityElement(children: .combine)
     }
@@ -186,12 +211,14 @@ struct TickWidgetView: View {
             if isStale, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
                 Text(timerDurationString(from: activeElapsedDuration))
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityLabel("Last confirmed elapsed time")
             } else if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
                 Text(timerDurationString(from: activeElapsedDuration))
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityLabel("Paused elapsed time")
@@ -203,6 +230,7 @@ struct TickWidgetView: View {
                     countsDown: false
                 )
                     .font(.system(size: isSmall ? 30 : 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityLabel("Elapsed time")
@@ -259,14 +287,19 @@ struct TickWidgetView: View {
         showsToday: Bool = true
     ) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(tint)
-                .accessibilityHidden(true)
+            HStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
 
-            Text(title)
-                .font(.headline.weight(.semibold))
-                .lineLimit(1)
+                Text(title)
+                    .font(.headline.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(tint.opacity(colorScheme == .dark ? 0.22 : 0.14), in: Capsule())
 
             Spacer(minLength: 4)
 
@@ -323,6 +356,11 @@ struct TickWidgetView: View {
                     .frame(width: buttonSize, height: buttonSize)
                     .background(tint, in: Circle())
                     .foregroundStyle(.white)
+                    .overlay {
+                        Circle()
+                            .stroke(.white.opacity(colorScheme == .dark ? 0.22 : 0.72), lineWidth: 1)
+                    }
+                    .shadow(color: tint.opacity(0.30), radius: 6, y: 3)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(title)
@@ -433,7 +471,7 @@ struct TickWidgetView: View {
     }
 }
 
-private enum TickWidgetState {
+private enum TickWidgetState: Equatable {
     case noProjects
     case idle
     case active
@@ -442,23 +480,66 @@ private enum TickWidgetState {
 private enum TickWidgetStyle {
     static let primary = Color(red: 0.12, green: 0.45, blue: 0.94)
     static let running = Color(red: 0.48, green: 0.28, blue: 0.92)
+    static let cyan = Color(red: 0.15, green: 0.72, blue: 0.94)
 
-    static func backgroundTop(for colorScheme: ColorScheme) -> Color {
+    static let primaryGradient = LinearGradient(
+        colors: [primary, cyan],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
+    static func backgroundColors(for colorScheme: ColorScheme, isActive: Bool) -> [Color] {
         switch colorScheme {
         case .dark:
-            Color(red: 0.10, green: 0.12, blue: 0.18)
+            if isActive {
+                return [
+                    Color(red: 0.10, green: 0.08, blue: 0.20),
+                    Color(red: 0.17, green: 0.10, blue: 0.29),
+                    Color(red: 0.10, green: 0.13, blue: 0.24)
+                ]
+            }
+
+            return [
+                Color(red: 0.07, green: 0.11, blue: 0.17),
+                Color(red: 0.08, green: 0.16, blue: 0.24),
+                Color(red: 0.12, green: 0.13, blue: 0.22)
+            ]
         default:
-            Color(red: 0.97, green: 0.99, blue: 1.0)
+            if isActive {
+                return [
+                    Color(red: 0.97, green: 0.94, blue: 1.0),
+                    Color(red: 0.90, green: 0.91, blue: 1.0),
+                    Color(red: 1.0, green: 0.92, blue: 0.97)
+                ]
+            }
+
+            return [
+                Color(red: 0.96, green: 0.99, blue: 1.0),
+                Color(red: 0.88, green: 0.95, blue: 1.0),
+                Color(red: 0.93, green: 0.92, blue: 1.0)
+            ]
         }
     }
+}
 
-    static func backgroundBottom(for colorScheme: ColorScheme) -> Color {
-        switch colorScheme {
-        case .dark:
-            Color(red: 0.16, green: 0.18, blue: 0.28)
-        default:
-            Color(red: 0.91, green: 0.94, blue: 1.0)
+private struct TickWidgetTrail: View {
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 3) {
+            ForEach([8.0, 13.0, 18.0, 23.0], id: \.self) { height in
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.32), tint.opacity(0.78)],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+                    .frame(width: 4, height: height)
+            }
         }
+        .rotationEffect(.degrees(-16))
     }
 }
 
@@ -472,7 +553,7 @@ private struct TickWidgetProgressBar: View {
                     .fill(.secondary.opacity(0.14))
 
                 Capsule()
-                    .fill(TickWidgetStyle.primary.opacity(0.82))
+                    .fill(TickWidgetStyle.primaryGradient)
                     .frame(width: max(8, proxy.size.width * progress))
             }
         }
@@ -499,8 +580,57 @@ struct TickWidget: Widget {
     TickWidgetEntry(date: .now, snapshot: .empty())
 }
 
+#Preview("Idle", as: .systemSmall) {
+    TickWidget()
+} timeline: {
+    TickWidgetPreviewFixtures.idle
+}
+
+#Preview("Running", as: .systemSmall) {
+    TickWidget()
+} timeline: {
+    TickWidgetPreviewFixtures.running
+}
+
 #Preview(as: .accessoryRectangular) {
     TickWidget()
 } timeline: {
     TickWidgetEntry(date: .now, snapshot: .empty())
+}
+
+private enum TickWidgetPreviewFixtures {
+    static let date = Date(timeIntervalSinceReferenceDate: 800_000_000)
+    static let projectID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    static let sessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+
+    static let idle = TickWidgetEntry(
+        date: date,
+        snapshot: TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: projectID,
+            defaultProjectName: "Beam",
+            activeSessionID: nil,
+            activeProjectName: nil,
+            activeSessionTitle: nil,
+            activeStartedAt: nil,
+            todayTotalDuration: 4_860,
+            lastUpdatedAt: date
+        )
+    )
+
+    static let running = TickWidgetEntry(
+        date: date,
+        snapshot: TickWidgetSnapshot(
+            hasProjects: true,
+            defaultProjectID: projectID,
+            defaultProjectName: "Beam",
+            activeSessionID: sessionID,
+            activeProjectName: "Beam",
+            activeSessionTitle: "1 Tick",
+            activeStartedAt: date.addingTimeInterval(-98),
+            activeElapsedDuration: 98,
+            todayTotalDuration: 4_958,
+            lastUpdatedAt: date
+        )
+    )
 }
