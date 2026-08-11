@@ -2,6 +2,7 @@ import Foundation
 
 nonisolated struct TickICloudSyncResolution: Equatable {
     var snapshot: TickStorageSnapshot
+    var updatedAt: Date?
     var shouldSaveLocal: Bool
     var shouldSaveRemote: Bool
 }
@@ -51,36 +52,40 @@ nonisolated final class TickICloudSyncStore {
 
     func resolve(
         localSnapshot: TickStorageSnapshot,
-        localModifiedAt: Date?,
+        localUpdatedAt: Date?,
         remoteEnvelope: (snapshot: TickStorageSnapshot, updatedAt: Date)?
     ) -> TickICloudSyncResolution {
         guard let remoteEnvelope else {
             return TickICloudSyncResolution(
                 snapshot: localSnapshot,
+                updatedAt: localUpdatedAt,
                 shouldSaveLocal: false,
                 shouldSaveRemote: !localSnapshot.isEmpty
             )
         }
 
-        guard let localModifiedAt else {
+        guard let localUpdatedAt else {
             return TickICloudSyncResolution(
                 snapshot: remoteEnvelope.snapshot,
+                updatedAt: remoteEnvelope.updatedAt,
                 shouldSaveLocal: true,
                 shouldSaveRemote: false
             )
         }
 
-        if remoteEnvelope.updatedAt > localModifiedAt {
+        if remoteEnvelope.updatedAt > localUpdatedAt {
             return TickICloudSyncResolution(
                 snapshot: remoteEnvelope.snapshot,
+                updatedAt: remoteEnvelope.updatedAt,
                 shouldSaveLocal: true,
                 shouldSaveRemote: false
             )
         }
 
-        if localModifiedAt > remoteEnvelope.updatedAt, localSnapshot != remoteEnvelope.snapshot {
+        if localUpdatedAt > remoteEnvelope.updatedAt, localSnapshot != remoteEnvelope.snapshot {
             return TickICloudSyncResolution(
                 snapshot: localSnapshot,
+                updatedAt: localUpdatedAt,
                 shouldSaveLocal: false,
                 shouldSaveRemote: true
             )
@@ -88,6 +93,7 @@ nonisolated final class TickICloudSyncStore {
 
         return TickICloudSyncResolution(
             snapshot: localSnapshot,
+            updatedAt: localUpdatedAt,
             shouldSaveLocal: false,
             shouldSaveRemote: false
         )

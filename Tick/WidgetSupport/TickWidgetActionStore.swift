@@ -101,7 +101,7 @@ nonisolated final class TickWidgetActionStore {
         _ = try loadStorageSnapshot()
 
         return try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
-            var storageSnapshot = try loadStorageSnapshot(from: coordinatedDataFileURL)
+            var storageSnapshot = try loadStorageState(from: coordinatedDataFileURL).snapshot
 
             guard storageSnapshot.sessions.first(where: \.isActive) == nil else {
                 return TickWidgetActionResult(didChange: false, message: "A Tick is already running.")
@@ -130,7 +130,7 @@ nonisolated final class TickWidgetActionStore {
             )
 
             storageSnapshot.sessions.insert(session, at: 0)
-            try saveStorageSnapshot(storageSnapshot, to: coordinatedDataFileURL)
+            try saveStorageSnapshot(storageSnapshot, updatedAt: date, to: coordinatedDataFileURL)
             try saveWidgetSnapshot(
                 TickWidgetSnapshotBuilder.snapshot(
                     from: storageSnapshot,
@@ -148,7 +148,7 @@ nonisolated final class TickWidgetActionStore {
         _ = try loadStorageSnapshot()
 
         return try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
-            var storageSnapshot = try loadStorageSnapshot(from: coordinatedDataFileURL)
+            var storageSnapshot = try loadStorageState(from: coordinatedDataFileURL).snapshot
 
             guard let activeIndex = storageSnapshot.sessions.firstIndex(where: \.isActive) else {
                 return TickWidgetActionResult(didChange: false, message: "No Tick is running.")
@@ -159,7 +159,7 @@ nonisolated final class TickWidgetActionStore {
             storageSnapshot.sessions.sort { $0.referenceDate > $1.referenceDate }
 
             let existingSnapshot = try? loadCachedWidgetSnapshot()
-            try saveStorageSnapshot(storageSnapshot, to: coordinatedDataFileURL)
+            try saveStorageSnapshot(storageSnapshot, updatedAt: date, to: coordinatedDataFileURL)
             try saveWidgetSnapshot(
                 TickWidgetSnapshotBuilder.snapshot(
                     from: storageSnapshot,
@@ -174,31 +174,22 @@ nonisolated final class TickWidgetActionStore {
 
     func loadStorageSnapshot() throws -> TickWidgetStorageSnapshot {
         let localState = try TickSharedFileCoordinator.coordinateReading(at: dataFileURL) { coordinatedDataFileURL in
-            let snapshot = try loadStorageSnapshot(from: coordinatedDataFileURL)
-            let modifiedAt: Date?
-
-            if fileManager.fileExists(atPath: coordinatedDataFileURL.path) {
-                let attributes = try fileManager.attributesOfItem(atPath: coordinatedDataFileURL.path)
-                modifiedAt = attributes[.modificationDate] as? Date
-            } else {
-                modifiedAt = nil
-            }
-
-            return (snapshot, modifiedAt)
+            try loadStorageState(from: coordinatedDataFileURL)
         }
 
         guard let iCloudSyncStore,
               let remoteEnvelope = try? iCloudSyncStore.loadEnvelope(),
-              remoteEnvelope.snapshot != localState.0 else {
-            return localState.0
+              remoteEnvelope.snapshot != localState.snapshot else {
+            return localState.snapshot
         }
 
-        if let localModifiedAt = localState.1, remoteEnvelope.updatedAt <= localModifiedAt {
-            return localState.0
+        if let localUpdatedAt = localState.updatedAt, remoteEnvelope.updatedAt <= localUpdatedAt {
+            return localState.snapshot
         }
 
         try saveStorageSnapshot(
             remoteEnvelope.snapshot,
+            updatedAt: remoteEnvelope.updatedAt,
             to: dataFileURL,
             mirrorsToICloud: false,
             coordinatesWrite: true
@@ -222,22 +213,34 @@ nonisolated final class TickWidgetActionStore {
         return try decoder.decode(TickWidgetSnapshot.self, from: data)
     }
 
-    private func loadStorageSnapshot(from fileURL: URL) throws -> TickWidgetStorageSnapshot {
+    private func loadStorageState(
+        from fileURL: URL
+    ) throws -> (snapshot: TickWidgetStorageSnapshot, updatedAt: Date?) {
         guard fileManager.fileExists(atPath: fileURL.path) else {
-            return .empty
+            return (.empty, nil)
         }
 
         let data = try Data(contentsOf: fileURL)
+        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+        let fileModifiedAt = attributes[.modificationDate] as? Date
 
         guard !data.isEmpty else {
-            return .empty
+            return (.empty, fileModifiedAt)
         }
 
-        return try decoder.decode(TickWidgetStorageSnapshot.self, from: data)
+        if let envelope = try? decoder.decode(
+            TickStorageFileEnvelope<TickWidgetStorageSnapshot>.self,
+            from: data
+        ) {
+            return (envelope.snapshot, envelope.updatedAt)
+        }
+
+        return (try decoder.decode(TickWidgetStorageSnapshot.self, from: data), fileModifiedAt)
     }
 
     private func saveStorageSnapshot(
         _ snapshot: TickWidgetStorageSnapshot,
+        updatedAt: Date,
         to fileURL: URL,
         mirrorsToICloud: Bool = true,
         coordinatesWrite: Bool = false
@@ -246,7 +249,9 @@ nonisolated final class TickWidgetActionStore {
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        let data = try encoder.encode(snapshot)
+        let data = try encoder.encode(
+            TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot)
+        )
         if coordinatesWrite {
             try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
                 try data.write(to: coordinatedURL, options: [.atomic])
@@ -256,7 +261,7 @@ nonisolated final class TickWidgetActionStore {
         }
 
         if mirrorsToICloud {
-            try iCloudSyncStore?.save(snapshot)
+            try iCloudSyncStore?.save(snapshot, updatedAt: updatedAt)
         }
     }
 }

@@ -201,11 +201,10 @@ final class TickViewModel {
 
     func reload() async {
         do {
-            let snapshot = try await store.load()
-            let localModifiedAt = try? await store.modificationDate()
+            let localState = try await store.loadVersionedSnapshot()
             let resolvedSnapshot = await resolveICloudSnapshot(
-                localSnapshot: snapshot,
-                localModifiedAt: localModifiedAt
+                localSnapshot: localState.snapshot,
+                localUpdatedAt: localState.updatedAt
             )
             apply(storageSnapshot: resolvedSnapshot)
             lastPersistedStorageSnapshot = resolvedSnapshot
@@ -943,14 +942,15 @@ final class TickViewModel {
 
         do {
             let snapshot = try await snapshotForPersist(proposedSnapshot)
-            try await store.save(snapshot)
+            let updatedAt = Date.now
+            try await store.save(snapshot, updatedAt: updatedAt)
             lastPersistedStorageSnapshot = snapshot
             if snapshot != proposedSnapshot {
                 apply(storageSnapshot: snapshot)
             }
 
             do {
-                try iCloudSyncStore?.save(snapshot)
+                try iCloudSyncStore?.save(snapshot, updatedAt: updatedAt)
                 errorMessage = nil
             } catch {
                 errorMessage = "Tick saved locally but could not sync with iCloud. \(error.localizedDescription)"
@@ -1030,7 +1030,7 @@ final class TickViewModel {
 
     private func resolveICloudSnapshot(
         localSnapshot: TickStorageSnapshot,
-        localModifiedAt: Date?
+        localUpdatedAt: Date?
     ) async -> TickStorageSnapshot {
         guard let iCloudSyncStore else {
             return localSnapshot
@@ -1039,16 +1039,22 @@ final class TickViewModel {
         do {
             let resolution = iCloudSyncStore.resolve(
                 localSnapshot: localSnapshot,
-                localModifiedAt: localModifiedAt,
+                localUpdatedAt: localUpdatedAt,
                 remoteEnvelope: try iCloudSyncStore.loadEnvelope()
             )
 
             if resolution.shouldSaveLocal {
-                try await store.save(resolution.snapshot)
+                try await store.save(
+                    resolution.snapshot,
+                    updatedAt: resolution.updatedAt ?? .now
+                )
             }
 
             if resolution.shouldSaveRemote {
-                try iCloudSyncStore.save(resolution.snapshot)
+                try iCloudSyncStore.save(
+                    resolution.snapshot,
+                    updatedAt: resolution.updatedAt ?? .now
+                )
             }
 
             return resolution.snapshot
@@ -1060,11 +1066,10 @@ final class TickViewModel {
 
     private func applyRemoteICloudSnapshotIfNeeded() async {
         do {
-            let localSnapshot = try await store.load()
-            let localModifiedAt = try? await store.modificationDate()
+            let localState = try await store.loadVersionedSnapshot()
             let resolvedSnapshot = await resolveICloudSnapshot(
-                localSnapshot: localSnapshot,
-                localModifiedAt: localModifiedAt
+                localSnapshot: localState.snapshot,
+                localUpdatedAt: localState.updatedAt
             )
 
             if resolvedSnapshot != currentStorageSnapshot {

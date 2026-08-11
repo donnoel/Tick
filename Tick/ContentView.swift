@@ -3,21 +3,23 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("selectedSpaceID") private var selectedSpaceID = ""
-    @AppStorage(TickUIStateStorage.selectedContentTabKey) private var selectedTab = ContentTab.today
     @State private var viewModel: TickViewModel
+    @State private var selectedTab: ContentTab
 
     @MainActor
     init() {
         _viewModel = State(initialValue: TickViewModel())
+        _selectedTab = State(initialValue: TickUIStateStorage.selectedContentTab())
     }
 
     @MainActor
     init(viewModel: TickViewModel) {
         _viewModel = State(initialValue: viewModel)
+        _selectedTab = State(initialValue: TickUIStateStorage.selectedContentTab())
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: selectedTabBinding) {
             TodayView(viewModel: viewModel)
                 .tabItem {
                     Label("Today", systemImage: "clock.fill")
@@ -51,6 +53,7 @@ struct ContentView: View {
                 return
             }
 
+            selectedTab = TickUIStateStorage.selectedContentTab()
             viewModel.scheduleReload()
         }
         .onChange(of: viewModel.selectedProjectID) { _, selectedProjectID in
@@ -76,6 +79,19 @@ struct ContentView: View {
         }
     }
 
+    private var selectedTabBinding: Binding<ContentTab> {
+        Binding {
+            selectedTab
+        } set: { newTab in
+            guard scenePhase == .active else {
+                return
+            }
+
+            selectedTab = newTab
+            TickUIStateStorage.saveSelectedContentTab(newTab)
+        }
+    }
+
     private func restoreSelectedSpaceIfNeeded() {
         guard viewModel.selectedProjectID == nil else {
             return
@@ -88,12 +104,28 @@ struct ContentView: View {
 nonisolated enum TickUIStateStorage {
     static let selectedContentTabKey = "selectedContentTab"
 
+    static func selectedContentTab(defaults: UserDefaults = .standard) -> ContentTab {
+        guard let rawValue = defaults.string(forKey: selectedContentTabKey),
+              let selectedTab = ContentTab(rawValue: rawValue) else {
+            return .today
+        }
+
+        return selectedTab
+    }
+
+    static func saveSelectedContentTab(
+        _ selectedTab: ContentTab,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.set(selectedTab.rawValue, forKey: selectedContentTabKey)
+    }
+
     static func resetForUITests(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: selectedContentTabKey)
     }
 }
 
-private enum ContentTab: String, Hashable {
+nonisolated enum ContentTab: String, Hashable {
     case today
     case spaces
     case autoTicks

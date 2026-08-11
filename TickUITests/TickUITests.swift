@@ -96,32 +96,28 @@ final class TickUITests: XCTestCase {
 
     func testSelectedTabSurvivesAppReactivationAndRelaunch() throws {
         let app = launchResetApp()
-        let tabBar = app.tabBars.firstMatch
-
-        let todayTab = tabBar.buttons["Today"]
-        XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
-        XCTAssertTrue(todayTab.isSelected)
-
-        let autoTicksTab = tabBar.buttons["Auto Ticks"]
-        XCTAssertTrue(autoTicksTab.waitForExistence(timeout: 5))
-        autoTicksTab.tap()
-        XCTAssertTrue(autoTicksTab.isSelected)
-
-        XCUIDevice.shared.press(.home)
-        app.activate()
-
-        XCTAssertTrue(autoTicksTab.waitForExistence(timeout: 5))
-        XCTAssertTrue(autoTicksTab.isSelected)
-        XCTAssertFalse(todayTab.isSelected)
-
-        app.terminate()
         app.launchArguments = []
-        app.launch()
 
-        let relaunchedAutoTicksTab = app.tabBars.firstMatch.buttons["Auto Ticks"]
-        XCTAssertTrue(relaunchedAutoTicksTab.waitForExistence(timeout: 5))
-        XCTAssertTrue(relaunchedAutoTicksTab.isSelected)
-        XCTAssertFalse(app.tabBars.firstMatch.buttons["Today"].isSelected)
+        for tabName in ["Spaces", "Summaries", "Today", "Auto Ticks"] {
+            let tab = app.tabBars.firstMatch.buttons[tabName]
+            XCTAssertTrue(tab.waitForExistence(timeout: 5))
+            tab.tap()
+            XCTAssertTrue(tab.isSelected)
+
+            XCUIDevice.shared.press(.home)
+            app.activate()
+
+            let reactivatedTab = app.tabBars.firstMatch.buttons[tabName]
+            XCTAssertTrue(reactivatedTab.waitForExistence(timeout: 5))
+            XCTAssertTrue(reactivatedTab.isSelected)
+
+            app.terminate()
+            app.launch()
+
+            let relaunchedTab = app.tabBars.firstMatch.buttons[tabName]
+            XCTAssertTrue(relaunchedTab.waitForExistence(timeout: 5))
+            XCTAssertTrue(relaunchedTab.isSelected)
+        }
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {

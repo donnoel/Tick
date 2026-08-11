@@ -442,6 +442,65 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(loadedSnapshot, snapshot)
     }
 
+    func testDataStorePreservesLogicalUpdateTimeWhenFileMetadataChanges() async throws {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let updatedAt = Date(timeIntervalSince1970: 100)
+        let store = TickDataStore(fileURL: fileURL)
+        try await store.save(.empty, updatedAt: updatedAt)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 500)],
+            ofItemAtPath: fileURL.path
+        )
+
+        let loadedState = try await store.loadVersionedSnapshot()
+
+        XCTAssertEqual(loadedState.snapshot, .empty)
+        XCTAssertEqual(loadedState.updatedAt, updatedAt)
+    }
+
+    func testDataStoreLoadsExistingUnversionedSnapshot() async throws {
+        let fileURL = temporaryStoreURL()
+        defer {
+            try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        }
+
+        let project = TickProject(name: "Existing", createdAt: Date(timeIntervalSince1970: 100))
+        let snapshot = TickStorageSnapshot(projects: [project], sessions: [])
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(snapshot).write(to: fileURL, options: [.atomic])
+        let store = TickDataStore(fileURL: fileURL)
+
+        let loadedState = try await store.loadVersionedSnapshot()
+
+        XCTAssertEqual(loadedState.snapshot, snapshot)
+        XCTAssertNotNil(loadedState.updatedAt)
+    }
+
+    func testSelectedContentTabStorageRoundTripsEveryTabAndFallsBackSafely() {
+        let suiteName = "TickTests.TabSelection.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        for tab in [ContentTab.today, .spaces, .autoTicks, .summaries] {
+            TickUIStateStorage.saveSelectedContentTab(tab, defaults: defaults)
+            XCTAssertEqual(TickUIStateStorage.selectedContentTab(defaults: defaults), tab)
+        }
+
+        defaults.set("unknown", forKey: TickUIStateStorage.selectedContentTabKey)
+        XCTAssertEqual(TickUIStateStorage.selectedContentTab(defaults: defaults), .today)
+    }
+
     func testDataStoreQuarantinesCorruptSnapshotAndReturnsEmpty() async throws {
         let fileURL = temporaryStoreURL()
         defer {
@@ -476,7 +535,7 @@ final class TickTests: XCTestCase {
 
         let resolution = syncStore.resolve(
             localSnapshot: localSnapshot,
-            localModifiedAt: Date(timeIntervalSince1970: 100),
+            localUpdatedAt: Date(timeIntervalSince1970: 100),
             remoteEnvelope: (
                 snapshot: remoteSnapshot,
                 updatedAt: Date(timeIntervalSince1970: 200)
@@ -496,7 +555,7 @@ final class TickTests: XCTestCase {
 
         let resolution = syncStore.resolve(
             localSnapshot: localSnapshot,
-            localModifiedAt: Date(timeIntervalSince1970: 300),
+            localUpdatedAt: Date(timeIntervalSince1970: 300),
             remoteEnvelope: (
                 snapshot: remoteSnapshot,
                 updatedAt: Date(timeIntervalSince1970: 200)
@@ -1878,10 +1937,11 @@ final class TickTests: XCTestCase {
 
         try await seedWidgetStore(
             TickWidgetStorageSnapshot(projects: [project], sessions: [activeSession]),
-            at: urls.dataFileURL
+            at: urls.dataFileURL,
+            updatedAt: Date(timeIntervalSince1970: 200)
         )
         try FileManager.default.setAttributes(
-            [.modificationDate: Date(timeIntervalSince1970: 200)],
+            [.modificationDate: Date(timeIntervalSince1970: 500)],
             ofItemAtPath: urls.dataFileURL.path
         )
         try widgetStore.saveWidgetSnapshot(
@@ -1902,6 +1962,98 @@ final class TickTests: XCTestCase {
         XCTAssertNil(snapshot.activeSessionID)
         XCTAssertEqual(snapshot.todayTotalDuration, 150)
         XCTAssertEqual(localStorage.sessions.first?.endedAt, Date(timeIntervalSince1970: 250))
+    }
+
+    @MainActor
+    func testAppStopUpdatesStaleRunningWidgetOnAnotherDevice() async throws {
+        let appURLs = temporaryWidgetStoreURLs()
+        let widgetURLs = temporaryWidgetStoreURLs()
+        defer {
+            try? FileManager.default.removeItem(at: appURLs.directoryURL)
+            try? FileManager.default.removeItem(at: widgetURLs.directoryURL)
+        }
+
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let activeSession = TimeSession(
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            manualDuration: nil,
+            entrySource: .timer,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let activeSnapshot = TickStorageSnapshot(
+            projects: [project],
+            sessions: [activeSession]
+        )
+        let widgetActiveSnapshot = TickWidgetStorageSnapshot(
+            projects: [
+                TickWidgetStoredProject(
+                    id: project.id,
+                    name: project.name,
+                    createdAt: project.createdAt,
+                    isArchived: project.isArchived
+                )
+            ],
+            sessions: [
+                TickWidgetStoredSession(
+                    id: activeSession.id,
+                    projectID: project.id,
+                    title: activeSession.title,
+                    notes: activeSession.notes,
+                    startedAt: activeSession.startedAt,
+                    endedAt: nil,
+                    manualDuration: nil,
+                    entrySource: activeSession.entrySource.rawValue,
+                    autoTickRuleID: nil,
+                    createdAt: activeSession.createdAt
+                )
+            ]
+        )
+        let keyValueStore = InMemoryKeyValueStore()
+        let appStore = TickDataStore(fileURL: appURLs.dataFileURL)
+        let appICloudStore = TickICloudSyncStore(keyValueStore: keyValueStore)
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: widgetURLs.dataFileURL,
+            widgetSnapshotFileURL: widgetURLs.snapshotFileURL,
+            iCloudSyncStore: TickWidgetICloudSyncStore(keyValueStore: keyValueStore)
+        )
+        try await appStore.save(activeSnapshot, updatedAt: Date(timeIntervalSince1970: 200))
+        try appICloudStore.save(activeSnapshot, updatedAt: Date(timeIntervalSince1970: 200))
+        try await seedWidgetStore(
+            widgetActiveSnapshot,
+            at: widgetURLs.dataFileURL,
+            updatedAt: Date(timeIntervalSince1970: 200)
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 500)],
+            ofItemAtPath: widgetURLs.dataFileURL.path
+        )
+        try widgetStore.saveWidgetSnapshot(
+            TickWidgetSnapshotBuilder.snapshot(
+                from: widgetActiveSnapshot,
+                defaultProjectID: project.id,
+                at: Date(timeIntervalSince1970: 200)
+            )
+        )
+        let appViewModel = TickViewModel(
+            store: appStore,
+            locationService: AutoTickLocationService(),
+            iCloudSyncStore: appICloudStore
+        )
+        await appViewModel.loadIfNeeded()
+
+        let didStop = await appViewModel.stopTick(at: Date(timeIntervalSince1970: 300))
+        let widgetSnapshot = try widgetStore.loadWidgetSnapshot(at: Date(timeIntervalSince1970: 400))
+        let widgetStorage = try widgetStore.loadStorageSnapshot()
+
+        XCTAssertTrue(didStop)
+        XCTAssertNil(widgetSnapshot.activeSessionID)
+        XCTAssertEqual(widgetSnapshot.todayTotalDuration, 200)
+        XCTAssertEqual(widgetStorage.sessions.first?.id, activeSession.id)
+        XCTAssertEqual(widgetStorage.sessions.first?.endedAt, Date(timeIntervalSince1970: 300))
     }
 
     func testWidgetStopUsesNewerActiveSessionFromICloud() async throws {
@@ -2887,7 +3039,11 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(fallback, "Tick")
     }
 
-    private func seedWidgetStore(_ snapshot: TickWidgetStorageSnapshot, at fileURL: URL) async throws {
+    private func seedWidgetStore(
+        _ snapshot: TickWidgetStorageSnapshot,
+        at fileURL: URL,
+        updatedAt: Date? = nil
+    ) async throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -2896,7 +3052,14 @@ final class TickTests: XCTestCase {
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        let data = try encoder.encode(snapshot)
+        let data: Data
+        if let updatedAt {
+            data = try encoder.encode(
+                TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot)
+            )
+        } else {
+            data = try encoder.encode(snapshot)
+        }
         try data.write(to: fileURL, options: [.atomic])
     }
 }

@@ -23,45 +23,49 @@ actor TickDataStore {
     }
 
     func load() throws -> TickStorageSnapshot {
+        try loadVersionedSnapshot().snapshot
+    }
+
+    func loadVersionedSnapshot() throws -> (snapshot: TickStorageSnapshot, updatedAt: Date?) {
         try migrateLegacyStoreIfNeeded()
 
         guard fileManager.fileExists(atPath: fileURL.path) else {
-            return .empty
+            return (.empty, nil)
         }
 
-        let data = try TickSharedFileCoordinator.coordinateReading(at: fileURL) { coordinatedURL in
-            try Data(contentsOf: coordinatedURL)
+        let storedData = try TickSharedFileCoordinator.coordinateReading(at: fileURL) { coordinatedURL in
+            let data = try Data(contentsOf: coordinatedURL)
+            let attributes = try fileManager.attributesOfItem(atPath: coordinatedURL.path)
+            return (data, attributes[.modificationDate] as? Date)
         }
 
-        guard !data.isEmpty else {
-            return .empty
+        guard !storedData.0.isEmpty else {
+            return (.empty, storedData.1)
         }
 
         do {
-            return try decoder.decode(TickStorageSnapshot.self, from: data)
+            if let envelope = try? decoder.decode(
+                TickStorageFileEnvelope<TickStorageSnapshot>.self,
+                from: storedData.0
+            ) {
+                return (envelope.snapshot, envelope.updatedAt)
+            }
+
+            return (try decoder.decode(TickStorageSnapshot.self, from: storedData.0), storedData.1)
         } catch {
-            return try recoverCorruptStore()
+            return (try recoverCorruptStore(), nil)
         }
     }
 
-    func save(_ snapshot: TickStorageSnapshot) throws {
+    func save(_ snapshot: TickStorageSnapshot, updatedAt: Date = .now) throws {
         let directoryURL = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
-        let data = try encoder.encode(snapshot)
+        let data = try encoder.encode(
+            TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot)
+        )
         try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
             try data.write(to: coordinatedURL, options: [.atomic])
-        }
-    }
-
-    func modificationDate() throws -> Date? {
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            return nil
-        }
-
-        return try TickSharedFileCoordinator.coordinateReading(at: fileURL) { coordinatedURL in
-            let attributes = try fileManager.attributesOfItem(atPath: coordinatedURL.path)
-            return attributes[.modificationDate] as? Date
         }
     }
 
