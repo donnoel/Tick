@@ -78,7 +78,8 @@ struct TickWidgetView: View {
         .containerBackground(for: .widget) {
             widgetBackground
         }
-        .widgetURL(URL(string: "tick://today"))
+        // Keep widget launches neutral: tapping outside an App Intent button
+        // reactivates Tick without choosing or changing the user's current tab.
     }
 
     private var homeScreenView: some View {

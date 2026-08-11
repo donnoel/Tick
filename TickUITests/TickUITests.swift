@@ -94,8 +94,9 @@ final class TickUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Save"].isEnabled)
     }
 
-    func testSelectedTabSurvivesAppReactivationAndRelaunch() throws {
+    func testSelectedTabSurvivesHomePhotosAndRelaunch() throws {
         let app = launchResetApp()
+        let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         app.launchArguments = []
 
         for tabName in ["Spaces", "Summaries", "Today", "Auto Ticks"] {
@@ -110,6 +111,13 @@ final class TickUITests: XCTestCase {
             let reactivatedTab = app.tabBars.firstMatch.buttons[tabName]
             XCTAssertTrue(reactivatedTab.waitForExistence(timeout: 5))
             XCTAssertTrue(reactivatedTab.isSelected)
+
+            photos.launch()
+            app.activate()
+
+            let photosReactivatedTab = app.tabBars.firstMatch.buttons[tabName]
+            XCTAssertTrue(photosReactivatedTab.waitForExistence(timeout: 5))
+            XCTAssertTrue(photosReactivatedTab.isSelected)
 
             app.terminate()
             app.launch()
