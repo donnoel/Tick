@@ -17,7 +17,7 @@ nonisolated struct TickDayChartEntry: Equatable, Identifiable {
     var hours: Double { duration / 3_600 }
 }
 
-nonisolated struct TickDayProjectChartEntry: Equatable, Identifiable {
+nonisolated struct TickPeriodProjectChartEntry: Equatable, Identifiable {
     let date: Date
     let projectID: TickProject.ID
     let projectName: String
@@ -101,62 +101,59 @@ nonisolated enum TickChartDataBuilder {
 
                 return TickDayChartEntry(date: day, duration: duration)
             }
+        case .year, .lifetime:
+            return []
         }
     }
 
-    static func dayProjectEntries(
+    static func periodProjectEntries(
         for period: SummaryPeriod,
         projects: [TickProject],
         sessions: [TimeSession],
         referenceDate: Date,
         calendar: Calendar = .current
-    ) -> [TickDayProjectChartEntry] {
-        switch period {
-        case .day:
-            return []
-        case .week, .month:
-            let interval = period.interval(containing: referenceDate, calendar: calendar)
-            let projectByID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
-            let periodSessions = sessions.filter { interval.contains($0.referenceDate) }
+    ) -> [TickPeriodProjectChartEntry] {
+        let interval = period.interval(containing: referenceDate, calendar: calendar)
+        let projectByID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
+        let periodSessions = sessions.filter { interval.contains($0.referenceDate) }
 
-            return Dictionary(grouping: periodSessions) { session in
-                DayProjectKey(
-                    date: calendar.startOfDay(for: session.referenceDate),
-                    projectID: session.projectID
-                )
+        return Dictionary(grouping: periodSessions) { session in
+            PeriodProjectKey(
+                date: period.timelineBucketStart(for: session.referenceDate, calendar: calendar),
+                projectID: session.projectID
+            )
+        }
+        .compactMap { key, groupedSessions in
+            guard let date = key.date, let project = projectByID[key.projectID] else {
+                return nil
             }
-            .compactMap { key, groupedSessions in
-                guard let project = projectByID[key.projectID] else {
-                    return nil
-                }
 
-                let duration = groupedSessions.reduce(0) { total, session in
-                    total + session.duration(at: referenceDate)
-                }
-
-                guard duration > 0 else {
-                    return nil
-                }
-
-                return TickDayProjectChartEntry(
-                    date: key.date,
-                    projectID: key.projectID,
-                    projectName: project.name,
-                    duration: duration
-                )
+            let duration = groupedSessions.reduce(0) { total, session in
+                total + session.duration(at: referenceDate)
             }
-            .sorted { lhs, rhs in
-                if lhs.date != rhs.date {
-                    return lhs.date < rhs.date
-                }
 
-                return lhs.projectName.localizedCaseInsensitiveCompare(rhs.projectName) == .orderedAscending
+            guard duration > 0 else {
+                return nil
             }
+
+            return TickPeriodProjectChartEntry(
+                date: date,
+                projectID: key.projectID,
+                projectName: project.name,
+                duration: duration
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.date != rhs.date {
+                return lhs.date < rhs.date
+            }
+
+            return lhs.projectName.localizedCaseInsensitiveCompare(rhs.projectName) == .orderedAscending
         }
     }
 }
 
-nonisolated private struct DayProjectKey: Hashable {
-    let date: Date
+nonisolated private struct PeriodProjectKey: Hashable {
+    let date: Date?
     let projectID: TickProject.ID
 }

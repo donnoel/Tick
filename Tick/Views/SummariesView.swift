@@ -15,7 +15,7 @@ struct SummariesView: View {
                     sessions: viewModel.sessions,
                     referenceDate: timeline.date
                 )
-                let dayProjectChartEntries = TickChartDataBuilder.dayProjectEntries(
+                let periodProjectChartEntries = TickChartDataBuilder.periodProjectEntries(
                     for: selectedPeriod,
                     projects: viewModel.projects,
                     sessions: viewModel.sessions,
@@ -27,11 +27,13 @@ struct SummariesView: View {
                     Section {
                         Picker("Period", selection: $selectedPeriod) {
                             ForEach(SummaryPeriod.allCases) { period in
-                                Text(period.title).tag(period)
+                                Text(period.pickerTitle)
+                                    .accessibilityLabel(period.title)
+                                    .tag(period)
                             }
                         }
                         .pickerStyle(.segmented)
-                        .accessibilityHint("Choose daily, weekly, or monthly summary.")
+                        .accessibilityHint("Choose a daily, weekly, monthly, yearly, or lifetime summary.")
                     }
                     .listRowBackground(Color.clear)
 
@@ -65,14 +67,14 @@ struct SummariesView: View {
                         }
                     }
 
-                    if selectedPeriod != .day {
-                        Section("Time by Day") {
-                            if dayProjectChartEntries.isEmpty {
-                                    Text("No time recorded in this period.")
+                    if let timelineTitle = selectedPeriod.timelineTitle {
+                        Section(timelineTitle) {
+                            if periodProjectChartEntries.isEmpty {
+                                Text("No time recorded in this period.")
                                     .foregroundStyle(.secondary)
                             } else {
-                                SummaryDayProjectChart(
-                                    entries: dayProjectChartEntries,
+                                SummaryPeriodProjectChart(
+                                    entries: periodProjectChartEntries,
                                     selectedPeriod: selectedPeriod,
                                     projectIDs: projectIDs
                                 )
@@ -111,15 +113,15 @@ struct SummariesView: View {
     }
 }
 
-private struct SummaryDayProjectChart: View {
-    let entries: [TickDayProjectChartEntry]
+private struct SummaryPeriodProjectChart: View {
+    let entries: [TickPeriodProjectChartEntry]
     let selectedPeriod: SummaryPeriod
     let projectIDs: [TickProject.ID]
 
     var body: some View {
         Chart(entries) { entry in
             BarMark(
-                x: .value("Day", entry.date, unit: .day),
+                x: .value("Period", entry.date, unit: selectedPeriod.timelineComponent),
                 y: .value("Duration", entry.hours)
             )
             .foregroundStyle(TickProjectAccent.color(for: entry.projectID, among: projectIDs))
@@ -127,7 +129,7 @@ private struct SummaryDayProjectChart: View {
             .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day)) { value in
+            AxisMarks(values: .stride(by: selectedPeriod.timelineComponent)) { value in
                 AxisGridLine()
                 AxisTick()
                 if let date = value.as(Date.self), shouldShowAxisLabel(for: date) {
@@ -147,7 +149,18 @@ private struct SummaryDayProjectChart: View {
     }
 
     private var axisLabelFormat: Date.FormatStyle {
-        selectedPeriod == .week ? .dateTime.weekday(.narrow) : .dateTime.day()
+        switch selectedPeriod {
+        case .day:
+            .dateTime.day()
+        case .week:
+            .dateTime.weekday(.narrow)
+        case .month:
+            .dateTime.day()
+        case .year:
+            .dateTime.month(.abbreviated)
+        case .lifetime:
+            .dateTime.year()
+        }
     }
 
     private func shouldShowAxisLabel(for date: Date) -> Bool {
@@ -162,6 +175,10 @@ private struct SummaryDayProjectChart: View {
             let lastDay = calendar.range(of: .day, in: .month, for: date)?.count ?? 31
 
             return day == 1 || day == lastDay || (day.isMultiple(of: 5) && day <= lastDay - 3)
+        case .year:
+            return Calendar.current.component(.month, from: date) % 2 == 1
+        case .lifetime:
+            return true
         }
     }
 
@@ -170,10 +187,10 @@ private struct SummaryDayProjectChart: View {
             "\(entry.date.formatted(date: .abbreviated, time: .omitted)) \(entry.projectName) \(TickDurationFormatter.shortString(from: entry.duration))"
         }.joined(separator: ", ")
 
-        return "Time by Day chart, \(details)."
+        return "\(selectedPeriod.timelineTitle ?? "Time") chart, \(details)."
     }
 
-    private func accessibilityLabel(for entry: TickDayProjectChartEntry) -> String {
+    private func accessibilityLabel(for entry: TickPeriodProjectChartEntry) -> String {
         let date = entry.date.formatted(date: .abbreviated, time: .omitted)
         return "\(entry.projectName), \(date)"
     }

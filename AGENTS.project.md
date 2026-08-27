@@ -22,7 +22,7 @@ Current scope:
 - space detail review with space-scoped session lists, session deletion, archive/restore actions, and voice memos
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
-- daily, weekly, and monthly text summaries
+- daily, weekly, monthly, yearly, and lifetime summaries
 - JSON persistence in the Tick App Group container with iCloud KVS sync between the iPhone/iPad app and widget actions
 
 Explicitly out of scope for this phase:
@@ -45,7 +45,7 @@ State and operations:
 - Project/session mutations live on the view model, not inside SwiftUI view bodies.
 - Auto Tick rule mutations and arrival/departure decisions live on the view model.
 - Auto Tick rule updates/deletes must persist through `TickDataStore` and refresh monitored regions.
-- `TickSummaryCalculator` handles daily, weekly, and monthly duration aggregation.
+- `TickSummaryCalculator` handles daily, weekly, monthly, yearly, and lifetime duration aggregation.
 - Widget App Intents use `TickWidgetActionStore` for small shared-data mutations.
 - Voice memo recording, playback, metadata, and audio-file persistence are coordinated through the view model and voice memo stores.
 

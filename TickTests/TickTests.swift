@@ -240,6 +240,55 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(summary.durationByProject.map(\.duration), [3_600, 1_800])
     }
 
+    func testYearAndLifetimeSummariesUseCalendarYearAndAllRecordedTime() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let project = TickProject(id: UUID(), name: "Long Running", createdAt: .distantPast)
+        let previousYearDate = calendar.date(from: DateComponents(year: 2023, month: 12, day: 31))!
+        let currentYearDate = calendar.date(from: DateComponents(year: 2024, month: 6, day: 15))!
+        let previousYearSession = TimeSession(
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: nil,
+            endedAt: nil,
+            manualDuration: 1_800,
+            entrySource: .manual,
+            createdAt: previousYearDate
+        )
+        let currentYearSession = TimeSession(
+            projectID: project.id,
+            title: "",
+            notes: "",
+            startedAt: nil,
+            endedAt: nil,
+            manualDuration: 3_600,
+            entrySource: .manual,
+            createdAt: currentYearDate
+        )
+
+        let yearSummary = TickSummaryCalculator.summary(
+            for: .year,
+            projects: [project],
+            sessions: [previousYearSession, currentYearSession],
+            referenceDate: currentYearDate,
+            calendar: calendar
+        )
+        let lifetimeSummary = TickSummaryCalculator.summary(
+            for: .lifetime,
+            projects: [project],
+            sessions: [previousYearSession, currentYearSession],
+            referenceDate: currentYearDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(yearSummary.sessionCount, 1)
+        XCTAssertEqual(yearSummary.totalDuration, 3_600)
+        XCTAssertEqual(lifetimeSummary.sessionCount, 2)
+        XCTAssertEqual(lifetimeSummary.totalDuration, 5_400)
+    }
+
     func testProjectChartExcludesZeroDurationProjects() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -339,7 +388,70 @@ final class TickTests: XCTestCase {
         })
     }
 
-    func testDayProjectChartKeepsProjectIdentity() {
+    func testYearAndLifetimeChartsGroupTimeByMonthAndYear() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let project = TickProject(id: UUID(), name: "Long Running", createdAt: .distantPast)
+        let previousYearDate = calendar.date(from: DateComponents(year: 2023, month: 12, day: 15))!
+        let januaryDate = calendar.date(from: DateComponents(year: 2024, month: 1, day: 10))!
+        let februaryDate = calendar.date(from: DateComponents(year: 2024, month: 2, day: 10))!
+        let referenceDate = calendar.date(from: DateComponents(year: 2024, month: 6, day: 15))!
+        let sessions = [
+            TimeSession(
+                projectID: project.id,
+                title: "",
+                notes: "",
+                startedAt: nil,
+                endedAt: nil,
+                manualDuration: 900,
+                entrySource: .manual,
+                createdAt: previousYearDate
+            ),
+            TimeSession(
+                projectID: project.id,
+                title: "",
+                notes: "",
+                startedAt: nil,
+                endedAt: nil,
+                manualDuration: 1_800,
+                entrySource: .manual,
+                createdAt: januaryDate
+            ),
+            TimeSession(
+                projectID: project.id,
+                title: "",
+                notes: "",
+                startedAt: nil,
+                endedAt: nil,
+                manualDuration: 3_600,
+                entrySource: .manual,
+                createdAt: februaryDate
+            )
+        ]
+
+        let yearEntries = TickChartDataBuilder.periodProjectEntries(
+            for: .year,
+            projects: [project],
+            sessions: sessions,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+        let lifetimeEntries = TickChartDataBuilder.periodProjectEntries(
+            for: .lifetime,
+            projects: [project],
+            sessions: sessions,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(yearEntries.map { calendar.component(.month, from: $0.date) }, [1, 2])
+        XCTAssertEqual(yearEntries.map(\.duration), [1_800, 3_600])
+        XCTAssertEqual(lifetimeEntries.map { calendar.component(.year, from: $0.date) }, [2023, 2024])
+        XCTAssertEqual(lifetimeEntries.map(\.duration), [900, 5_400])
+    }
+
+    func testPeriodProjectChartKeepsProjectIdentity() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         calendar.firstWeekday = 2
@@ -368,7 +480,7 @@ final class TickTests: XCTestCase {
             createdAt: referenceDate
         )
 
-        let entries = TickChartDataBuilder.dayProjectEntries(
+        let entries = TickChartDataBuilder.periodProjectEntries(
             for: .week,
             projects: [projectB, projectA],
             sessions: [sessionB, sessionA],

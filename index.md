@@ -97,7 +97,7 @@ title: Tick
       <li><span>03</span><div><strong>Do the thing</strong><p>The clock runs without constant writes.</p></div></li>
       <li><span>04</span><div><strong>Stop Tick</strong><p>Save the completed session.</p></div></li>
       <li><span>05</span><div><strong>Add context</strong><p>Title it or leave a note when useful.</p></div></li>
-      <li><span>06</span><div><strong>Review the pattern</strong><p>See daily, weekly, and monthly totals.</p></div></li>
+      <li><span>06</span><div><strong>Review the pattern</strong><p>See daily, weekly, monthly, yearly, and lifetime totals.</p></div></li>
     </ol>
   </div>
 </section>

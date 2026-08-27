@@ -4,6 +4,8 @@ nonisolated enum SummaryPeriod: String, CaseIterable, Identifiable {
     case day
     case week
     case month
+    case year
+    case lifetime
 
     var id: String { rawValue }
 
@@ -15,6 +17,49 @@ nonisolated enum SummaryPeriod: String, CaseIterable, Identifiable {
             "Weekly"
         case .month:
             "Monthly"
+        case .year:
+            "Year"
+        case .lifetime:
+            "Lifetime"
+        }
+    }
+
+    var pickerTitle: String {
+        switch self {
+        case .day:
+            "Day"
+        case .week:
+            "Week"
+        case .month:
+            "Month"
+        case .year:
+            "Year"
+        case .lifetime:
+            "All"
+        }
+    }
+
+    var timelineTitle: String? {
+        switch self {
+        case .day:
+            nil
+        case .week, .month:
+            "Time by Day"
+        case .year:
+            "Time by Month"
+        case .lifetime:
+            "Time by Year"
+        }
+    }
+
+    var timelineComponent: Calendar.Component {
+        switch self {
+        case .day, .week, .month:
+            .day
+        case .year:
+            .month
+        case .lifetime:
+            .year
         }
     }
 
@@ -26,6 +71,23 @@ nonisolated enum SummaryPeriod: String, CaseIterable, Identifiable {
             calendar.dateInterval(of: .weekOfYear, for: date) ?? DateInterval(start: date, duration: 0)
         case .month:
             calendar.dateInterval(of: .month, for: date) ?? DateInterval(start: date, duration: 0)
+        case .year:
+            calendar.dateInterval(of: .year, for: date) ?? DateInterval(start: date, duration: 0)
+        case .lifetime:
+            DateInterval(start: .distantPast, end: .distantFuture)
+        }
+    }
+
+    func timelineBucketStart(for date: Date, calendar: Calendar = .current) -> Date? {
+        switch self {
+        case .day:
+            nil
+        case .week, .month:
+            calendar.startOfDay(for: date)
+        case .year:
+            calendar.dateInterval(of: .month, for: date)?.start
+        case .lifetime:
+            calendar.dateInterval(of: .year, for: date)?.start
         }
     }
 }

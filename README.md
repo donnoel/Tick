@@ -17,7 +17,7 @@ Current MVP foundation:
 - create, edit, and delete opt-in Auto Tick location rules for automatic arrival/departure actions
 - use Home Screen and Lock Screen widgets to glance at, start, or stop the current Tick
 - view today's recorded time and sessions
-- review simple daily, weekly, and monthly summaries
+- review daily, weekly, monthly, yearly, and lifetime summaries
 - persist local data between launches
 - sync Tick data between iPhone and iPad with iCloud Key-Value Store
 
@@ -80,7 +80,7 @@ Tick/
 - [x] Add iCloud Key-Value Store sync foundation
 - [x] Add space archiving UI
 - [ ] Add map/search support for Auto Tick locations
-- [x] Add daily, weekly, and monthly charts
+- [x] Add daily, weekly, monthly, yearly, and lifetime charts
 - [ ] Add export after the local foundation is stable
 
 ## Credits
