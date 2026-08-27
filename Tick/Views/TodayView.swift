@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct TodayView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @Bindable var viewModel: TickViewModel
     @State private var isAddingTime = false
 
@@ -13,29 +16,20 @@ struct TodayView: View {
             let activeSession = viewModel.activeSession
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    todayHeader(at: displayDate)
-                    totalHeader(
-                        sessions: todaySessions,
-                        activeSession: activeSession,
-                        displayDate: displayDate
-                    )
-
-                    projectSelector
-                    actionButtons
-                    todaySessionsSection(
-                        todaySessions,
-                        fallbackTitles: fallbackTitles,
-                        projectIDs: projectIDs,
-                        displayDate: displayDate
-                    )
-                }
-                .frame(maxWidth: 980, alignment: .leading)
+                adaptiveTodayLayout(
+                    sessions: todaySessions,
+                    fallbackTitles: fallbackTitles,
+                    projectIDs: projectIDs,
+                    activeSession: activeSession,
+                    displayDate: displayDate
+                )
+                .frame(maxWidth: 1000, alignment: .leading)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
             }
-            .background(TodayBackground())
+            .background(Color(.systemBackground))
             .navigationTitle("Start Ticking")
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTime) {
@@ -44,16 +38,198 @@ struct TodayView: View {
         }
     }
 
+    private func adaptiveTodayLayout(
+        sessions: [TimeSession],
+        fallbackTitles: [TimeSession.ID: String],
+        projectIDs: [TickProject.ID],
+        activeSession: TimeSession?,
+        displayDate: Date
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 40) {
+                VStack(alignment: .leading, spacing: 24) {
+                    todayHeader(at: displayDate)
+                    captureSection(
+                        sessions: sessions,
+                        activeSession: activeSession,
+                        displayDate: displayDate,
+                        usesHorizontalActions: false
+                    )
+                }
+                .frame(minWidth: 340, idealWidth: 380, maxWidth: 420, alignment: .leading)
+
+                Divider()
+
+                todaySessionsSection(
+                    sessions,
+                    fallbackTitles: fallbackTitles,
+                    projectIDs: projectIDs,
+                    displayDate: displayDate
+                )
+                .frame(minWidth: 380, maxWidth: .infinity, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: 24) {
+                todayHeader(at: displayDate)
+                captureSection(
+                    sessions: sessions,
+                    activeSession: activeSession,
+                    displayDate: displayDate,
+                    usesHorizontalActions: usesWideCaptureLayout
+                )
+                todaySessionsSection(
+                    sessions,
+                    fallbackTitles: fallbackTitles,
+                    projectIDs: projectIDs,
+                    displayDate: displayDate
+                )
+            }
+        }
+    }
+
     private func todayHeader(at date: Date) -> some View {
         TodayHeader(displayDate: date)
     }
 
-    private func totalHeader(
+    private func captureSection(
+        sessions: [TimeSession],
+        activeSession: TimeSession?,
+        displayDate: Date,
+        usesHorizontalActions: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            captureContext(activeSession: activeSession)
+
+            if usesHorizontalActions {
+                HStack(alignment: .center, spacing: 40) {
+                    timerTimeline(
+                        sessions: sessions,
+                        activeSession: activeSession,
+                        displayDate: displayDate
+                    )
+
+                    Spacer(minLength: 12)
+
+                    timerActions
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 18) {
+                    timerTimeline(
+                        sessions: sessions,
+                        activeSession: activeSession,
+                        displayDate: displayDate
+                    )
+
+                    timerActions
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private var projectSelector: some View {
+        if viewModel.activeProjects.isEmpty {
+            Label("Add a Space in Spaces to begin", systemImage: "folder.badge.plus")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(minHeight: 44)
+                .accessibilityLabel("No Spaces available. Add a Space in the Spaces tab to begin.")
+        } else {
+            Menu {
+                ForEach(viewModel.activeProjects) { project in
+                    Button {
+                        viewModel.selectedProjectID = project.id
+                    } label: {
+                        HStack {
+                            Text(project.name)
+
+                            if project.id == selectedProjectID {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(selectedProjectAccent)
+                        .frame(width: 9, height: 9)
+                        .accessibilityHidden(true)
+
+                    Text(selectedProjectName)
+                        .lineLimit(1)
+
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Space, \(selectedProjectName)")
+            .accessibilityHint("Choose the space for the next timer session.")
+        }
+    }
+
+    private func captureContext(activeSession: TimeSession?) -> some View {
+        HStack(spacing: 14) {
+            projectSelector
+
+            if let activeSession {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(TickPalette.running)
+                        .frame(width: 7, height: 7)
+                        .accessibilityHidden(true)
+
+                    Text(activeSession.isPaused ? "Paused" : "Running")
+                        .lineLimit(1)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(activeSession.isPaused ? "Tick paused" : "Tick running")
+            }
+
+            Spacer(minLength: 8)
+
+            addTimeButton
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var addTimeButton: some View {
+        Button {
+            isAddingTime = true
+        } label: {
+            ViewThatFits(in: .horizontal) {
+                Label("Add Time", systemImage: "plus.circle.fill")
+                Image(systemName: "plus.circle.fill")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(TickPalette.primaryAction)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.activeProjects.isEmpty)
+        .accessibilityIdentifier("today.addTimeButton")
+        .accessibilityLabel("Add Time")
+        .accessibilityHint("Add time manually when you forgot to start Tick.")
+    }
+
+    private func timerTimeline(
         sessions: [TimeSession],
         activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
-        TodayHeroTimelineCard(
+        TodayTimerTimeline(
             staticTotalDuration: staticTotalDuration(from: sessions, at: displayDate),
             activeSession: activeSession,
             activeSessionCountsTowardTotal: activeSession.map { activeSession in
@@ -63,131 +239,68 @@ struct TodayView: View {
         )
     }
 
-    private var projectSelector: some View {
-        let selectedProjectID = viewModel.selectedProjectID ?? viewModel.activeProjects.first?.id
-        let selectedAccent = selectedProjectID.map {
-            TickProjectAccent.color(for: $0, among: viewModel.projects.map(\.id))
-        } ?? TickPalette.primaryAction
-
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                TickProjectBadge(color: selectedAccent, systemImage: "folder.fill")
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Space")
-                        .font(.headline)
-
-                    Text(selectedSpaceSubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
-
-            if viewModel.activeProjects.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.title2)
-                        .foregroundStyle(selectedAccent)
-                        .frame(width: 38, height: 38)
-                        .background(selectedAccent.opacity(0.12), in: Circle())
-
-                    Text("Add a space from the Spaces tab to start ticking.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 2)
-            } else {
-                Picker("Space", selection: $viewModel.selectedProjectID) {
-                    ForEach(viewModel.activeProjects) { project in
-                        Text(project.name).tag(Optional(project.id))
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(selectedAccent)
-                .accessibilityHint("Choose the space for the next timer session.")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .tickCard(tint: selectedAccent)
-    }
-
-    private var actionButtons: some View {
-        HStack(spacing: 14) {
+    @ViewBuilder
+    private var timerActions: some View {
+        if let activeSession = viewModel.activeSession {
             HStack(spacing: 12) {
-                TimerIconButton(
-                    systemImage: "play.fill",
-                    title: playTitle,
-                    tint: TickPalette.primaryAction,
-                    isProminent: canPlay
-                ) {
-                    Task {
-                        if viewModel.activeSession?.isPaused == true {
+                if activeSession.isPaused {
+                    TimerTextButton(
+                        systemImage: "play.fill",
+                        title: "Resume Tick",
+                        tint: TickPalette.primaryAction,
+                        isProminent: true
+                    ) {
+                        Task {
                             await viewModel.resumeTick()
-                        } else {
-                            await viewModel.startTick()
                         }
                     }
-                }
-                .disabled(!canPlay)
-                .accessibilityIdentifier("today.playButton")
-                .accessibilityHint(playAccessibilityHint)
-
-                TimerIconButton(
-                    systemImage: "pause.fill",
-                    title: "Pause Tick",
-                    tint: TickPalette.running,
-                    isProminent: canPause
-                ) {
-                    Task {
-                        await viewModel.pauseTick()
+                    .accessibilityIdentifier("today.playButton")
+                    .accessibilityHint("Resumes the paused Tick.")
+                } else {
+                    TimerTextButton(
+                        systemImage: "pause.fill",
+                        title: "Pause Tick",
+                        tint: TickPalette.running,
+                        isProminent: true
+                    ) {
+                        Task {
+                            await viewModel.pauseTick()
+                        }
                     }
+                    .accessibilityIdentifier("today.pauseButton")
+                    .accessibilityHint("Pauses the active Tick without recording the paused time.")
                 }
-                .disabled(!canPause)
-                .accessibilityIdentifier("today.pauseButton")
-                .accessibilityHint("Pauses the active Tick without recording the paused time.")
 
-                TimerIconButton(
+                TimerTextButton(
                     systemImage: "stop.fill",
                     title: "Stop Tick",
                     tint: TickPalette.running,
-                    isProminent: canStop
+                    isProminent: false,
+                    minimumWidth: 100
                 ) {
                     Task {
                         await viewModel.stopTick()
                     }
                 }
-                .disabled(!canStop)
                 .accessibilityIdentifier("today.stopButton")
                 .accessibilityHint("Stops and saves the active Tick session.")
             }
-            .padding(8)
-            .background(.thinMaterial, in: Capsule())
-
-            Spacer()
-
-            Button {
-                isAddingTime = true
-            } label: {
-                Label("Add Time", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 52, height: 52)
+        } else {
+            TimerTextButton(
+                systemImage: "play.fill",
+                title: "Start Tick",
+                tint: TickPalette.primaryAction,
+                isProminent: true,
+                minimumWidth: 170
+            ) {
+                Task {
+                    await viewModel.startTick()
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .clipShape(Circle())
-            .tint(TickPalette.primaryAction)
-            .disabled(viewModel.activeProjects.isEmpty)
-            .accessibilityIdentifier("today.addTimeButton")
-            .accessibilityLabel("Add Time")
-            .accessibilityHint("Add time manually when you forgot to start Tick.")
+            .disabled(viewModel.selectedProjectID == nil)
+            .accessibilityIdentifier("today.playButton")
+            .accessibilityHint("Starts a timer immediately for the selected space.")
         }
-        .padding(12)
-        .tickCard(tint: viewModel.activeSession == nil ? TickPalette.primaryAction : TickPalette.running, isHighlighted: viewModel.activeSession != nil)
-        .padding(.bottom, 4)
     }
 
     private func todaySessionsSection(
@@ -196,33 +309,29 @@ struct TodayView: View {
         projectIDs: [TickProject.ID],
         displayDate: Date
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Today's Ticks")
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
                     .accessibilityIdentifier("today.sessionsHeader")
 
                 Spacer()
 
-                Text("\(sessions.count)")
-                    .font(.caption.weight(.bold))
+                Text(sessions.isEmpty ? "None yet" : "\(sessions.count)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .monospacedDigit()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(TickPalette.primaryAction.opacity(0.14), in: Capsule())
-                    .foregroundStyle(TickPalette.primaryAction)
                     .accessibilityLabel("\(sessions.count) sessions today")
             }
 
             if sessions.isEmpty {
-                Label("No time recorded yet today.", systemImage: "clock.badge")
+                Label("No time recorded yet today", systemImage: "clock")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .tickCard(tint: TickPalette.primaryAction)
+                    .padding(.vertical, 14)
             } else {
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: 0) {
                     ForEach(sessions) { session in
                         NavigationLink {
                             SessionDetailView(viewModel: viewModel, session: session)
@@ -238,6 +347,11 @@ struct TodayView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Opens session details.")
+
+                        if session.id != sessions.last?.id {
+                            Divider()
+                                .padding(.leading, 22)
+                        }
                     }
                 }
             }
@@ -254,60 +368,28 @@ struct TodayView: View {
         }
     }
 
-    private var canPlay: Bool {
-        viewModel.activeSession?.isPaused == true ||
-            (viewModel.activeSession == nil && viewModel.selectedProjectID != nil)
+    private var selectedProjectID: TickProject.ID? {
+        viewModel.selectedProjectID ?? viewModel.activeProjects.first?.id
     }
 
-    private var canPause: Bool {
-        guard let activeSession = viewModel.activeSession else {
-            return false
+    private var selectedProjectName: String {
+        selectedProjectID.flatMap { viewModel.project(for: $0)?.name } ?? "Choose a Space"
+    }
+
+    private var selectedProjectAccent: Color {
+        guard let selectedProjectID else {
+            return TickPalette.primaryAction
         }
 
-        return !activeSession.isPaused
+        return TickProjectAccent.color(for: selectedProjectID, among: viewModel.projects.map(\.id))
     }
 
-    private var canStop: Bool {
-        viewModel.activeSession != nil
-    }
-
-    private var playTitle: String {
-        viewModel.activeSession?.isPaused == true ? "Resume Tick" : "Start Tick"
-    }
-
-    private var playAccessibilityHint: String {
-        if viewModel.activeSession?.isPaused == true {
-            return "Resumes the paused Tick."
-        }
-
-        return "Starts a timer immediately for the selected space."
-    }
-
-    private var selectedSpaceSubtitle: String {
-        if viewModel.activeProjects.isEmpty {
-            return "Add one before ticking"
-        }
-
-        if viewModel.activeSession != nil {
-            return "Catching time right now"
-        }
-
-        return "Ready for the next Tick"
+    private var usesWideCaptureLayout: Bool {
+        horizontalSizeClass == .regular && !dynamicTypeSize.isAccessibilitySize
     }
 
     private func projectName(for projectID: TickProject.ID) -> String {
         viewModel.project(for: projectID)?.name ?? "Unknown Space"
-    }
-
-    private func untitledSessionFallbackTitles(for sessions: [TimeSession]) -> [TimeSession.ID: String] {
-        Dictionary(
-            uniqueKeysWithValues: sessions
-                .filter { $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                .enumerated()
-                .map { index, session in
-                    (session.id, "\(index + 1) Tick")
-                }
-        )
     }
 }
 
@@ -315,149 +397,68 @@ private struct TodayHeader: View {
     let displayDate: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 3) {
             Text("Start Ticking")
-                .font(.largeTitle.weight(.bold))
-                .minimumScaleFactor(0.78)
-                .lineLimit(1)
+                .font(.title.weight(.bold))
 
             Text(displayDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(.subheadline.weight(.medium))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 22)
-        .padding(.horizontal, 14)
-        .padding(.bottom, 14)
-        .background {
-            LinearGradient(
-                colors: [
-                    TickPalette.primaryAction.opacity(0.10),
-                    Color.cyan.opacity(0.06),
-                    Color.clear
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-        }
+        .padding(.top, 6)
     }
 }
 
-private struct TodayHeroCard: View {
+private struct TodayTimerDisplay: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 48.0
+
     let totalDuration: TimeInterval
     let activeSession: TimeSession?
     let displayDate: Date
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            TodayTickTrail(tint: tint)
-                .padding(.top, 14)
-                .padding(.trailing, 12)
+        Group {
+            if let activeSession {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(TickDurationFormatter.timerString(from: activeSession.duration(at: displayDate)))
+                        .font(.system(size: timerFontSize, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.62)
+                        .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    Label(statusTitle, systemImage: statusSystemImage)
-                        .font(.headline)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(tint.opacity(0.14), in: Capsule())
-                        .foregroundStyle(tint)
-
-                    Spacer()
+                    Text("\(TickDurationFormatter.shortString(from: totalDuration)) today")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
+            } else {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("\(TickDurationFormatter.shortString(from: totalDuration)) today")
+                        .font(.title2.weight(.semibold))
+                        .monospacedDigit()
 
-                Text(primaryDuration)
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.68)
-                    .lineLimit(1)
-
-                HStack(spacing: 8) {
-                    Image(systemName: secondarySystemImage)
-                        .foregroundStyle(tint)
-
-                    Text(secondaryText)
+                    Text("Ready when you are")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            tint.opacity(activeSession == nil ? 0.16 : 0.22),
-                            Color.cyan.opacity(0.10),
-                            TickPalette.cardBackground
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(tint.opacity(activeSession == nil ? 0.18 : 0.36), lineWidth: 1)
-                }
-        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private var primaryDuration: String {
-        if let activeSession {
-            return TickDurationFormatter.timerString(from: activeSession.duration(at: displayDate))
-        }
-
-        return TickDurationFormatter.timerString(from: totalDuration)
-    }
-
-    private var secondaryText: String {
-        if activeSession != nil {
-            return "Today's total: \(TickDurationFormatter.shortString(from: totalDuration))"
-        }
-
-        return "Ready for your next Tick"
-    }
-
-    private var secondarySystemImage: String {
-        activeSession == nil ? "play.circle" : "chart.line.uptrend.xyaxis"
     }
 
     private var accessibilityLabel: String {
         if let activeSession {
             let status = activeSession.isPaused ? "Paused Tick" : "Running Tick"
-            return "\(status), elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(secondaryText)"
+            return "\(status), elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(TickDurationFormatter.shortString(from: totalDuration)) today"
         }
 
-        return "Today's total recorded time, \(TickDurationFormatter.shortString(from: totalDuration))"
-    }
-
-    private var statusTitle: String {
-        guard let activeSession else {
-            return "Today’s Total"
-        }
-
-        return activeSession.isPaused ? "Paused" : "Running"
-    }
-
-    private var statusSystemImage: String {
-        guard let activeSession else {
-            return "clock"
-        }
-
-        return activeSession.isPaused ? "pause.circle" : "timer"
-    }
-
-    private var tint: Color {
-        activeSession == nil ? TickPalette.primaryAction : TickPalette.running
+        return "Today's total recorded time, \(TickDurationFormatter.shortString(from: totalDuration)). Ready when you are."
     }
 }
 
-private struct TodayHeroTimelineCard: View {
+private struct TodayTimerTimeline: View {
     let staticTotalDuration: TimeInterval
     let activeSession: TimeSession?
     let activeSessionCountsTowardTotal: Bool
@@ -466,15 +467,15 @@ private struct TodayHeroTimelineCard: View {
     var body: some View {
         if let activeSession, !activeSession.isPaused {
             TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                heroCard(activeSession: activeSession, displayDate: timeline.date)
+                timerDisplay(activeSession: activeSession, displayDate: timeline.date)
             }
         } else {
-            heroCard(activeSession: activeSession, displayDate: displayDate)
+            timerDisplay(activeSession: activeSession, displayDate: displayDate)
         }
     }
 
-    private func heroCard(activeSession: TimeSession?, displayDate: Date) -> some View {
-        TodayHeroCard(
+    private func timerDisplay(activeSession: TimeSession?, displayDate: Date) -> some View {
+        TodayTimerDisplay(
             totalDuration: totalDuration(activeSession: activeSession, displayDate: displayDate),
             activeSession: activeSession,
             displayDate: displayDate
@@ -515,70 +516,39 @@ private struct LiveSessionRowView: View {
             projectName: projectName,
             displayDate: displayDate,
             defaultTitle: defaultTitle,
-            accentColor: accentColor
+            accentColor: accentColor,
+            presentation: .plain
         )
     }
 }
 
-private struct TimerIconButton: View {
+private struct TimerTextButton: View {
     let systemImage: String
     let title: String
     let tint: Color
     let isProminent: Bool
+    var minimumWidth = 124.0
     let action: () -> Void
 
     var body: some View {
         if isProminent {
             button
                 .buttonStyle(.borderedProminent)
-                .clipShape(Circle())
                 .tint(tint)
-                .accessibilityLabel(title)
         } else {
             button
-                .buttonStyle(.bordered)
-                .clipShape(Circle())
-                .tint(tint)
-                .accessibilityLabel(title)
+                .buttonStyle(.plain)
+                .foregroundStyle(tint)
         }
     }
 
     private var button: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.title3.weight(.semibold))
-                .frame(width: 50, height: 50)
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+                .frame(minWidth: minimumWidth, minHeight: 46)
         }
-    }
-}
-
-private struct TodayBackground: View {
-    var body: some View {
-        LinearGradient(
-            colors: [
-                Color.blue.opacity(0.08),
-                Color.pink.opacity(0.06),
-                TickPalette.appBackground
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-}
-
-private struct TodayTickTrail: View {
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 5) {
-            ForEach(0..<5) { index in
-                Capsule()
-                    .fill(tint.opacity(0.16 + Double(index) * 0.04))
-                    .frame(width: 8, height: CGFloat(16 + index * 4))
-            }
-        }
-        .rotationEffect(.degrees(-18))
-        .accessibilityHidden(true)
+        .clipShape(Capsule())
+        .accessibilityLabel(title)
     }
 }
