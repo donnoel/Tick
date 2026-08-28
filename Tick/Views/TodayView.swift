@@ -35,7 +35,7 @@ struct TodayView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 36)
                 } else {
-                    adaptiveTodayLayout(
+                    iPhoneTodayLayout(
                         sessions: todaySessions,
                         fallbackTitles: fallbackTitles,
                         projectIDs: projectIDs,
@@ -219,52 +219,26 @@ struct TodayView: View {
         }
     }
 
-    private func adaptiveTodayLayout(
+    private func iPhoneTodayLayout(
         sessions: [TimeSession],
         fallbackTitles: [TimeSession.ID: String],
         projectIDs: [TickProject.ID],
         activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 40) {
-                VStack(alignment: .leading, spacing: 24) {
-                    todayHeader(at: displayDate)
-                    captureSection(
-                        sessions: sessions,
-                        activeSession: activeSession,
-                        displayDate: displayDate,
-                        usesHorizontalActions: false
-                    )
-                }
-                .frame(minWidth: 340, idealWidth: 380, maxWidth: 420, alignment: .leading)
-
-                Divider()
-
-                todaySessionsSection(
-                    sessions,
-                    fallbackTitles: fallbackTitles,
-                    projectIDs: projectIDs,
-                    displayDate: displayDate
-                )
-                .frame(minWidth: 380, maxWidth: .infinity, alignment: .leading)
-            }
-
-            VStack(alignment: .leading, spacing: 24) {
-                todayHeader(at: displayDate)
-                captureSection(
-                    sessions: sessions,
-                    activeSession: activeSession,
-                    displayDate: displayDate,
-                    usesHorizontalActions: usesWideCaptureLayout
-                )
-                todaySessionsSection(
-                    sessions,
-                    fallbackTitles: fallbackTitles,
-                    projectIDs: projectIDs,
-                    displayDate: displayDate
-                )
-            }
+        VStack(alignment: .leading, spacing: 22) {
+            todayHeader(at: displayDate)
+            iPhoneCurrentTickSection(
+                sessions: sessions,
+                activeSession: activeSession,
+                displayDate: displayDate
+            )
+            todaySessionsSection(
+                sessions,
+                fallbackTitles: fallbackTitles,
+                projectIDs: projectIDs,
+                displayDate: displayDate
+            )
         }
     }
 
@@ -272,41 +246,25 @@ struct TodayView: View {
         TodayHeader(displayDate: date)
     }
 
-    private func captureSection(
+    private func iPhoneCurrentTickSection(
         sessions: [TimeSession],
         activeSession: TimeSession?,
-        displayDate: Date,
-        usesHorizontalActions: Bool
+        displayDate: Date
     ) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            captureContext(activeSession: activeSession)
+        VStack(spacing: 14) {
+            iPhoneCaptureContext()
 
-            if usesHorizontalActions {
-                HStack(alignment: .center, spacing: 40) {
-                    timerTimeline(
-                        sessions: sessions,
-                        activeSession: activeSession,
-                        displayDate: displayDate
-                    )
+            timerTimeline(
+                sessions: sessions,
+                activeSession: activeSession,
+                displayDate: displayDate
+            )
+            .frame(maxWidth: .infinity)
 
-                    Spacer(minLength: 12)
-
-                    timerActions()
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 18) {
-                    timerTimeline(
-                        sessions: sessions,
-                        activeSession: activeSession,
-                        displayDate: displayDate
-                    )
-
-                    timerActions()
-                }
-            }
+            timerActions()
+                .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .padding(.bottom, 4)
     }
 
@@ -325,7 +283,9 @@ struct TodayView: View {
                 Label("Add a Space in Spaces to begin", systemImage: "folder.badge.plus")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .frame(minHeight: 44)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .background(Color.secondary.opacity(0.07), in: Capsule())
                     .accessibilityLabel("No Spaces available. Add a Space in the Spaces tab to begin.")
             }
         } else {
@@ -388,6 +348,8 @@ struct TodayView: View {
                         Text(selectedProjectName)
                             .lineLimit(1)
 
+                        Spacer(minLength: 4)
+
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.tertiary)
@@ -395,7 +357,13 @@ struct TodayView: View {
                     }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                    .frame(minHeight: 44)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .background(selectedProjectAccent.opacity(0.06), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(selectedProjectAccent.opacity(0.14), lineWidth: 1)
+                    }
                     .contentShape(Rectangle())
                 }
             }
@@ -404,29 +372,14 @@ struct TodayView: View {
         }
     }
 
-    private func captureContext(activeSession: TimeSession?) -> some View {
-        HStack(spacing: 14) {
+    private func iPhoneCaptureContext() -> some View {
+        HStack(spacing: 12) {
             projectSelector()
-
-            if let activeSession {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(TickPalette.running)
-                        .frame(width: 7, height: 7)
-                        .accessibilityHidden(true)
-
-                    Text(activeSession.isPaused ? "Paused" : "Running")
-                        .lineLimit(1)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(activeSession.isPaused ? "Tick paused" : "Tick running")
-            }
-
-            Spacer(minLength: 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
 
             addTimeButton()
+                .fixedSize(horizontal: true, vertical: false)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -496,8 +449,23 @@ struct TodayView: View {
                 }
             }
         } else if viewModel.activeSession != nil {
-            HStack(spacing: 12) {
-                timerActionButtons(presentation: presentation)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: 10) {
+                    timerActionButtons(presentation: presentation)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        timerActionButtons(presentation: presentation)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    VStack(spacing: 10) {
+                        timerActionButtons(presentation: presentation)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
         } else {
             timerActionButtons(presentation: presentation)
@@ -586,11 +554,11 @@ struct TodayView: View {
 
                 Spacer()
 
-                Text(sessions.isEmpty ? "None yet" : "\(sessions.count)")
+                Text(sessions.isEmpty ? "None yet" : "\(sessions.count) \(sessions.count == 1 ? "tick" : "ticks")")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
-                    .accessibilityLabel("\(sessions.count) sessions today")
+                    .accessibilityLabel("\(sessions.count) \(sessions.count == 1 ? "tick" : "ticks") today")
             }
 
             if sessions.isEmpty {
@@ -653,10 +621,6 @@ struct TodayView: View {
         return TickProjectAccent.color(for: selectedProjectID, among: viewModel.projects.map(\.id))
     }
 
-    private var usesWideCaptureLayout: Bool {
-        horizontalSizeClass == .regular && !dynamicTypeSize.isAccessibilitySize
-    }
-
     private func projectName(for projectID: TickProject.ID) -> String {
         viewModel.project(for: projectID)?.name ?? "Unknown Space"
     }
@@ -667,7 +631,7 @@ private struct TodayHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("Start Ticking")
+            Text("Today")
                 .font(.title.weight(.bold))
 
             Text(displayDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
@@ -703,32 +667,20 @@ private struct TodayTimerDisplay: View {
     }
 
     private var compactDisplay: some View {
-        Group {
-            if let activeSession {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(TickDurationFormatter.timerString(from: activeSession.duration(at: displayDate)))
-                        .font(.system(size: timerFontSize, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .minimumScaleFactor(0.62)
-                        .lineLimit(1)
+        VStack(spacing: 4) {
+            Text(TickDurationFormatter.timerString(from: activeSession?.duration(at: displayDate) ?? 0))
+                .font(.system(size: timerFontSize, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.62)
+                .lineLimit(1)
 
-                    Text("\(TickDurationFormatter.shortString(from: totalDuration)) today")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("\(TickDurationFormatter.shortString(from: totalDuration)) today")
-                        .font(.title2.weight(.semibold))
-                        .monospacedDigit()
-
-                    Text("Ready when you are")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            Text("Today total \(TickDurationFormatter.shortString(from: totalDuration))")
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .monospacedDigit()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
