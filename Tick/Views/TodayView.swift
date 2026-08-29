@@ -251,21 +251,55 @@ struct TodayView: View {
         activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
-        VStack(spacing: 14) {
-            iPhoneCaptureContext()
+        VStack(spacing: 12) {
+            VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 22 : 18) {
+                Text(iPhoneCaptureStatus(activeSession: activeSession))
+                    .font(.caption.weight(.semibold))
+                    .tracking(1)
+                    .foregroundStyle(activeSession == nil ? Color.secondary : selectedProjectAccent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityHidden(true)
 
-            timerTimeline(
-                sessions: sessions,
-                activeSession: activeSession,
-                displayDate: displayDate
-            )
-            .frame(maxWidth: .infinity)
+                projectSelector()
 
-            timerActions()
+                timerTimeline(
+                    sessions: sessions,
+                    activeSession: activeSession,
+                    displayDate: displayDate
+                )
+                .frame(maxWidth: .infinity)
+
+                timerActions()
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(TickPalette.cardBackground)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(selectedProjectAccent.opacity(0.055))
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(selectedProjectAccent.opacity(0.16), lineWidth: 1)
+                    }
+            }
+
+            addTimeButton()
                 .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 4)
+    }
+
+    private func iPhoneCaptureStatus(activeSession: TimeSession?) -> String {
+        guard let activeSession else {
+            return "READY TO START"
+        }
+
+        return activeSession.isPaused ? "TICK PAUSED" : "CURRENT TICK"
     }
 
     @ViewBuilder
@@ -372,18 +406,6 @@ struct TodayView: View {
         }
     }
 
-    private func iPhoneCaptureContext() -> some View {
-        HStack(spacing: 12) {
-            projectSelector()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
-
-            addTimeButton()
-                .fixedSize(horizontal: true, vertical: false)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func addTimeButton(presentation: CapturePresentation = .compact) -> some View {
         Button {
             isAddingTime = true
@@ -395,14 +417,16 @@ struct TodayView: View {
                     .frame(minWidth: 120, minHeight: 44)
                     .contentShape(Rectangle())
             } else {
-                ViewThatFits(in: .horizontal) {
-                    Label("Add Time", systemImage: "plus.circle.fill")
-                    Image(systemName: "plus.circle.fill")
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(TickPalette.primaryAction)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+                Label("Add Time", systemImage: "plus.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(TickPalette.primaryAction)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color.secondary.opacity(0.06), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                    }
+                    .contentShape(Rectangle())
             }
         }
         .buttonStyle(.plain)
@@ -840,8 +864,9 @@ private struct TimerTextButton: View {
                 .tint(tint)
         } else {
             button
-                .buttonStyle(.plain)
-                .foregroundStyle(tint)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .tint(tint)
         }
     }
 
