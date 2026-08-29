@@ -93,6 +93,7 @@ struct TickWidgetView: View {
                 activeView
             }
         }
+        .padding(.vertical, family == .systemMedium ? 8 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -169,21 +170,16 @@ struct TickWidgetView: View {
         .accessibilityElement(children: .combine)
     }
 
+    @ViewBuilder
     private var idleView: some View {
-        let isSmall = family == .systemSmall
-
-        return VStack(alignment: .leading, spacing: isSmall ? 5 : 8) {
-            if isSmall {
+        if family == .systemSmall {
+            VStack(alignment: .leading, spacing: 5) {
                 compactStatusHeader(
                     title: "Ready",
                     systemImage: "play.circle.fill",
                     tint: TickWidgetStyle.primary
                 )
-            } else {
-                widgetHeader(title: "Ticks", systemImage: "timer")
-            }
 
-            if isSmall {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(shortDurationString(from: entry.snapshot.todayTotalDuration))
                         .font(.system(size: 28, weight: .semibold, design: .rounded).monospacedDigit())
@@ -195,24 +191,9 @@ struct TickWidgetView: View {
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
-            } else {
-                Text(shortDurationString(from: entry.snapshot.todayTotalDuration))
-                    .font(.system(size: 44, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
 
-                if let projectName = entry.snapshot.defaultProjectName {
-                    widgetDetailRow(systemImage: "folder.fill", text: projectName)
-                }
+                Spacer(minLength: 0)
 
-                TickWidgetProgressBar(progress: todayProgress)
-                    .accessibilityHidden(true)
-            }
-
-            Spacer(minLength: 0)
-
-            if isSmall {
                 compactPrimaryActionButton(
                     title: "Start Tick",
                     systemImage: "play.fill",
@@ -220,7 +201,36 @@ struct TickWidgetView: View {
                     projectName: entry.snapshot.defaultProjectName ?? "Ticks",
                     intent: StartTickIntent()
                 )
-            } else {
+            }
+            .background {
+                compactProjectWatermark(
+                    entry.snapshot.defaultProjectName ?? "Ticks",
+                    tint: TickWidgetStyle.primary
+                )
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 7) {
+                widgetHeader(title: "Ticks", systemImage: "timer")
+
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(shortDurationString(from: entry.snapshot.todayTotalDuration))
+                        .font(.system(size: 38, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Spacer(minLength: 8)
+
+                    if let projectName = entry.snapshot.defaultProjectName {
+                        widgetDetailRow(systemImage: "folder.fill", text: projectName)
+                    }
+                }
+
+                TickWidgetProgressBar(progress: todayProgress)
+                    .accessibilityHidden(true)
+
+                Spacer(minLength: 0)
+
                 actionFooter(
                     title: "Start Tick",
                     caption: "Ready",
@@ -230,87 +240,30 @@ struct TickWidgetView: View {
                 )
             }
         }
-        .background {
-            if isSmall {
-                compactProjectWatermark(
-                    entry.snapshot.defaultProjectName ?? "Ticks",
-                    tint: TickWidgetStyle.primary
-                )
-            }
-        }
     }
 
+    @ViewBuilder
     private var activeView: some View {
-        let isSmall = family == .systemSmall
         let isStale = entry.snapshot.isRunningTimerStale(at: entry.date)
 
-        return VStack(alignment: .leading, spacing: isSmall ? 5 : 8) {
-            if isSmall {
+        if family == .systemSmall {
+            VStack(alignment: .leading, spacing: 5) {
                 compactStatusHeader(
                     title: activeStatusTitle(isStale: isStale),
                     systemImage: activeStatusSystemImage(isStale: isStale),
                     tint: TickWidgetStyle.running
                 )
-            } else {
-                widgetHeader(
-                    title: activeStatusTitle(isStale: isStale),
-                    systemImage: activeStatusSystemImage(isStale: isStale),
-                    tint: TickWidgetStyle.running
-                )
 
-                Text(entry.snapshot.activeProjectName ?? "Ticks")
-                    .font(.headline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+                activeDuration(isSmall: true, isStale: isStale)
 
-            if !isSmall {
-                Text(entry.snapshot.activeSessionTitle ?? "Tick")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+                if isStale {
+                    Text("Last confirmed")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
 
-            if isStale, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
-                Text(timerDurationString(from: activeElapsedDuration))
-                    .font(.system(size: isSmall ? 28 : 40, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .accessibilityLabel("Last confirmed elapsed time")
-            } else if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
-                Text(timerDurationString(from: activeElapsedDuration))
-                    .font(.system(size: isSmall ? 28 : 40, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .accessibilityLabel("Paused elapsed time")
-            } else if let runningTimerStartDate = entry.snapshot.runningTimerStartDate,
-                      let runningTimerFreshUntil = entry.snapshot.runningTimerFreshUntil {
-                Text(
-                    timerInterval: runningTimerStartDate...runningTimerFreshUntil,
-                    pauseTime: runningTimerFreshUntil,
-                    countsDown: false
-                )
-                    .font(.system(size: isSmall ? 28 : 40, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .accessibilityLabel("Elapsed time")
-            } else {
-                Text("Running")
-                    .font(.title2.weight(.bold))
-            }
+                Spacer(minLength: 0)
 
-            if isSmall, isStale {
-                Text("Last confirmed")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-
-            if isSmall {
                 compactPrimaryActionButton(
                     title: "Stop Tick",
                     systemImage: "stop.fill",
@@ -318,7 +271,41 @@ struct TickWidgetView: View {
                     projectName: entry.snapshot.activeProjectName ?? "Ticks",
                     intent: StopTickIntent()
                 )
-            } else {
+            }
+            .background {
+                compactProjectWatermark(
+                    entry.snapshot.activeProjectName ?? "Ticks",
+                    tint: TickWidgetStyle.running
+                )
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                widgetHeader(
+                    title: activeStatusTitle(isStale: isStale),
+                    systemImage: activeStatusSystemImage(isStale: isStale),
+                    tint: TickWidgetStyle.running
+                )
+
+                HStack(alignment: .bottom, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.snapshot.activeProjectName ?? "Ticks")
+                            .font(.headline.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        Text(entry.snapshot.activeSessionTitle ?? "Tick")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    activeDuration(isSmall: false, isStale: isStale)
+                }
+
+                Spacer(minLength: 0)
+
                 actionFooter(
                     title: "Stop Tick",
                     caption: activeStatusCaption(isStale: isStale),
@@ -328,13 +315,41 @@ struct TickWidgetView: View {
                 )
             }
         }
-        .background {
-            if isSmall {
-                compactProjectWatermark(
-                    entry.snapshot.activeProjectName ?? "Ticks",
-                    tint: TickWidgetStyle.running
-                )
-            }
+    }
+
+    @ViewBuilder
+    private func activeDuration(isSmall: Bool, isStale: Bool) -> some View {
+        let fontSize: CGFloat = isSmall ? 28 : 36
+
+        if isStale, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
+            Text(timerDurationString(from: activeElapsedDuration))
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .accessibilityLabel("Last confirmed elapsed time")
+        } else if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
+            Text(timerDurationString(from: activeElapsedDuration))
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .accessibilityLabel("Paused elapsed time")
+        } else if let runningTimerStartDate = entry.snapshot.runningTimerStartDate,
+                  let runningTimerFreshUntil = entry.snapshot.runningTimerFreshUntil {
+            Text(
+                timerInterval: runningTimerStartDate...runningTimerFreshUntil,
+                pauseTime: runningTimerFreshUntil,
+                countsDown: false
+            )
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .accessibilityLabel("Elapsed time")
+        } else {
+            Text("Running")
+                .font(.title2.weight(.bold))
         }
     }
 
@@ -401,8 +416,7 @@ struct TickWidgetView: View {
     private func widgetHeader(
         title: String,
         systemImage: String,
-        tint: Color = TickWidgetStyle.primary,
-        showsToday: Bool = true
+        tint: Color = TickWidgetStyle.primary
     ) -> some View {
         HStack(spacing: 6) {
             HStack(spacing: 5) {
@@ -420,12 +434,6 @@ struct TickWidgetView: View {
             .background(tint.opacity(colorScheme == .dark ? 0.22 : 0.14), in: Capsule())
 
             Spacer(minLength: 4)
-
-            if showsToday {
-                Text("Today")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
@@ -450,7 +458,7 @@ struct TickWidgetView: View {
         tint: Color,
         intent: I
     ) -> some View {
-        let buttonSize: CGFloat = family == .systemSmall ? 34 : 38
+        let buttonSize: CGFloat = 34
 
         return HStack(spacing: 10) {
             HStack(spacing: 4) {

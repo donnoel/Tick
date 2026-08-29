@@ -193,7 +193,7 @@ struct TodayView: View {
                     .padding(.vertical, 8)
             } else {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 300, maximum: 352), spacing: 20, alignment: .top)],
+                    columns: [GridItem(.adaptive(minimum: 300), spacing: 20, alignment: .top)],
                     alignment: .leading,
                     spacing: 18
                 ) {
