@@ -9,12 +9,6 @@ struct SummariesView: View {
         NavigationStack {
             TimelineView(.periodic(from: .now, by: 60)) { timeline in
                 let summary = viewModel.summary(for: selectedPeriod, at: timeline.date)
-                let projectChartEntries = TickChartDataBuilder.projectEntries(
-                    for: selectedPeriod,
-                    projects: viewModel.projects,
-                    sessions: viewModel.sessions,
-                    referenceDate: timeline.date
-                )
                 let periodProjectChartEntries = TickChartDataBuilder.periodProjectEntries(
                     for: selectedPeriod,
                     projects: viewModel.projects,
@@ -46,29 +40,8 @@ struct SummariesView: View {
                     }
                     .listRowBackground(Color.clear)
 
-                    Section("Time by Space") {
-                        if projectChartEntries.isEmpty {
-                            Text("No time recorded in this period.")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Chart(projectChartEntries) { entry in
-                                BarMark(
-                                    x: .value("Duration", entry.hours),
-                                    y: .value("Space", entry.projectName)
-                                )
-                                .foregroundStyle(TickProjectAccent.color(for: entry.projectID, among: projectIDs))
-                                .accessibilityLabel(entry.projectName)
-                                .accessibilityValue(TickDurationFormatter.shortString(from: entry.duration))
-                            }
-                            .chartXAxisLabel("Hours")
-                            .frame(minHeight: 220)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(projectChartAccessibilityLabel(for: projectChartEntries))
-                        }
-                    }
-
                     if let timelineTitle = selectedPeriod.timelineTitle {
-                        Section(timelineTitle) {
+                        Section {
                             if periodProjectChartEntries.isEmpty {
                                 Text("No time recorded in this period.")
                                     .foregroundStyle(.secondary)
@@ -79,22 +52,31 @@ struct SummariesView: View {
                                     projectIDs: projectIDs
                                 )
                             }
+                        } header: {
+                            SummarySectionHeader(
+                                title: timelineTitle,
+                                subtitle: selectedPeriod.timelineSubtitle
+                            )
                         }
                     }
 
-                    Section("By Space") {
+                    Section {
                         if summary.durationByProject.isEmpty {
                             Text("No time recorded in this period.")
                                 .foregroundStyle(.secondary)
                         } else {
-                            ForEach(summary.durationByProject) { projectSummary in
-                                SummaryProjectRow(
-                                    projectName: projectSummary.projectName,
-                                    value: TickDurationFormatter.shortString(from: projectSummary.duration),
-                                    color: TickProjectAccent.color(for: projectSummary.projectID, among: projectIDs)
-                                )
-                            }
+                            SummarySpaceBreakdown(
+                                summaries: summary.durationByProject,
+                                projectIDs: projectIDs
+                            )
                         }
+                    } header: {
+                        SummarySectionHeader(
+                            title: "By Space",
+                            subtitle: summary.durationByProject.isEmpty
+                                ? nil
+                                : "Ranked by recorded time"
+                        )
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -102,14 +84,6 @@ struct SummariesView: View {
             }
             .navigationTitle("Summaries")
         }
-    }
-
-    private func projectChartAccessibilityLabel(for entries: [TickProjectChartEntry]) -> String {
-        let details = entries.map { entry in
-            "\(entry.projectName) \(TickDurationFormatter.shortString(from: entry.duration))"
-        }.joined(separator: ", ")
-
-        return "Time by Space chart, \(details)."
     }
 }
 
@@ -202,20 +176,25 @@ private struct SummaryHeroCard: View {
     let sessionCount: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             Label(periodTitle, systemImage: "calendar")
                 .font(.headline)
                 .foregroundStyle(TickPalette.primaryAction)
 
-            Text(TickDurationFormatter.shortString(from: totalDuration))
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                .monospacedDigit()
-                .minimumScaleFactor(0.75)
-                .lineLimit(1)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    durationText
 
-            Text("\(sessionCount) \(sessionCount == 1 ? "session" : "sessions")")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                    Spacer(minLength: 16)
+
+                    sessionCountText
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    durationText
+                    sessionCountText
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
@@ -223,26 +202,121 @@ private struct SummaryHeroCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(periodTitle) summary, \(TickDurationFormatter.shortString(from: totalDuration)), \(sessionCount) sessions")
     }
+
+    private var durationText: some View {
+        Text(TickDurationFormatter.shortString(from: totalDuration))
+            .font(.system(.largeTitle, design: .rounded).weight(.bold))
+            .monospacedDigit()
+            .minimumScaleFactor(0.75)
+            .lineLimit(1)
+    }
+
+    private var sessionCountText: some View {
+        Text("\(sessionCount) \(sessionCount == 1 ? "session" : "sessions")")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: true, vertical: false)
+    }
 }
 
-private struct SummaryProjectRow: View {
+private struct SummarySectionHeader: View {
+    let title: String
+    let subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .textCase(nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+private struct SummarySpaceBreakdown: View {
+    let summaries: [ProjectDurationSummary]
+    let projectIDs: [TickProject.ID]
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 260), spacing: 12)
+    ]
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+            ForEach(summaries) { summary in
+                SummarySpaceMetric(
+                    projectName: summary.projectName,
+                    duration: summary.duration,
+                    maximumDuration: summaries.first?.duration ?? 0,
+                    color: TickProjectAccent.color(for: summary.projectID, among: projectIDs)
+                )
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct SummarySpaceMetric: View {
     let projectName: String
-    let value: String
+    let duration: TimeInterval
+    let maximumDuration: TimeInterval
     let color: Color
 
     var body: some View {
-        HStack(spacing: 12) {
-            TickProjectBadge(color: color)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                TickProjectBadge(color: color)
 
-            Text(projectName)
+                Text(projectName)
+                    .lineLimit(2)
 
-            Spacer()
+                Spacer(minLength: 8)
 
-            Text(value)
-                .font(.body.monospacedDigit())
-                .foregroundStyle(.secondary)
+                Text(TickDurationFormatter.shortString(from: duration))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            ProgressView(value: progress)
+                .tint(color)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 2)
+        .padding(12)
+        .background(TickPalette.appBackground, in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(projectName)
+        .accessibilityValue(TickDurationFormatter.shortString(from: duration))
+    }
+
+    private var progress: Double {
+        guard maximumDuration > 0 else {
+            return 0
+        }
+
+        return duration / maximumDuration
+    }
+}
+
+private extension SummaryPeriod {
+    var timelineSubtitle: String {
+        switch self {
+        case .day:
+            ""
+        case .week, .month:
+            "Recorded time across each day"
+        case .year:
+            "Recorded time across each month"
+        case .lifetime:
+            "Recorded time across each year"
+        }
     }
 }
