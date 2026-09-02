@@ -6,7 +6,7 @@ nonisolated final class TickWidgetICloudSyncStore {
         var snapshot: TickWidgetStorageSnapshot
     }
 
-    private static let snapshotKey = "tick.storageSnapshot.v1"
+    static let snapshotKey = "tick.storageSnapshot.v1"
 
     private let keyValueStore: TickKeyValueStore
     private let decoder: JSONDecoder
