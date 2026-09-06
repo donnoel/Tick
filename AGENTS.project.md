@@ -129,6 +129,13 @@ Still verify manually before submission:
 - Keep business rules in view models, services, or pure helpers.
 - Add tests for non-trivial duration, summary, or persistence behavior.
 
+## Version display convention
+
+- Show a read-only Version row in system Settings under Apps > Ticks, formatted `version (build)`.
+- The build generates `Settings.bundle/Root.plist` from the processed app Info.plist; no first launch or UserDefaults value is required.
+- Keep app and widget versions aligned in `Tick.xcodeproj/project.pbxproj`, and increment the build number for each changed build delivered to devices. Install the same artifact on iPhone and iPad.
+- Verify the built app, widget, and Settings row agree before delivery.
+
 ## Build/run notes
 - Project: `Tick.xcodeproj`
 - Scheme: `Tick`

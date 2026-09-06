@@ -67,6 +67,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Settings.bundle,
 			);
 			target = 5A63FFC82F44E19C00885BD6 /* Tick */;
 		};
@@ -154,6 +155,7 @@
 				5A63FFC62F44E19C00885BD6 /* Frameworks */,
 				5A63FFC72F44E19C00885BD6 /* Resources */,
 				2DDD1F294B1E460D95AB2076 /* Embed App Extensions */,
+				BB9110802AA349168AAD7123 /* Generate Settings Version */,
 			);
 			buildRules = (
 			);
@@ -317,6 +319,26 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		BB9110802AA349168AAD7123 /* Generate Settings Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = (
+				"$(SRCROOT)/Scripts/write-settings-version.sh",
+				"$(SRCROOT)/Tick/Settings.bundle/Root.plist",
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Generate Settings Version";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Settings.bundle/Root.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/Scripts/write-settings-version.sh\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		3F9FA75DFEB9405F9824EA83 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -374,7 +396,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = TickWidgetExtension/TickWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = YES;
@@ -513,7 +535,7 @@
 				CODE_SIGN_ENTITLEMENTS = Tick/Tick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
@@ -560,7 +582,7 @@
 				CODE_SIGN_ENTITLEMENTS = Tick/Tick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
@@ -737,7 +759,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = TickWidgetExtension/TickWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = YES;
