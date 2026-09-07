@@ -18,7 +18,7 @@ nonisolated final class TickWidgetActionStore {
             dataFileURL: TickSharedStorage.dataFileURL(),
             widgetSnapshotFileURL: TickSharedStorage.widgetSnapshotFileURL(),
             fileManager: .default,
-            iCloudSyncStore: TickWidgetICloudSyncStore()
+            iCloudSyncStore: nil
         )
     }
 
@@ -57,12 +57,14 @@ nonisolated final class TickWidgetActionStore {
         }
 
         let storageSnapshot = try loadStorageSnapshot()
-        return TickWidgetSnapshotBuilder.snapshot(
+        var snapshot = TickWidgetSnapshotBuilder.snapshot(
             from: storageSnapshot,
             defaultProjectID: nil,
             at: date,
             calendar: calendar
         )
+        snapshot.runningStateConfirmedAt = try runningStateConfirmationDate()
+        return snapshot
     }
 
     private func reconciledWidgetSnapshot(
@@ -71,18 +73,30 @@ nonisolated final class TickWidgetActionStore {
         calendar: Calendar
     ) throws -> TickWidgetSnapshot? {
         let storageSnapshot = try loadStorageSnapshot()
-        let currentSnapshot = TickWidgetSnapshotBuilder.snapshot(
+        var currentSnapshot = TickWidgetSnapshotBuilder.snapshot(
             from: storageSnapshot,
             defaultProjectID: cachedSnapshot.defaultProjectID,
             at: date,
             calendar: calendar
         )
+        currentSnapshot.runningStateConfirmedAt = try runningStateConfirmationDate()
 
         guard currentSnapshot != cachedSnapshot else {
             return nil
         }
 
         return currentSnapshot
+    }
+
+    func runningStateConfirmationDate() throws -> Date? {
+        try TickSharedFileCoordinator.coordinateReading(at: dataFileURL) { url in
+            guard fileManager.fileExists(atPath: url.path) else { return nil }
+            let data = try Data(contentsOf: url)
+            if let envelope = try? decoder.decode(TickStorageFileEnvelope<TickWidgetStorageSnapshot>.self, from: data) {
+                return max(envelope.updatedAt, envelope.cloudSync?.confirmedAt ?? .distantPast)
+            }
+            return try fileManager.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        }
     }
 
     func saveWidgetSnapshot(_ snapshot: TickWidgetSnapshot) throws {
@@ -249,15 +263,22 @@ nonisolated final class TickWidgetActionStore {
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        let data = try encoder.encode(
-            TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot)
-        )
+        let write: (URL) throws -> Void = { url in
+            let existing = try? Data(contentsOf: url)
+            let checkpoint = existing.flatMap {
+                try? self.decoder.decode(TickStorageFileEnvelope<TickWidgetStorageSnapshot>.self, from: $0).cloudSync
+            }
+            let data = try self.encoder.encode(
+                TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot, cloudSync: checkpoint)
+            )
+            try data.write(to: url, options: [.atomic])
+        }
         if coordinatesWrite {
             try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
-                try data.write(to: coordinatedURL, options: [.atomic])
+                try write(coordinatedURL)
             }
         } else {
-            try data.write(to: fileURL, options: [.atomic])
+            try write(fileURL)
         }
 
         if mirrorsToICloud {

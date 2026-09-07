@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct TickWidgetStorageSnapshot: Codable, Equatable {
+nonisolated struct TickWidgetStorageSnapshot: Codable, Equatable, Sendable {
     var projects: [TickWidgetStoredProject]
     var sessions: [TickWidgetStoredSession]
     var autoTickRules: [TickWidgetStoredAutoTickRule]
@@ -25,7 +25,7 @@ nonisolated struct TickWidgetStorageSnapshot: Codable, Equatable {
     }
 }
 
-nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable {
+nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     var name: String
     var createdAt: Date
@@ -68,7 +68,7 @@ nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable {
     }
 }
 
-nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable {
+nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     var projectID: UUID
     var title: String
@@ -136,7 +136,7 @@ nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable {
     }
 }
 
-nonisolated struct TickWidgetStoredAutoTickRule: Codable, Equatable, Identifiable {
+nonisolated struct TickWidgetStoredAutoTickRule: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     var projectID: UUID
     var name: String

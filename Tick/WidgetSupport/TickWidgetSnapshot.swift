@@ -12,6 +12,7 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
     var activeElapsedDuration: TimeInterval? = nil
     var todayTotalDuration: TimeInterval
     var lastUpdatedAt: Date
+    var runningStateConfirmedAt: Date? = nil
 
     var isActivePaused: Bool {
         activeSessionID != nil && activePausedAt != nil
@@ -34,7 +35,7 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
             return nil
         }
 
-        return lastUpdatedAt.addingTimeInterval(TickWidgetTimelineSchedule.activeFreshnessInterval)
+        return (runningStateConfirmedAt ?? lastUpdatedAt).addingTimeInterval(TickWidgetTimelineSchedule.activeFreshnessInterval)
     }
 
     func isRunningTimerStale(at date: Date) -> Bool {

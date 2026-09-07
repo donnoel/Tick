@@ -1,4 +1,5 @@
 import SwiftUI
+import CloudKit
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -59,6 +60,12 @@ struct ContentView: View {
         .onChange(of: viewModel.selectedProjectID) { _, selectedProjectID in
             selectedSpaceID = selectedProjectID?.uuidString ?? ""
             viewModel.scheduleWidgetSnapshotRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tickCloudSnapshotChanged)) { _ in
+            viewModel.scheduleReload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+            viewModel.scheduleReload()
         }
         .alert("Tick needs attention", isPresented: errorIsPresented) {
             Button("OK") {

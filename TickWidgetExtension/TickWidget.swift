@@ -16,17 +16,23 @@ struct TickWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TickWidgetEntry) -> Void) {
-        TickWidgetICloudChangeObserver.start()
         completion(TickWidgetEntry(date: .now, snapshot: loadSnapshot()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TickWidgetEntry>) -> Void) {
-        TickWidgetICloudChangeObserver.start()
+        Task {
+            // Fetch even when the containing app has not run. Keep the cached timeline offline.
+            _ = try? await TickCloudSyncStore.shared.synchronize()
+            completeTimeline(completion)
+        }
+    }
+
+    private func completeTimeline(_ completion: @escaping (Timeline<TickWidgetEntry>) -> Void) {
         let date = Date()
         let snapshot = loadSnapshot(at: date)
         let entry = TickWidgetEntry(date: date, snapshot: snapshot)
 
-        if let staleDate = snapshot.runningTimerFreshUntil {
+        if let staleDate = snapshot.runningTimerFreshUntil, staleDate > date {
             let staleEntry = TickWidgetEntry(date: staleDate, snapshot: snapshot)
             completion(
                 Timeline(
@@ -56,40 +62,6 @@ struct TickWidgetProvider: TimelineProvider {
         } catch {
             return .empty(lastUpdatedAt: date)
         }
-    }
-}
-
-private final class TickWidgetICloudChangeObserver: NSObject {
-    private static let shared = TickWidgetICloudChangeObserver()
-
-    private let keyValueStore = NSUbiquitousKeyValueStore.default
-
-    static func start() {
-        _ = shared
-    }
-
-    private override init() {
-        super.init()
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(iCloudKeyValueStoreDidChange(_:)),
-            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: keyValueStore
-        )
-        keyValueStore.synchronize()
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    @objc private func iCloudKeyValueStoreDidChange(_ notification: Notification) {
-        if let changedKeys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String],
-           !changedKeys.contains(TickWidgetICloudSyncStore.snapshotKey) {
-            return
-        }
-
-        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 

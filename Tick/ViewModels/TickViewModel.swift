@@ -22,6 +22,7 @@ final class TickViewModel {
     @ObservationIgnored private var recordingVoiceMemoID: VoiceMemo.ID?
     @ObservationIgnored private var recordingVoiceMemoFileName: String?
     @ObservationIgnored private var recordingVoiceMemoStartedAt: Date?
+    @ObservationIgnored private var usesCloudKit = false
 
     private(set) var projects: [TickProject] = []
     private(set) var sessions: [TimeSession] = []
@@ -41,7 +42,8 @@ final class TickViewModel {
         self.store = TickDataStore()
         self.voiceMemoStore = TickVoiceMemoStore()
         self.locationService = AutoTickLocationService()
-        self.iCloudSyncStore = TickICloudSyncStore()
+        self.iCloudSyncStore = nil
+        self.usesCloudKit = true
         self.voiceMemoICloudSyncStore = TickVoiceMemoICloudSyncStore()
         self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
@@ -201,6 +203,15 @@ final class TickViewModel {
 
     func reload() async {
         do {
+            // Load first to perform the existing legacy file migration.
+            let initial = try await store.loadVersionedSnapshot()
+            apply(storageSnapshot: initial.snapshot)
+            lastPersistedStorageSnapshot = initial.snapshot
+            hasLoaded = true
+            if usesCloudKit {
+                do { try await TickCloudSyncStore.shared.synchronize() }
+                catch { errorMessage = "Time is saved on this device. \(error.localizedDescription)" }
+            }
             let localState = try await store.loadVersionedSnapshot()
             let resolvedSnapshot = await resolveICloudSnapshot(
                 localSnapshot: localState.snapshot,
@@ -957,6 +968,17 @@ final class TickViewModel {
             }
             refreshAutoTickMonitoring()
             await refreshWidgetSnapshot()
+            if usesCloudKit {
+                do {
+                    try await TickCloudSyncStore.shared.synchronize()
+                    let latest = try await store.load()
+                    apply(storageSnapshot: latest)
+                    lastPersistedStorageSnapshot = latest
+                    await refreshWidgetSnapshot()
+                } catch {
+                    errorMessage = "Time is saved on this device. \(error.localizedDescription)"
+                }
+            }
         } catch {
             errorMessage = "Tick could not save your changes. \(error.localizedDescription)"
         }
@@ -1185,13 +1207,16 @@ final class TickViewModel {
                 )
             }
         )
-        let widgetSnapshot = TickWidgetSnapshotBuilder.snapshot(
+        var widgetSnapshot = TickWidgetSnapshotBuilder.snapshot(
             from: widgetStorageSnapshot,
             defaultProjectID: selectedProjectID,
             at: date
         )
 
         do {
+            if usesCloudKit {
+                widgetSnapshot.runningStateConfirmedAt = await store.runningStateConfirmationDate()
+            }
             try TickWidgetActionStore().saveWidgetSnapshot(widgetSnapshot)
             WidgetCenter.shared.reloadAllTimelines()
         } catch {

@@ -26,6 +26,10 @@ actor TickDataStore {
         try loadVersionedSnapshot().snapshot
     }
 
+    func runningStateConfirmationDate() -> Date? {
+        try? TickWidgetActionStore(dataFileURL: fileURL, widgetSnapshotFileURL: fileURL).runningStateConfirmationDate()
+    }
+
     func loadVersionedSnapshot() throws -> (snapshot: TickStorageSnapshot, updatedAt: Date?) {
         try migrateLegacyStoreIfNeeded()
 
@@ -61,10 +65,14 @@ actor TickDataStore {
         let directoryURL = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
-        let data = try encoder.encode(
-            TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot)
-        )
         try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
+            let existing = try? Data(contentsOf: coordinatedURL)
+            let checkpoint = existing.flatMap {
+                try? decoder.decode(TickStorageFileEnvelope<TickStorageSnapshot>.self, from: $0).cloudSync
+            }
+            let data = try encoder.encode(
+                TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot, cloudSync: checkpoint)
+            )
             try data.write(to: coordinatedURL, options: [.atomic])
         }
     }
