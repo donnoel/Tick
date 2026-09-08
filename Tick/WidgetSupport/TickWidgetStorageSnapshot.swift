@@ -1,13 +1,13 @@
 import Foundation
 
-nonisolated struct TickWidgetStorageSnapshot: Codable, Equatable, Sendable {
-    var projects: [TickWidgetStoredProject]
-    var sessions: [TickWidgetStoredSession]
-    var autoTickRules: [TickWidgetStoredAutoTickRule]
+nonisolated public struct TickWidgetStorageSnapshot: Codable, Equatable, Sendable {
+    public var projects: [TickWidgetStoredProject]
+    public var sessions: [TickWidgetStoredSession]
+    public var autoTickRules: [TickWidgetStoredAutoTickRule]
 
-    static let empty = TickWidgetStorageSnapshot(projects: [], sessions: [], autoTickRules: [])
+    public static let empty = TickWidgetStorageSnapshot(projects: [], sessions: [], autoTickRules: [])
 
-    init(
+    public init(
         projects: [TickWidgetStoredProject],
         sessions: [TickWidgetStoredSession],
         autoTickRules: [TickWidgetStoredAutoTickRule] = []
@@ -17,7 +17,7 @@ nonisolated struct TickWidgetStorageSnapshot: Codable, Equatable, Sendable {
         self.autoTickRules = autoTickRules
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         projects = try container.decodeIfPresent([TickWidgetStoredProject].self, forKey: .projects) ?? []
         sessions = try container.decodeIfPresent([TickWidgetStoredSession].self, forKey: .sessions) ?? []
@@ -25,14 +25,14 @@ nonisolated struct TickWidgetStorageSnapshot: Codable, Equatable, Sendable {
     }
 }
 
-nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable, Sendable {
-    let id: UUID
-    var name: String
-    var createdAt: Date
-    var isArchived: Bool
-    var sortOrder: Double
+nonisolated public struct TickWidgetStoredProject: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public var name: String
+    public var createdAt: Date
+    public var isArchived: Bool
+    public var sortOrder: Double
 
-    init(
+    public init(
         id: UUID,
         name: String,
         createdAt: Date,
@@ -46,7 +46,7 @@ nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable, Se
         self.sortOrder = sortOrder ?? createdAt.timeIntervalSinceReferenceDate
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
@@ -55,7 +55,7 @@ nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable, Se
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? createdAt.timeIntervalSinceReferenceDate
     }
 
-    static func activeSortedByDisplayOrder(_ projects: [TickWidgetStoredProject]) -> [TickWidgetStoredProject] {
+    public static func activeSortedByDisplayOrder(_ projects: [TickWidgetStoredProject]) -> [TickWidgetStoredProject] {
         projects
             .filter { !$0.isArchived }
             .sorted { lhs, rhs in
@@ -68,21 +68,21 @@ nonisolated struct TickWidgetStoredProject: Codable, Equatable, Identifiable, Se
     }
 }
 
-nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable, Sendable {
-    let id: UUID
-    var projectID: UUID
-    var title: String
-    var notes: String
-    var startedAt: Date?
-    var endedAt: Date?
-    var manualDuration: TimeInterval?
-    var pausedAt: Date?
-    var accumulatedPausedDuration: TimeInterval?
-    var entrySource: String
-    var autoTickRuleID: UUID?
-    var createdAt: Date
+nonisolated public struct TickWidgetStoredSession: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public var projectID: UUID
+    public var title: String
+    public var notes: String
+    public var startedAt: Date?
+    public var endedAt: Date?
+    public var manualDuration: TimeInterval?
+    public var pausedAt: Date?
+    public var accumulatedPausedDuration: TimeInterval?
+    public var entrySource: String
+    public var autoTickRuleID: UUID?
+    public var createdAt: Date
 
-    init(
+    public init(
         id: UUID,
         projectID: UUID,
         title: String,
@@ -110,18 +110,18 @@ nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable, Se
         self.createdAt = createdAt
     }
 
-    var isActive: Bool {
+    public var isActive: Bool {
         (entrySource == "timer" || entrySource == "autoLocation") &&
             startedAt != nil &&
             endedAt == nil &&
             manualDuration == nil
     }
 
-    var referenceDate: Date {
+    public var referenceDate: Date {
         startedAt ?? endedAt ?? createdAt
     }
 
-    func duration(at date: Date) -> TimeInterval {
+    public func duration(at date: Date) -> TimeInterval {
         if let manualDuration {
             return max(0, manualDuration)
         }
@@ -136,15 +136,15 @@ nonisolated struct TickWidgetStoredSession: Codable, Equatable, Identifiable, Se
     }
 }
 
-nonisolated struct TickWidgetStoredAutoTickRule: Codable, Equatable, Identifiable, Sendable {
-    let id: UUID
-    var projectID: UUID
-    var name: String
-    var latitude: Double
-    var longitude: Double
-    var radiusMeters: Double
-    var startsOnArrival: Bool
-    var stopsOnDeparture: Bool
-    var isEnabled: Bool
-    var createdAt: Date
+nonisolated public struct TickWidgetStoredAutoTickRule: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public var projectID: UUID
+    public var name: String
+    public var latitude: Double
+    public var longitude: Double
+    public var radiusMeters: Double
+    public var startsOnArrival: Bool
+    public var stopsOnDeparture: Bool
+    public var isEnabled: Bool
+    public var createdAt: Date
 }

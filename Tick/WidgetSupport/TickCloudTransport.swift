@@ -1,18 +1,23 @@
 import CloudKit
 import Foundation
 
-nonisolated struct TickCloudRemote: Sendable {
-    var payload: TickCloudPayload
-    var version: Data?
+nonisolated public struct TickCloudRemote: Sendable {
+    public var payload: TickCloudPayload
+    public var version: Data?
+
+    public init(payload: TickCloudPayload, version: Data?) {
+        self.payload = payload
+        self.version = version
+    }
 }
 
-nonisolated enum TickCloudError: LocalizedError {
+nonisolated public enum TickCloudError: LocalizedError {
     case conflict
     case accountChanged
     case invalidRecord
     case busy
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .conflict, .busy: "Changes are saved on this device and will retry syncing."
         case .accountChanged: "Your iCloud account changed. Existing time is preserved on this device; syncing is paused to keep accounts separate."
@@ -21,33 +26,39 @@ nonisolated enum TickCloudError: LocalizedError {
     }
 }
 
-nonisolated protocol TickCloudTransport: Sendable {
+nonisolated public protocol TickCloudTransport: Sendable {
     func accountID() async throws -> String
     func subscribe() async throws
     func fetch() async throws -> TickCloudRemote?
     func save(_ payload: TickCloudPayload, version: Data?) async throws -> TickCloudRemote
 }
 
-actor TickCloudKitTransport: TickCloudTransport {
-    private let container = CKContainer(identifier: TickSharedStorage.iCloudContainerIdentifier)
+public actor TickCloudKitTransport: TickCloudTransport {
+    nonisolated public static let containerIdentifier = "iCloud.dn.tick"
+    private lazy var container = CKContainer(identifier: TickCloudKitTransport.containerIdentifier)
+    private let notificationSubscriptionID: String
+
+    public init(subscriptionID: String = TickCloudKitTransport.subscriptionID) {
+        self.notificationSubscriptionID = subscriptionID
+    }
     private let recordID = CKRecord.ID(recordName: "snapshot-v1")
     private var database: CKDatabase { container.privateCloudDatabase }
-    nonisolated static let subscriptionID = "tick-snapshot-v1"
+    nonisolated public static let subscriptionID = "tick-snapshot-v1"
 
-    func accountID() async throws -> String {
+    public func accountID() async throws -> String {
         try await container.userRecordID().recordName
     }
 
-    func subscribe() async throws {
+    public func subscribe() async throws {
         do {
-            _ = try await database.subscription(for: Self.subscriptionID)
+            _ = try await database.subscription(for: notificationSubscriptionID)
             return
         } catch let error as CKError where error.code == .unknownItem {
             // A new install/account creates the same idempotent subscription.
         }
         let subscription = CKQuerySubscription(
             recordType: "TickSnapshotV1", predicate: NSPredicate(value: true),
-            subscriptionID: Self.subscriptionID,
+            subscriptionID: notificationSubscriptionID,
             options: [.firesOnRecordCreation, .firesOnRecordUpdate]
         )
         let info = CKSubscription.NotificationInfo()
@@ -58,11 +69,11 @@ actor TickCloudKitTransport: TickCloudTransport {
         } catch {
             // Another device can create the shared subscription after our fetch.
             // Confirm its existence instead of treating that race as a failed timer save.
-            guard (try? await database.subscription(for: Self.subscriptionID)) != nil else { throw error }
+            guard (try? await database.subscription(for: notificationSubscriptionID)) != nil else { throw error }
         }
     }
 
-    func fetch() async throws -> TickCloudRemote? {
+    public func fetch() async throws -> TickCloudRemote? {
         do {
             let record = try await database.record(for: recordID)
             guard let asset = record["payload"] as? CKAsset, let url = asset.fileURL else {
@@ -75,7 +86,7 @@ actor TickCloudKitTransport: TickCloudTransport {
         }
     }
 
-    func save(_ payload: TickCloudPayload, version: Data?) async throws -> TickCloudRemote {
+    public func save(_ payload: TickCloudPayload, version: Data?) async throws -> TickCloudRemote {
         let record: CKRecord
         if let version {
             let coder = try NSKeyedUnarchiver(forReadingFrom: version)
@@ -110,15 +121,15 @@ actor TickCloudKitTransport: TickCloudTransport {
     }
 }
 
-nonisolated enum TickCloudFailure {
-    static func isConflict(_ error: Error) -> Bool {
+nonisolated public enum TickCloudFailure {
+    public static func isConflict(_ error: Error) -> Bool {
         guard let cloudError = error as? CKError else { return false }
         if cloudError.code == .serverRecordChanged { return true }
         guard cloudError.code == .partialFailure else { return false }
         return cloudError.partialErrorsByItemID?.values.contains(where: isConflict) == true
     }
 
-    static func diagnostic(_ error: Error) -> String {
+    public static func diagnostic(_ error: Error) -> String {
         let nsError = error as NSError
         let children = (error as? CKError)?.partialErrorsByItemID?.values.map {
             let child = $0 as NSError
@@ -128,15 +139,15 @@ nonisolated enum TickCloudFailure {
     }
 }
 
-nonisolated enum TickCloudCodec {
-    static func encode<T: Encodable>(_ value: T) throws -> Data {
+nonisolated public enum TickCloudCodec {
+    public static func encode<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
         return try encoder.encode(value)
     }
 
-    static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+    public static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(type, from: data)

@@ -15,7 +15,7 @@ For product language only, the app is space-centric: users measure time for a Sp
 Tick is in MVP foundation.
 
 Current scope:
-- space capture with local JSON persistence plus iCloud key-value mirroring
+- space capture with local JSON persistence plus CloudKit synchronization
 - Today, Spaces, and Summaries tabs
 - duration-only manual time entry
 - session detail review and title/notes/space editing
@@ -23,10 +23,10 @@ Current scope:
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
 - daily, weekly, monthly, yearly, and lifetime summaries
-- JSON persistence in the Tick App Group container with iCloud KVS sync between the iPhone/iPad app and widget actions
+- JSON persistence in the Tick App Group container with CloudKit sync between the iPhone/iPad app and widget actions
 
 Explicitly out of scope for this phase:
-- CloudKit record schema sync, authentication, Live Activities, Apple Watch, billing, exports, map search, route capture, location history, and transcription
+- custom authentication, Live Activities, Apple Watch, billing, exports, map search, route capture, location history, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
@@ -53,9 +53,15 @@ Persistence:
 - `TickDataStore` is an actor-backed JSON store.
 - The store reads/writes off the main actor and uses atomic writes.
 - Saved file path: App Group `group.dn.tick` / Tick / tick-data.json, with one-time migration from the old Application Support path.
-- `TickICloudSyncStore` mirrors the full storage snapshot through iCloud Key-Value Store key `tick.storageSnapshot.v1`.
-- iCloud sync uses a whole-snapshot, newest-write-wins policy based on the iCloud envelope timestamp and local file modification date.
-- Widget Start/Stop actions use `TickWidgetICloudSyncStore` to mirror their shared-file mutations into the same iCloud key-value store.
+- `TickCloudSyncStore` synchronizes the full snapshot with the private CloudKit
+  `TickSnapshotV1` / `snapshot-v1` record in `iCloud.dn.tick`.
+- The snapshot and its server acknowledgment form an atomic durable outbox.
+  `TickCloudMerge` performs a three-way merge, preserves deletion tombstones,
+  makes Stop terminal and resolves simultaneous starts to one active session.
+- Legacy iCloud KVS snapshots are imported one way when binding the account.
+  `TickICloudSyncStore` remains for compatibility/testing; the default app no longer
+  publishes timer snapshots to KVS. Do not restore the old timestamp-only policy.
+- Widget actions use the same CloudKit store and local App Group cache.
 - Widget snapshots are stored separately as `tick-widget-snapshot.json` in the same App Group container.
 - Keep widget shared storage small. Widgets should render from `TickWidgetSnapshot`, not from broad SwiftUI view-model state.
 - Voice memo metadata is stored separately from the main Tick snapshot, with audio files in the App Group container and iCloud document storage when available.
@@ -103,7 +109,7 @@ Still verify manually before submission:
 - A running session uses `Date.now - startedAt` only for display; elapsed time is not stored continuously.
 - Local data should survive app relaunches.
 - iCloud sync must preserve the same space/session/Auto Tick snapshot across iPhone and iPad when both devices use the same Apple ID and have iCloud enabled.
-- iCloud sync is whole-snapshot newest-write-wins; do not assume field-level conflict merging until a future CloudKit-style sync model exists.
+- CloudKit uses `TickCloudMerge` and optimistic record-version saves. Preserve offline edits, deletion tombstones, terminal Stop, and account separation.
 - Widget Start must not create a duplicate active session.
 - Widget Stop must stop only the current active timer/Auto Tick session.
 - Widget snapshots store dates and totals, not constantly changing elapsed time.
@@ -148,7 +154,7 @@ Still verify manually before submission:
 - Verify Auto Tick permission prompts, current-location rule creation, and region arrival/departure behavior on device.
 - Verify Home Screen and Lock Screen widget Start/Stop actions against the shared App Group store.
 - Verify voice memo record/play/rename/delete with relaunch persistence.
-- Verify iCloud Key-Value Store sync between iPhone and iPad for spaces, sessions, Auto Tick rules, and widget-started sessions.
+- Verify CloudKit sync between iPhone and iPad for spaces, sessions, Auto Tick rules, and widget-started sessions.
 - Re-check VoiceOver reading order, large Dynamic Type, and light/dark contrast before submission.
 
 ## Near-term priorities
@@ -162,3 +168,17 @@ Provide:
 - Any migration considerations
 - Commit message suggestion
 - Accessibility notes for user-facing work: added, verified, missing, or not applicable
+
+## ProjectPilot integration
+
+`Package.swift` exports selected `Tick/WidgetSupport` sources as `TickCore` for
+ProjectPilot's Mac client. The iOS targets still compile the same files directly.
+Keep the portable sources free of UIKit and app-global UI state. `TickTimerMutation`
+provides Mac/widget Start/Stop and the app's paused Stop date calculation. Its
+`TickCoreTests` run with `swift test -Xswiftc -warnings-as-errors`.
+
+The Mac controls use the existing container and wire format. They preserve fields
+outside their editing scope, including Auto Tick rules. Review paired changes in
+both repositories. No data reset or KVS rollback is part of this integration.
+Physical widget Stop propagation was unresolved at checkpoint `4e84aa9`; builds and
+unit tests alone must not be reported as proof that this is fixed.

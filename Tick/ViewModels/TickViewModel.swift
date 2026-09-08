@@ -403,10 +403,9 @@ final class TickViewModel {
             return false
         }
 
-        let startedAt = activeSession.startedAt ?? date
-        let pauseDate = activeSession.pausedAt
-        let endedAt = pauseDate ?? date
-        sessions[activeIndex].endedAt = endedAt < startedAt ? startedAt : endedAt
+        sessions[activeIndex].endedAt = TickTimerMutation.stopDate(
+            startedAt: activeSession.startedAt, pausedAt: activeSession.pausedAt, at: date
+        )
         sessions[activeIndex].pausedAt = nil
         sessions.sort { $0.referenceDate > $1.referenceDate }
         await persist()

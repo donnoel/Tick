@@ -2,7 +2,7 @@ import Foundation
 
 nonisolated enum TickSharedStorage {
     static let appGroupIdentifier = "group.dn.tick"
-    static let iCloudContainerIdentifier = "iCloud.dn.tick"
+    static let iCloudContainerIdentifier = TickCloudKitTransport.containerIdentifier
     static let dataFileName = "tick-data.json"
     static let widgetSnapshotFileName = "tick-widget-snapshot.json"
     static let voiceMemoMetadataFileName = "tick-voice-memos.json"

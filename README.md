@@ -19,7 +19,7 @@ Current MVP foundation:
 - view today's recorded time and sessions
 - review daily, weekly, monthly, yearly, and lifetime summaries
 - persist local data between launches
-- sync Tick data between iPhone and iPad with iCloud Key-Value Store
+- sync Tick data between iPhone and iPad with CloudKit
 
 ## Requirements
 - macOS with Xcode installed
@@ -53,7 +53,7 @@ CI creates and boots an available iPhone simulator dynamically before running te
 - Create an Auto Tick rule from current location, allow When In Use and Always access when prompted, and verify arrival/departure behavior on device.
 - Start and stop a Tick from the Home Screen widget and, where supported, a Lock Screen widget.
 - Record, play, rename, delete, and relaunch-check a voice memo for an active Space.
-- Verify iCloud Key-Value Store sync between iPhone and iPad on the same Apple ID for spaces, sessions, Auto Tick rules, and widget-started sessions.
+- Verify CloudKit sync between iPhone and iPad on the same Apple ID for spaces, sessions, Auto Tick rules, and widget-started sessions.
 - Before submission, manually check VoiceOver reading order, large Dynamic Type layout, and light/dark contrast for material-backed timer and session rows.
 
 ## Project Structure
@@ -85,3 +85,14 @@ Tick/
 
 ## Credits
 Built with care by **Don Noel** and Codex collaboration.
+
+## Shared timer support
+
+`Package.swift` exposes the first-party `TickCore` library used by the sibling
+ProjectPilot Mac app. The iPhone app and widget compile the same portable source
+files directly. Run `swift test -Xswiftc -warnings-as-errors` for the shared model,
+Start/Stop, merge and wire-format tests. No third-party packages are used.
+
+The current default timer sync uses CloudKit; KVS is a legacy import path.
+Cross-device widget Stop propagation remains a physical validation checkpoint
+from commit `4e84aa9`, not a verified fix.

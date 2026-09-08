@@ -1,21 +1,35 @@
 import Foundation
 
 /// Cloud tombstones prevent an offline device from restoring deleted records.
-nonisolated struct TickCloudPayload: Codable, Equatable, Sendable {
-    var snapshot: TickWidgetStorageSnapshot
-    var deletedProjects: Set<UUID> = []
-    var deletedSessions: Set<UUID> = []
-    var deletedRules: Set<UUID> = []
+nonisolated public struct TickCloudPayload: Codable, Equatable, Sendable {
+    public var snapshot: TickWidgetStorageSnapshot
+    public var deletedProjects: Set<UUID> = []
+    public var deletedSessions: Set<UUID> = []
+    public var deletedRules: Set<UUID> = []
+
+    public init(snapshot: TickWidgetStorageSnapshot, deletedProjects: Set<UUID> = [],
+                deletedSessions: Set<UUID> = [], deletedRules: Set<UUID> = []) {
+        self.snapshot = snapshot
+        self.deletedProjects = deletedProjects
+        self.deletedSessions = deletedSessions
+        self.deletedRules = deletedRules
+    }
 }
 
-nonisolated struct TickCloudCheckpoint: Codable, Sendable {
-    var accountID: String
-    var acknowledged: TickCloudPayload?
-    var confirmedAt: Date? = nil
+nonisolated public struct TickCloudCheckpoint: Codable, Sendable {
+    public var accountID: String
+    public var acknowledged: TickCloudPayload?
+    public var confirmedAt: Date? = nil
+
+    public init(accountID: String, acknowledged: TickCloudPayload? = nil, confirmedAt: Date? = nil) {
+        self.accountID = accountID
+        self.acknowledged = acknowledged
+        self.confirmedAt = confirmedAt
+    }
 }
 
-nonisolated enum TickCloudMerge {
-    static func resolve(
+nonisolated public enum TickCloudMerge {
+    public static func resolve(
         base: TickWidgetStorageSnapshot,
         local: TickWidgetStorageSnapshot,
         remote: TickCloudPayload

@@ -130,20 +130,7 @@ nonisolated final class TickWidgetActionStore {
 
             let existingSnapshot = try? loadCachedWidgetSnapshot()
             let selectedProject = activeProjects.first { $0.id == existingSnapshot?.defaultProjectID } ?? activeProjects[0]
-            let session = TickWidgetStoredSession(
-                id: UUID(),
-                projectID: selectedProject.id,
-                title: "",
-                notes: "",
-                startedAt: date,
-                endedAt: nil,
-                manualDuration: nil,
-                entrySource: "timer",
-                autoTickRuleID: nil,
-                createdAt: date
-            )
-
-            storageSnapshot.sessions.insert(session, at: 0)
+            try TickTimerMutation.start(in: &storageSnapshot, projectID: selectedProject.id, at: date)
             try saveStorageSnapshot(storageSnapshot, updatedAt: date, to: coordinatedDataFileURL)
             try saveWidgetSnapshot(
                 TickWidgetSnapshotBuilder.snapshot(
@@ -168,9 +155,8 @@ nonisolated final class TickWidgetActionStore {
                 return TickWidgetActionResult(didChange: false, message: "No Tick is running.")
             }
 
-            let startedAt = storageSnapshot.sessions[activeIndex].startedAt ?? date
-            storageSnapshot.sessions[activeIndex].endedAt = date < startedAt ? startedAt : date
-            storageSnapshot.sessions.sort { $0.referenceDate > $1.referenceDate }
+            try TickTimerMutation.stop(in: &storageSnapshot,
+                                       sessionID: storageSnapshot.sessions[activeIndex].id, at: date)
 
             let existingSnapshot = try? loadCachedWidgetSnapshot()
             try saveStorageSnapshot(storageSnapshot, updatedAt: date, to: coordinatedDataFileURL)
