@@ -153,6 +153,10 @@ final class TickViewModel {
         TickProject.sortedByDisplayOrder(projects.filter { !$0.isArchived })
     }
 
+    var spacesStartedAt: Date? {
+        projects.lazy.map(\.createdAt).min()
+    }
+
     var activeSession: TimeSession? {
         sessions.first { $0.isActive }
     }

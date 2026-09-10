@@ -83,7 +83,19 @@ struct ProjectsView: View {
 
                 if !viewModel.projects.isEmpty {
                     Section {
-                        TotalSpacesFooter(totalDuration: totalSpacesDuration(durationsByProjectID: durationsByProjectID))
+                        VStack(spacing: 12) {
+                            TotalSpacesFooter(totalDuration: totalSpacesDuration(durationsByProjectID: durationsByProjectID))
+
+                            if let startedAt = viewModel.spacesStartedAt {
+                                Text("Since \(startedAt.formatted(.dateTime.month(.wide).year()))")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity)
+                                    .accessibilityIdentifier("projects.sinceDate")
+                            }
+                        }
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 28, trailing: 16))
