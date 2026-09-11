@@ -10,7 +10,7 @@ nonisolated public enum TickTimerMutation {
             switch self {
             case .alreadyActive: "Stop the current Tick before starting another one."
             case .unavailableSpace: "This Space is no longer available. Choose another Space."
-            case .changedSession: "The active Tick changed. Review it before stopping."
+            case .changedSession: "The active Tick changed. Review it before changing it."
             }
         }
     }
@@ -40,6 +40,28 @@ nonisolated public enum TickTimerMutation {
                                                   pausedAt: snapshot.sessions[index].pausedAt, at: date)
         snapshot.sessions[index].pausedAt = nil
         snapshot.sessions.sort { $0.referenceDate > $1.referenceDate }
+    }
+
+    /// Repeated Pause is harmless and never changes a different active Tick.
+    public static func pause(in snapshot: inout TickWidgetStorageSnapshot, sessionID: UUID,
+                             at date: Date) throws {
+        guard let index = snapshot.sessions.firstIndex(where: { $0.id == sessionID }) else {
+            throw Failure.changedSession
+        }
+        guard snapshot.sessions[index].isActive, snapshot.sessions[index].pausedAt == nil else { return }
+        snapshot.sessions[index].pausedAt = max(snapshot.sessions[index].startedAt ?? date, date)
+    }
+
+    /// Repeated Resume is harmless and adds the completed pause to excluded time.
+    public static func resume(in snapshot: inout TickWidgetStorageSnapshot, sessionID: UUID,
+                              at date: Date) throws {
+        guard let index = snapshot.sessions.firstIndex(where: { $0.id == sessionID }) else {
+            throw Failure.changedSession
+        }
+        guard snapshot.sessions[index].isActive, let pausedAt = snapshot.sessions[index].pausedAt else { return }
+        snapshot.sessions[index].accumulatedPausedDuration =
+            (snapshot.sessions[index].accumulatedPausedDuration ?? 0) + max(0, date.timeIntervalSince(pausedAt))
+        snapshot.sessions[index].pausedAt = nil
     }
 
     public static func stopDate(startedAt: Date?, pausedAt: Date?, at date: Date) -> Date {

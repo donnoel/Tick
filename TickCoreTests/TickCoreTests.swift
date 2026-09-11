@@ -25,6 +25,24 @@ struct TickCoreTests {
         #expect(state == stopped)
     }
 
+    @Test func pauseAndResumeExcludePausedTimeAndAreIdempotent() throws {
+        var state = snapshot()
+        let id = UUID()
+        try TickTimerMutation.start(in: &state, projectID: state.projects[0].id, sessionID: id, at: date)
+
+        try TickTimerMutation.pause(in: &state, sessionID: id, at: date.addingTimeInterval(100))
+        try TickTimerMutation.pause(in: &state, sessionID: id, at: date.addingTimeInterval(150))
+        #expect(state.sessions[0].pausedAt == date.addingTimeInterval(100))
+        #expect(state.sessions[0].duration(at: date.addingTimeInterval(200)) == 100)
+
+        try TickTimerMutation.resume(in: &state, sessionID: id, at: date.addingTimeInterval(200))
+        let resumed = state
+        try TickTimerMutation.resume(in: &state, sessionID: id, at: date.addingTimeInterval(250))
+        #expect(state == resumed)
+        #expect(state.sessions[0].accumulatedPausedDuration == 100)
+        #expect(state.sessions[0].duration(at: date.addingTimeInterval(300)) == 200)
+    }
+
     @Test func startRejectsArchivedSpacesAndDuplicateTimers() throws {
         var state = snapshot()
         state.projects[0].isArchived = true
