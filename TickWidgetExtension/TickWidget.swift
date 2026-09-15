@@ -1,5 +1,6 @@
 import AppIntents
 import SwiftUI
+import UIKit
 import WidgetKit
 
 struct TickWidgetEntry: TimelineEntry {
@@ -489,7 +490,7 @@ struct TickWidgetView: View {
                     .font(.subheadline.weight(.bold))
                     .frame(width: buttonSize, height: buttonSize)
                     .background(tint, in: Circle())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(TickWidgetStyle.actionForeground(for: colorScheme))
                     .overlay {
                         Circle()
                             .stroke(.white.opacity(colorScheme == .dark ? 0.22 : 0.72), lineWidth: 1)
@@ -644,47 +645,66 @@ private enum TickWidgetState: Equatable {
 }
 
 private enum TickWidgetStyle {
-    static let primary = Color(red: 0.12, green: 0.45, blue: 0.94)
-    static let running = Color(red: 0.48, green: 0.28, blue: 0.92)
-    static let cyan = Color(red: 0.15, green: 0.72, blue: 0.94)
+    static let aubergine = Color(red: 0.27, green: 0.02, blue: 0.32)
+    static let primary = adaptiveColor(
+        light: UIColor(red: 0.27, green: 0.02, blue: 0.32, alpha: 1),
+        dark: UIColor(red: 0.61, green: 0.96, blue: 0.78, alpha: 1)
+    )
+    static let running = adaptiveColor(
+        light: UIColor(red: 0.72, green: 0.21, blue: 0.25, alpha: 1),
+        dark: UIColor(red: 0.98, green: 0.59, blue: 0.40, alpha: 1)
+    )
+    static let mint = Color(red: 0.61, green: 0.96, blue: 0.78)
+    static let butter = Color(red: 0.98, green: 0.89, blue: 0.59)
+    static let coral = Color(red: 0.98, green: 0.43, blue: 0.33)
 
     static let primaryGradient = LinearGradient(
-        colors: [primary, cyan],
+        colors: [mint, butter, coral],
         startPoint: .leading,
         endPoint: .trailing
     )
+
+    static func actionForeground(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? aubergine : .white
+    }
 
     static func backgroundColors(for colorScheme: ColorScheme, isActive: Bool) -> [Color] {
         switch colorScheme {
         case .dark:
             if isActive {
                 return [
-                    Color(red: 0.10, green: 0.08, blue: 0.20),
-                    Color(red: 0.17, green: 0.10, blue: 0.29),
-                    Color(red: 0.10, green: 0.13, blue: 0.24)
+                    Color(red: 0.15, green: 0.01, blue: 0.18),
+                    Color(red: 0.27, green: 0.02, blue: 0.32),
+                    Color(red: 0.23, green: 0.01, blue: 0.29)
                 ]
             }
 
             return [
-                Color(red: 0.07, green: 0.11, blue: 0.17),
-                Color(red: 0.08, green: 0.16, blue: 0.24),
-                Color(red: 0.12, green: 0.13, blue: 0.22)
+                Color(red: 0.12, green: 0.00, blue: 0.15),
+                Color(red: 0.27, green: 0.02, blue: 0.32),
+                Color(red: 0.23, green: 0.01, blue: 0.29)
             ]
         default:
             if isActive {
                 return [
-                    Color(red: 0.97, green: 0.94, blue: 1.0),
-                    Color(red: 0.90, green: 0.91, blue: 1.0),
-                    Color(red: 1.0, green: 0.92, blue: 0.97)
+                    Color(red: 1.0, green: 0.97, blue: 0.91),
+                    Color(red: 1.0, green: 0.88, blue: 0.84),
+                    Color(red: 1.0, green: 0.95, blue: 0.79)
                 ]
             }
 
             return [
-                Color(red: 0.96, green: 0.99, blue: 1.0),
-                Color(red: 0.88, green: 0.95, blue: 1.0),
-                Color(red: 0.93, green: 0.92, blue: 1.0)
+                Color(red: 1.0, green: 0.97, blue: 0.91),
+                Color(red: 0.91, green: 0.98, blue: 0.94),
+                Color(red: 1.0, green: 0.95, blue: 0.79)
             ]
         }
+    }
+
+    private static func adaptiveColor(light: UIColor, dark: UIColor) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? dark : light
+        })
     }
 }
 
