@@ -39,12 +39,15 @@ final class TickViewModel {
     private(set) var hasLoaded = false
 
     init() {
+        let disablesCloudSyncForUITests = ProcessInfo.processInfo.arguments.contains(
+            "-disableCloudSyncForUITests"
+        )
         self.store = TickDataStore()
-        self.voiceMemoStore = TickVoiceMemoStore()
+        self.voiceMemoStore = TickVoiceMemoStore(usesICloud: !disablesCloudSyncForUITests)
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = nil
-        self.usesCloudKit = true
-        self.voiceMemoICloudSyncStore = TickVoiceMemoICloudSyncStore()
+        self.usesCloudKit = !disablesCloudSyncForUITests
+        self.voiceMemoICloudSyncStore = disablesCloudSyncForUITests ? nil : TickVoiceMemoICloudSyncStore()
         self.voiceMemoAudioController = TickVoiceMemoAudioController()
 
         let locationState = locationService.currentState

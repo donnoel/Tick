@@ -48,7 +48,7 @@ final class TickUITests: XCTestCase {
         addManualSession(titled: sessionTitle, in: app)
 
         app.terminate()
-        app.launchArguments = []
+        app.launchArguments = ["-disableCloudSyncForUITests"]
         app.launch()
 
         let tabBar = app.tabBars.firstMatch
@@ -97,7 +97,7 @@ final class TickUITests: XCTestCase {
     func testSelectedTabSurvivesHomePhotosAndRelaunch() throws {
         let app = launchResetApp()
         let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
-        app.launchArguments = []
+        app.launchArguments = ["-disableCloudSyncForUITests"]
 
         for tabName in ["Spaces", "Summaries", "Today", "Auto Ticks"] {
             let tab = app.tabBars.firstMatch.buttons[tabName]
@@ -129,9 +129,7 @@ final class TickUITests: XCTestCase {
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {
-        let app = XCUIApplication()
-        app.launchArguments.append("-resetDataForUITests")
-        app.launch()
+        let app = launchResetApp()
 
         let projectName = "Manual UI Project"
         let initialSessionTitle = "Manual UI Session"
@@ -248,7 +246,10 @@ final class TickUITests: XCTestCase {
 
     private func launchResetApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments.append("-resetDataForUITests")
+        app.launchArguments = [
+            "-resetDataForUITests",
+            "-disableCloudSyncForUITests",
+        ]
         app.launch()
         return app
     }
