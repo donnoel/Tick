@@ -3,7 +3,7 @@ import SwiftUI
 
 struct SummariesView: View {
     let viewModel: TickViewModel
-    @State private var selectedPeriod = SummaryPeriod.month
+    @State private var selectedPeriod = SummaryPeriod.week
 
     var body: some View {
         NavigationStack {
