@@ -3,6 +3,12 @@ import XCTest
 @testable import Tick
 
 final class TickTests: XCTestCase {
+    func testTimerDurationFormattingMatchesAcrossDevicePresentations() {
+        XCTAssertEqual(TickDurationFormatter.timerString(from: 0), "0:00")
+        XCTAssertEqual(TickDurationFormatter.timerString(from: 1_106), "18:26")
+        XCTAssertEqual(TickDurationFormatter.timerString(from: 4_706), "1:18:26")
+    }
+
     func testProjectAccentAssignmentUsesVisibleProjectOrderForUniqueColors() {
         let projectIDs = [
             UUID(uuidString: "00000000-0000-0000-0000-000000000101")!,
