@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/SwiftUI-app-orange?logo=swift">
-  <img src="https://img.shields.io/badge/Platform-iOS%20%2B%20iPadOS-blue">
+  <img src="https://img.shields.io/badge/Platform-iOS%20%2B%20iPadOS%20%2B%20watchOS-blue">
 </p>
 
 ## Overview
@@ -19,7 +19,8 @@ Current MVP foundation:
 - view today's recorded time and sessions
 - review daily, weekly, monthly, yearly, and lifetime summaries
 - persist local data between launches
-- sync Tick data between iPhone and iPad with CloudKit
+- sync Tick data between iPhone, iPad, Apple Watch, and the ProjectPilot Mac client with CloudKit
+- select a Space and Start/Pause/Resume/Stop from Apple Watch
 
 ## Requirements
 - macOS with Xcode installed
@@ -96,3 +97,9 @@ Start/Stop, merge and wire-format tests. No third-party packages are used.
 The current default timer sync uses CloudKit; KVS is a legacy import path.
 Cross-device widget Stop propagation remains a physical validation checkpoint
 from commit `4e84aa9`, not a verified fix.
+
+## Apple Watch
+
+Select the `TickWatch` scheme to build for watchOS 26 or later. The Watch uses the
+same iCloud container and timer records as the other clients, without a repeating
+background timer. See [Watch architecture and validation](docs/WATCH_APP.md).

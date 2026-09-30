@@ -8,6 +8,9 @@ struct TickApp: App {
             TickSharedStorage.resetForUITests()
             TickUIStateStorage.resetForUITests()
         }
+        if !ProcessInfo.processInfo.arguments.contains("-disableCloudSyncForUITests") {
+            TickWatchConnectivity.shared.activate()
+        }
     }
 
     var body: some Scene {

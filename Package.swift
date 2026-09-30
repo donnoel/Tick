@@ -5,7 +5,7 @@ import PackageDescription
 // them as TickCore, so the wire format and merge rules have one implementation.
 let package = Package(
     name: "TickCore",
-    platforms: [.macOS(.v15), .iOS(.v18)],
+    platforms: [.macOS(.v15), .iOS(.v18), .watchOS(.v11)],
     products: [.library(name: "TickCore", targets: ["TickCore"])],
     targets: [
         .target(name: "TickCore", path: "Tick/WidgetSupport", exclude: [
@@ -14,7 +14,7 @@ let package = Package(
             "TickStorageFileEnvelope.swift", "TickWidgetActionStore.swift",
             "TickWidgetICloudSyncStore.swift", "TickWidgetSnapshot.swift"
         ], sources: ["TickWidgetStorageSnapshot.swift", "TickCloudMerge.swift",
-                     "TickCloudTransport.swift", "TickTimerMutation.swift"]),
+                     "TickCloudTransport.swift", "TickTimerMutation.swift", "TickCloudClientStore.swift"]),
         .testTarget(name: "TickCoreTests", dependencies: ["TickCore"], path: "TickCoreTests")
     ]
 )

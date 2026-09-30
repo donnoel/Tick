@@ -981,6 +981,7 @@ final class TickViewModel {
                     apply(storageSnapshot: latest)
                     lastPersistedStorageSnapshot = latest
                     await refreshWidgetSnapshot()
+                    TickWatchConnectivity.shared.notifyCounterpart()
                 } catch {
                     errorMessage = "Time is saved on this device. \(error.localizedDescription)"
                 }

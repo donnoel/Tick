@@ -8,7 +8,23 @@ final class TickCloudNotificationDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         application.registerForRemoteNotifications()
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(watchRequestedRefresh),
+            name: TickWatchConnectivity.refreshNotification, object: nil
+        )
         return true
+    }
+
+    @objc private func watchRequestedRefresh() {
+        guard !ProcessInfo.processInfo.arguments.contains("-disableCloudSyncForUITests") else { return }
+        Task {
+            do {
+                try await TickCloudSyncStore.shared.synchronize()
+                NotificationCenter.default.post(name: .tickCloudSnapshotChanged, object: nil)
+            } catch {
+                logger.info("Watch refresh deferred; local time is preserved")
+            }
+        }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

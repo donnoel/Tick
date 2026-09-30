@@ -7,10 +7,29 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0C42A2FFC38B0DDDB4465320 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2FD45F22E037ED5CCBDCBEB8 /* Assets.xcassets */; };
+		0D814BEA1A41652A722507F1 /* ../Tick/Utilities/TickDurationFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBEDCB6CC02010253F8D087 /* ../Tick/Utilities/TickDurationFormatter.swift */; };
+		11966CBD84FEDD9A5A2536CD /* TickWatchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 087F067B25DDA403B0E491AE /* TickWatchViewModel.swift */; };
+		2836BE7F07F06EB3062E4CFB /* TickWatchAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7114F7E1A4EB1C3AFE21BDC2 /* TickWatchAppDelegate.swift */; };
+		391264C984406FE78F666332 /* TickWatchPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF3F1B907246B50A927C2B14 /* TickWatchPreview.swift */; };
+		4ED2DDEB217C00A6268BDBD8 /* TickWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AC06A782BB1DC8496E33BF72 /* TickWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4EEAE5872B05472B2DB28D76 /* TickWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22C9781BFBB59F7F06DD85D7 /* TickWatchApp.swift */; };
+		68B2EFAB9527537B6F9422D1 /* TickWatchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC7E5925A7B969AE552827C /* TickWatchUITests.swift */; };
+		B7D9BD11EDFED0E90A7A77D6 /* ../Tick/Services/TickWatchConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76E72A225F42240E8BABFD99 /* ../Tick/Services/TickWatchConnectivity.swift */; };
 		BBCF19FBAA5F4EE895E45FAD /* TickWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 9AA0862562F841D180F3FA75 /* TickWidgetExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFE52F0EB0DC9D1A6D8A9E5 /* TickWatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C427420AFEB14D46F6EBF8FE /* TickWatchView.swift */; };
+		D49C5009E7EE016D26C1AFAE /* TickCore in Frameworks */ = {isa = PBXBuildFile; productRef = 25BC3C84B2F7609FE189A406 /* TickCore */; };
+		D4C21AE45D2DB2EE626C01C4 /* ../Tick/Utilities/TickProjectAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5250399B8955225CC6A00697 /* ../Tick/Utilities/TickProjectAccent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		17AA20CC6F48D9EEB5CB14D4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A63FFC12F44E19C00885BD6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7BEBC8DF0E9EE78C576CC52C;
+			remoteInfo = TickWatch;
+		};
 		5A63FFDB2F44E19C00885BD6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5A63FFC12F44E19C00885BD6 /* Project object */;
@@ -24,6 +43,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 5A63FFC82F44E19C00885BD6;
 			remoteInfo = Tick;
+		};
+		ACC7CDE0816F31BEEC197AC4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A63FFC12F44E19C00885BD6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7BEBC8DF0E9EE78C576CC52C;
+			remoteInfo = TickWatch;
 		};
 		DF0CA86BA59344B8ACC6D825 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -46,13 +72,38 @@
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E10B325486AAD3CDA39A1736 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				4ED2DDEB217C00A6268BDBD8 /* TickWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		01BEC92C0472F5AC864B7740 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		087F067B25DDA403B0E491AE /* TickWatchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickWatchViewModel.swift; sourceTree = "<group>"; };
+		13A4638437260705F89DB702 /* TickWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TickWatch.entitlements; sourceTree = "<group>"; };
+		15CD8D34191097ED9257CC0A /* TickWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TickWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		22C9781BFBB59F7F06DD85D7 /* TickWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickWatchApp.swift; sourceTree = "<group>"; };
+		2FD45F22E037ED5CCBDCBEB8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3CC7E5925A7B969AE552827C /* TickWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickWatchUITests.swift; sourceTree = "<group>"; };
+		5250399B8955225CC6A00697 /* ../Tick/Utilities/TickProjectAccent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Tick/Utilities/TickProjectAccent.swift; sourceTree = "<group>"; };
 		5A63FFC92F44E19C00885BD6 /* Tick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tick.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A63FFDA2F44E19C00885BD6 /* TickTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TickTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A63FFE42F44E19C00885BD6 /* TickUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TickUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7114F7E1A4EB1C3AFE21BDC2 /* TickWatchAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickWatchAppDelegate.swift; sourceTree = "<group>"; };
+		76E72A225F42240E8BABFD99 /* ../Tick/Services/TickWatchConnectivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Tick/Services/TickWatchConnectivity.swift; sourceTree = "<group>"; };
 		9AA0862562F841D180F3FA75 /* TickWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TickWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC06A782BB1DC8496E33BF72 /* TickWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TickWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF3F1B907246B50A927C2B14 /* TickWatchPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickWatchPreview.swift; sourceTree = "<group>"; };
+		C427420AFEB14D46F6EBF8FE /* TickWatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickWatchView.swift; sourceTree = "<group>"; };
+		CFBEDCB6CC02010253F8D087 /* ../Tick/Utilities/TickDurationFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Tick/Utilities/TickDurationFormatter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -82,6 +133,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3E0F93E79CDD806743EB0682 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D49C5009E7EE016D26C1AFAE /* TickCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5A63FFC62F44E19C00885BD6 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -110,16 +169,43 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A4BBC22C80E282B13FAF1602 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		00657DA60608EED144C832CD /* TickWatch */ = {
+			isa = PBXGroup;
+			children = (
+				22C9781BFBB59F7F06DD85D7 /* TickWatchApp.swift */,
+				7114F7E1A4EB1C3AFE21BDC2 /* TickWatchAppDelegate.swift */,
+				C427420AFEB14D46F6EBF8FE /* TickWatchView.swift */,
+				087F067B25DDA403B0E491AE /* TickWatchViewModel.swift */,
+				BF3F1B907246B50A927C2B14 /* TickWatchPreview.swift */,
+				76E72A225F42240E8BABFD99 /* ../Tick/Services/TickWatchConnectivity.swift */,
+				CFBEDCB6CC02010253F8D087 /* ../Tick/Utilities/TickDurationFormatter.swift */,
+				5250399B8955225CC6A00697 /* ../Tick/Utilities/TickProjectAccent.swift */,
+				2FD45F22E037ED5CCBDCBEB8 /* Assets.xcassets */,
+				01BEC92C0472F5AC864B7740 /* Info.plist */,
+				13A4638437260705F89DB702 /* TickWatch.entitlements */,
+			);
+			path = TickWatch;
+			sourceTree = "<group>";
+		};
 		5A63FFC02F44E19C00885BD6 = {
 			isa = PBXGroup;
 			children = (
 				5A63FFCB2F44E19C00885BD6 /* Tick */,
+				00657DA60608EED144C832CD /* TickWatch */,
 				77251E888E3241E48E0D065A /* TickWidgetExtension */,
 				5A63FFDD2F44E19C00885BD6 /* TickTests */,
 				5A63FFE72F44E19C00885BD6 /* TickUITests */,
+				D2B53F19DCB6F556295E9789 /* TickWatchUITests */,
 				5A63FFCA2F44E19C00885BD6 /* Products */,
 				5A8B699D2FC23370008CD03C /* Recovered References */,
 			);
@@ -129,9 +215,11 @@
 			isa = PBXGroup;
 			children = (
 				5A63FFC92F44E19C00885BD6 /* Tick.app */,
+				AC06A782BB1DC8496E33BF72 /* TickWatch.app */,
 				9AA0862562F841D180F3FA75 /* TickWidgetExtension.appex */,
 				5A63FFDA2F44E19C00885BD6 /* TickTests.xctest */,
 				5A63FFE42F44E19C00885BD6 /* TickUITests.xctest */,
+				15CD8D34191097ED9257CC0A /* TickWatchUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -142,6 +230,14 @@
 				211013A75A494ABB9A0E8E69 /* Tick/WidgetSupport */,
 			);
 			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		D2B53F19DCB6F556295E9789 /* TickWatchUITests */ = {
+			isa = PBXGroup;
+			children = (
+				3CC7E5925A7B969AE552827C /* TickWatchUITests.swift */,
+			);
+			path = TickWatchUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -155,12 +251,14 @@
 				5A63FFC62F44E19C00885BD6 /* Frameworks */,
 				5A63FFC72F44E19C00885BD6 /* Resources */,
 				2DDD1F294B1E460D95AB2076 /* Embed App Extensions */,
+				E10B325486AAD3CDA39A1736 /* Embed Watch Content */,
 				BB9110802AA349168AAD7123 /* Generate Settings Version */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				6D092761C0054974A5701BC8 /* PBXTargetDependency */,
+				44A5F188CAFF92D84664D395 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A63FFCB2F44E19C00885BD6 /* Tick */,
@@ -216,6 +314,44 @@
 			);
 			productName = TickUITests;
 			productReference = 5A63FFE42F44E19C00885BD6 /* TickUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		7BEBC8DF0E9EE78C576CC52C /* TickWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E2AA861B2EBA6422AEC9CAE /* Build configuration list for PBXNativeTarget "TickWatch" */;
+			buildPhases = (
+				1AAB92604DB35B93BD613AB9 /* Sources */,
+				3E0F93E79CDD806743EB0682 /* Frameworks */,
+				961A4C2788C6F34E1FE862CE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TickWatch;
+			packageProductDependencies = (
+				25BC3C84B2F7609FE189A406 /* TickCore */,
+			);
+			productName = TickWatch;
+			productReference = AC06A782BB1DC8496E33BF72 /* TickWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		7C5607D18516C3BE17E219ED /* TickWatchUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4008C5FBF5F4B3BC6E6B149D /* Build configuration list for PBXNativeTarget "TickWatchUITests" */;
+			buildPhases = (
+				202BF1898343A36BD55934A8 /* Sources */,
+				A4BBC22C80E282B13FAF1602 /* Frameworks */,
+				C20CF4D97E6DB7DD6E268A01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8D430250F7362A9FEF7D17BC /* PBXTargetDependency */,
+			);
+			name = TickWatchUITests;
+			productName = TickWatchUITests;
+			productReference = 15CD8D34191097ED9257CC0A /* TickWatchUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		AEB8718C89CB4E9D8B6BEB9C /* TickWidgetExtension */ = {
@@ -276,10 +412,15 @@
 				Base,
 			);
 			mainGroup = 5A63FFC02F44E19C00885BD6;
+			packageReferences = (
+				E51F9B7A33F0414DC4E2FD3C /* XCLocalSwiftPackageReference "." */,
+			);
 			productRefGroup = 5A63FFCA2F44E19C00885BD6 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				7C5607D18516C3BE17E219ED /* TickWatchUITests */,
+				7BEBC8DF0E9EE78C576CC52C /* TickWatch */,
 				5A63FFC82F44E19C00885BD6 /* Tick */,
 				AEB8718C89CB4E9D8B6BEB9C /* TickWidgetExtension */,
 				5A63FFD92F44E19C00885BD6 /* TickTests */,
@@ -317,13 +458,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		961A4C2788C6F34E1FE862CE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0C42A2FFC38B0DDDB4465320 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C20CF4D97E6DB7DD6E268A01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		BB9110802AA349168AAD7123 /* Generate Settings Version */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+			);
 			inputPaths = (
 				"$(SRCROOT)/Scripts/write-settings-version.sh",
 				"$(SRCROOT)/Tick/Settings.bundle/Root.plist",
@@ -340,6 +497,29 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1AAB92604DB35B93BD613AB9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4EEAE5872B05472B2DB28D76 /* TickWatchApp.swift in Sources */,
+				2836BE7F07F06EB3062E4CFB /* TickWatchAppDelegate.swift in Sources */,
+				CEFE52F0EB0DC9D1A6D8A9E5 /* TickWatchView.swift in Sources */,
+				11966CBD84FEDD9A5A2536CD /* TickWatchViewModel.swift in Sources */,
+				391264C984406FE78F666332 /* TickWatchPreview.swift in Sources */,
+				B7D9BD11EDFED0E90A7A77D6 /* ../Tick/Services/TickWatchConnectivity.swift in Sources */,
+				0D814BEA1A41652A722507F1 /* ../Tick/Utilities/TickDurationFormatter.swift in Sources */,
+				D4C21AE45D2DB2EE626C01C4 /* ../Tick/Utilities/TickProjectAccent.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		202BF1898343A36BD55934A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				68B2EFAB9527537B6F9422D1 /* TickWatchUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3F9FA75DFEB9405F9824EA83 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -371,6 +551,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		44A5F188CAFF92D84664D395 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7BEBC8DF0E9EE78C576CC52C /* TickWatch */;
+			targetProxy = 17AA20CC6F48D9EEB5CB14D4 /* PBXContainerItemProxy */;
+		};
 		5A63FFDC2F44E19C00885BD6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5A63FFC82F44E19C00885BD6 /* Tick */;
@@ -386,6 +571,11 @@
 			target = AEB8718C89CB4E9D8B6BEB9C /* TickWidgetExtension */;
 			targetProxy = DF0CA86BA59344B8ACC6D825 /* PBXContainerItemProxy */;
 		};
+		8D430250F7362A9FEF7D17BC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7BEBC8DF0E9EE78C576CC52C /* TickWatch */;
+			targetProxy = ACC7CDE0816F31BEEC197AC4 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -396,7 +586,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = TickWidgetExtension/TickWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 13;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = YES;
@@ -535,7 +725,7 @@
 				CODE_SIGN_ENTITLEMENTS = Tick/Tick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 13;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
@@ -582,7 +772,7 @@
 				CODE_SIGN_ENTITLEMENTS = Tick/Tick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 13;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = NO;
@@ -759,7 +949,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = TickWidgetExtension/TickWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 13;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = H7LG8SK72M;
 				ENABLE_APP_INTENTS_METADATA_GENERATION = YES;
@@ -790,6 +980,121 @@
 			};
 			name = Debug;
 		};
+		7AF55442E4CB2CE1395F8A34 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = H7LG8SK72M;
+				GENERATE_INFOPLIST_FILE = YES;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					AppIntents,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dn.tick.watchkitapp.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_SUPPRESS_WARNINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = TickWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		8F9E93AD4FDA5BAFA393C4FE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TickWatch/TickWatch.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 13;
+				DEVELOPMENT_TEAM = H7LG8SK72M;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TickWatch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ticks;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dn.tick.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_SUPPRESS_WARNINGS = NO;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TICK_CLOUD_ENVIRONMENT = Development;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		B907FA726F8DBBCF1DC172B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = H7LG8SK72M;
+				GENERATE_INFOPLIST_FILE = YES;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					AppIntents,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dn.tick.watchkitapp.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_SUPPRESS_WARNINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = TickWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		DA8C54CFF731447712A0EA20 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TickWatch/TickWatch.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 13;
+				DEVELOPMENT_TEAM = H7LG8SK72M;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TickWatch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ticks;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dn.tick.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_SUPPRESS_WARNINGS = NO;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TICK_CLOUD_ENVIRONMENT = Production;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -798,6 +1103,15 @@
 			buildConfigurations = (
 				618AD5051B404A7787B7F0C4 /* Debug */,
 				04A6CF1E155A4672B5FF02D9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4008C5FBF5F4B3BC6E6B149D /* Build configuration list for PBXNativeTarget "TickWatchUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B907FA726F8DBBCF1DC172B1 /* Debug */,
+				7AF55442E4CB2CE1395F8A34 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -838,7 +1152,30 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		5E2AA861B2EBA6422AEC9CAE /* Build configuration list for PBXNativeTarget "TickWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8F9E93AD4FDA5BAFA393C4FE /* Debug */,
+				DA8C54CFF731447712A0EA20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		E51F9B7A33F0414DC4E2FD3C /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		25BC3C84B2F7609FE189A406 /* TickCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TickCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A63FFC12F44E19C00885BD6 /* Project object */;
 }

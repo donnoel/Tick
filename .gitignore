@@ -5,6 +5,11 @@ xcuserdata/
 *.xccheckout
 *.xcscmblueprint
 xcs*
+!Tick.xcodeproj/xcshareddata/
+!Tick.xcodeproj/xcshareddata/xcschemes/
+Tick.xcodeproj/xcshareddata/xcschemes/*
+!Tick.xcodeproj/xcshareddata/xcschemes/TickWatch.xcscheme
+!Tick.xcodeproj/xcshareddata/xcschemes/Tick.xcscheme
 
 # SwiftPM
 .build/

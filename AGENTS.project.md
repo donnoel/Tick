@@ -22,11 +22,12 @@ Current scope:
 - space detail review with space-scoped session lists, session deletion, archive/restore actions, and voice memos
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
+- Apple Watch capture: select an existing Space, Start/Pause/Resume/Stop with the shared CloudKit snapshot
 - daily, weekly, monthly, yearly, and lifetime summaries
 - JSON persistence in the Tick App Group container with CloudKit sync between the iPhone/iPad app and widget actions
 
 Explicitly out of scope for this phase:
-- custom authentication, Live Activities, Apple Watch, billing, exports, map search, route capture, location history, and transcription
+- custom authentication, Live Activities, billing, exports, map search, route capture, location history, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
@@ -62,6 +63,15 @@ Persistence:
   `TickICloudSyncStore` remains for compatibility/testing; the default app no longer
   publishes timer snapshots to KVS. Do not restore the old timestamp-only policy.
 - Widget actions use the same CloudKit store and local App Group cache.
+- The Watch uses `TickCloudClientStore` from TickCore, with a separate atomic
+  Application Support cache and acknowledgment per CloudKit environment. It
+  shares the same transport, merge rules, and timer mutations with other clients.
+- WatchConnectivity carries replaceable refresh hints only; CloudKit remains
+  authoritative. Never execute timer commands on both transport paths.
+- Watch elapsed time uses native date-based Text rendering. Do not add repeating
+  background work, workouts, extended runtime sessions, or continuous polling.
+  Sync on foreground entry, actions, and system-delivered change notifications;
+  only pending edits get three bounded retries while the app is active.
 - Widget snapshots are stored separately as `tick-widget-snapshot.json` in the same App Group container.
 - Keep widget shared storage small. Widgets should render from `TickWidgetSnapshot`, not from broad SwiftUI view-model state.
 - Voice memo metadata is stored separately from the main Tick snapshot, with audio files in the App Group container and iCloud document storage when available.
@@ -139,13 +149,14 @@ Still verify manually before submission:
 
 - Show a read-only Version row in system Settings under Apps > Ticks, formatted `version (build)`.
 - The build generates `Settings.bundle/Root.plist` from the processed app Info.plist; no first launch or UserDefaults value is required.
-- Keep app and widget versions aligned in `Tick.xcodeproj/project.pbxproj`, and increment the build number for each changed build delivered to devices. Install the same artifact on iPhone and iPad.
+- Keep app, widget, and Watch versions aligned in `Tick.xcodeproj/project.pbxproj`, and increment the build number for each changed build delivered to devices. Install the same artifact on iPhone and iPad.
 - Verify the built app, widget, and Settings row agree before delivery.
 
 ## Build/run notes
 - Project: `Tick.xcodeproj`
 - Scheme: `Tick`
 - Target platform: iOS Simulator
+- Watch scheme: `TickWatch`, watchOS 26 or later; see `docs/WATCH_APP.md`
 - CI creates an available iPhone simulator dynamically and runs `xcodebuild ... clean test`
 - Build warnings should be treated as failures.
 
