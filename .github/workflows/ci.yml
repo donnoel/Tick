@@ -124,13 +124,14 @@ jobs:
             -project Tick.xcodeproj \
             -scheme Tick \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }},arch=$(uname -m)" \
             -derivedDataPath "$DERIVED_DATA" \
             -resultBundlePath "$RESULT_BUNDLE" \
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
             GCC_TREAT_WARNINGS_AS_ERRORS=YES \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            SWIFT_SUPPRESS_WARNINGS=NO \
             clean test
 
       - name: Upload xcodebuild artifacts
