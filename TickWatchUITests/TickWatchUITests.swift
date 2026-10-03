@@ -3,7 +3,7 @@ import XCTest
 nonisolated final class TickWatchUITests: XCTestCase {
     @MainActor func testChooseSpaceStartPauseResumeStopAndRelaunch() {
         let app = XCUIApplication()
-        app.launchArguments = ["-watchPreviewFixture"]
+        app.launchArguments = ["-watchPreviewFixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"]
         app.launch()
         if app.buttons["Stop Tick"].waitForExistence(timeout: 2) { app.buttons["Stop Tick"].tap() }
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 10))
@@ -13,6 +13,13 @@ nonisolated final class TickWatchUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
         app.buttons["Start Tick"].tap()
         XCTAssertTrue(app.buttons["Pause Tick"].waitForExistence(timeout: 5))
+        let pause = app.buttons["Pause Tick"]
+        let stop = app.buttons["Stop Tick"]
+        XCTAssertTrue(pause.isHittable)
+        XCTAssertTrue(stop.isHittable)
+        XCTAssertEqual(pause.frame.midY, stop.frame.midY, accuracy: 1)
+        XCTAssertLessThanOrEqual(pause.frame.maxY, app.frame.maxY - 10)
+        XCTAssertLessThanOrEqual(stop.frame.maxY, app.frame.maxY - 10)
         XCTAssertTrue(app.staticTexts["Active Space, Mosa"].exists)
         XCTAssertFalse(app.buttons["Choose Space"].exists)
         app.buttons["Pause Tick"].tap()

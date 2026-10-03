@@ -30,6 +30,12 @@ older clients continue to share records through CloudKit.
 
 ## Energy behavior
 
+The Watch screen uses a static ice-blue background, blue-gray text, and native
+Liquid Glass controls. Reduce Transparency replaces glass with opaque blue
+surfaces; increased contrast adds clearer control edges. The wrist-down state
+uses a subdued background and opaque controls. These appearance changes add no
+animation loop or background work; measured energy use remains a device check.
+
 Elapsed time is derived from stored dates. SwiftUI's native timer Text lets
 watchOS manage display updates and Always On rendering. Paused time is static.
 There is no repeating Timer, TimelineView, workout, extended runtime session,
@@ -79,3 +85,25 @@ The Watch implementation sprint is closed at the user's request. Hands-on
 testing is now user-owned; any reported issues will be follow-up work. Live
 cross-device action propagation, push delivery, measured energy use, VoiceOver,
 and large text checks remain acceptance checkpoints rather than verified results.
+
+## Watch visual update — October 3, 2026
+
+Ticks 2.0 (17) was built without warnings, passed strict signature verification,
+and was installed and launched on Don's Apple Watch. It uses the pale-blue
+presentation, keeps Pause and Stop side by side at standard text sizes, reserves
+space below the controls, and removes the navigation title beneath the clock.
+The centered Space name remains tappable in the ready state, with no chevron
+and a minimum 44-point hit target. Accessibility text sizes retain a scrollable
+vertical control layout.
+
+The focused simulator timer-flow test passed with checks for aligned, hittable
+controls and bottom clearance at the largest standard text size. The user's
+on-watch photo of build 15 confirmed both controls were visible above the lower
+edge. Build 16's empty navigation title and control spacing were visually
+verified in the simulator and a physical Watch screenshot. Build 17's Space
+picker without a chevron was confirmed in the user's on-watch photo; the user
+approved the on-watch appearance.
+The physical build 14 cloud checkpoint was fresh with no pending edits before
+these spacing updates. Verification did not perform any live timer action.
+The update introduces no data migration or additional background work; measured
+energy use and physical accessibility checks remain unverified.
