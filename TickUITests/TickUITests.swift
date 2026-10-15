@@ -244,6 +244,47 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No Ticks yet"].waitForExistence(timeout: 5))
     }
 
+    func testSummarySpaceOpensDetailedShareableReport() throws {
+        continueAfterFailure = false
+        let app = launchResetApp()
+        for name in ["Planning report", "Review report"] {
+            createProject(named: name, in: app)
+            addManualSession(titled: "Project planning", in: app)
+        }
+        createProject(named: "Client report", in: app)
+        addManualSession(titled: "Implementation and testing", in: app)
+
+        tab(named: "Summaries", in: app).tap()
+        let spaces = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "summaries.space."))
+        let space = spaces.matching(NSPredicate(format: "label == %@", "Client report")).firstMatch
+        XCTAssertTrue(space.waitForExistence(timeout: 5))
+        XCTAssertLessThan(space.frame.height, 160)
+        let header = app.staticTexts["By Space"].firstMatch
+        XCTAssertLessThan(space.frame.minY - header.frame.maxY, 90)
+        space.tap()
+
+        XCTAssertTrue(app.navigationBars["Space Report"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["spaceReport.total"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["spaceReport.total"].label, "30m")
+        XCTAssertTrue(app.datePickers["spaceReport.fromDate"].exists)
+        XCTAssertTrue(app.datePickers["spaceReport.throughDate"].exists)
+        XCTAssertTrue(app.staticTexts["Implementation and testing"].firstMatch.exists)
+
+        let reportScreenshot = XCTAttachment(screenshot: app.screenshot())
+        reportScreenshot.name = "Space report"
+        reportScreenshot.lifetime = .keepAlways
+        add(reportScreenshot)
+
+        let notesToggle = app.switches["spaceReport.includeNotes"]
+        notesToggle.switches.firstMatch.tap()
+        XCTAssertTrue(notesToggle.waitForValue("0", timeout: 5))
+
+        let share = app.buttons["spaceReport.share"]
+        XCTAssertTrue(share.isEnabled)
+        share.tap()
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Copy")).firstMatch.waitForExistence(timeout: 5))
+    }
+
     private func launchResetApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -255,7 +296,7 @@ final class TickUITests: XCTestCase {
     }
 
     private func createProject(named projectName: String, in app: XCUIApplication) {
-        let projectsTab = app.tabBars.firstMatch.buttons["Spaces"]
+        let projectsTab = tab(named: "Spaces", in: app)
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
         projectsTab.tap()
 
@@ -275,8 +316,8 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
     }
 
-    private func addManualSession(titled sessionTitle: String, in app: XCUIApplication) {
-        let todayTab = app.tabBars.firstMatch.buttons["Today"]
+    private func addManualSession(titled sessionTitle: String, notes: String = "", in app: XCUIApplication) {
+        let todayTab = tab(named: "Today", in: app)
         XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
         todayTab.tap()
 
@@ -289,16 +330,41 @@ final class TickUITests: XCTestCase {
         manualTitleField.tap()
         manualTitleField.typeText(sessionTitle)
 
+        if !notes.isEmpty {
+            let notesField = app.textFields["manualTime.notesField"]
+            notesField.tap()
+            notesField.typeText(notes)
+        }
+
         let manualSaveButton = app.buttons["manualTime.saveButton"]
         XCTAssertTrue(manualSaveButton.waitForExistence(timeout: 5))
+        let hideKeyboard = app.buttons["Hide keyboard"]
+        if hideKeyboard.exists {
+            hideKeyboard.tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        }
+        XCTAssertTrue(manualSaveButton.waitUntilHittable(timeout: 5))
         manualSaveButton.tap()
 
-        XCTAssertFalse(manualTitleField.waitForExistence(timeout: 5))
+        XCTAssertTrue(manualTitleField.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts[sessionTitle].waitForExistence(timeout: 5))
+    }
+
+    private func tab(named title: String, in app: XCUIApplication) -> XCUIElement {
+        // iPad's floating tabs are exposed as cells rather than a TabBar.
+        app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title)).firstMatch
     }
 }
 
 private extension XCUIElement {
+    func waitForValue(_ expectedValue: String, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "value == %@", expectedValue)
+        return XCTWaiter.wait(
+            for: [XCTNSPredicateExpectation(predicate: predicate, object: self)],
+            timeout: timeout
+        ) == .completed
+    }
+
     func waitUntilEnabled(timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isEnabled == true")
         return XCTWaiter.wait(

@@ -18,6 +18,7 @@ Current MVP foundation:
 - use Home Screen and Lock Screen widgets to glance at, start, or stop the current Tick
 - view today's recorded time and sessions
 - review daily, weekly, monthly, yearly, and lifetime summaries
+- tap a space in Summaries for a dated work report with description totals and daily sessions; adjust dates, optionally omit notes, and share the text through Mail or another app
 - persist local data between launches
 - sync Tick data between iPhone, iPad, Apple Watch, and the ProjectPilot Mac client with CloudKit
 - select a Space and Start/Pause/Resume/Stop from Apple Watch

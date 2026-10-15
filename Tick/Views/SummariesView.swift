@@ -4,6 +4,7 @@ import SwiftUI
 struct SummariesView: View {
     let viewModel: TickViewModel
     @State private var selectedPeriod = SummaryPeriod.week
+    @State private var selectedReport: SpaceReportDestination?
 
     var body: some View {
         NavigationStack {
@@ -68,7 +69,14 @@ struct SummariesView: View {
                             SummarySpaceBreakdown(
                                 summaries: summary.durationByProject,
                                 projectIDs: projectIDs
-                            )
+                            ) { space in
+                                selectedReport = SpaceReportDestination(
+                                    projectID: space.projectID,
+                                    projectName: space.projectName,
+                                    period: selectedPeriod,
+                                    referenceDate: timeline.date
+                                )
+                            }
                         }
                     } header: {
                         SummarySectionHeader(
@@ -83,8 +91,24 @@ struct SummariesView: View {
                 .background(TickPalette.appBackground)
             }
             .navigationTitle("Summaries")
+            .navigationDestination(item: $selectedReport) { destination in
+                SpaceReportView(
+                    viewModel: viewModel,
+                    projectID: destination.projectID,
+                    projectName: destination.projectName,
+                    period: destination.period,
+                    referenceDate: destination.referenceDate
+                )
+            }
         }
     }
+}
+
+private struct SpaceReportDestination: Hashable {
+    let projectID: TickProject.ID
+    let projectName: String
+    let period: SummaryPeriod
+    let referenceDate: Date
 }
 
 private struct SummaryPeriodProjectChart: View {
@@ -244,6 +268,7 @@ private struct SummarySectionHeader: View {
 private struct SummarySpaceBreakdown: View {
     let summaries: [ProjectDurationSummary]
     let projectIDs: [TickProject.ID]
+    let onSelect: (ProjectDurationSummary) -> Void
 
     private let columns = [
         GridItem(.adaptive(minimum: 260), spacing: 12)
@@ -252,12 +277,19 @@ private struct SummarySpaceBreakdown: View {
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
             ForEach(summaries) { summary in
-                SummarySpaceMetric(
-                    projectName: summary.projectName,
-                    duration: summary.duration,
-                    maximumDuration: summaries.first?.duration ?? 0,
-                    color: TickProjectAccent.color(for: summary.projectID, among: projectIDs)
-                )
+                Button {
+                    onSelect(summary)
+                } label: {
+                    SummarySpaceMetric(
+                        projectName: summary.projectName,
+                        duration: summary.duration,
+                        maximumDuration: summaries.first?.duration ?? 0,
+                        color: TickProjectAccent.color(for: summary.projectID, among: projectIDs)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens a detailed work report for this space and selected period.")
+                .accessibilityIdentifier("summaries.space.\(summary.projectID)")
             }
         }
         .padding(.vertical, 4)
@@ -284,12 +316,18 @@ private struct SummarySpaceMetric: View {
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: true, vertical: false)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
 
             ProgressView(value: progress)
                 .tint(color)
                 .accessibilityHidden(true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(TickPalette.appBackground, in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)

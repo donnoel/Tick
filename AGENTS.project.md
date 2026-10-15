@@ -24,10 +24,11 @@ Current scope:
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
 - Apple Watch capture: select an existing Space, Start/Pause/Resume/Stop with the shared CloudKit snapshot
 - daily, weekly, monthly, yearly, and lifetime summaries
+- space report drill-down from Summaries, adjustable inclusive dates, recorded-description totals, daily sessions, and native text sharing with optional notes
 - JSON persistence in the Tick App Group container with CloudKit sync between the iPhone/iPad app and widget actions
 
 Explicitly out of scope for this phase:
-- custom authentication, Live Activities, billing, exports, map search, route capture, location history, and transcription
+- custom authentication, Live Activities, billing, file exports, map search, route capture, location history, and transcription
 
 ## Architecture snapshot
 App entry and navigation:
@@ -47,6 +48,7 @@ State and operations:
 - Auto Tick rule mutations and arrival/departure decisions live on the view model.
 - Auto Tick rule updates/deletes must persist through `TickDataStore` and refresh monitored regions.
 - `TickSummaryCalculator` handles daily, weekly, monthly, yearly, and lifetime duration aggregation.
+- `TickSpaceReport` builds read-only space reports and share text. Reports count full session durations by recorded date, matching summary attribution; they do not split overnight sessions. Date ranges include both selected calendar dates.
 - Widget App Intents use `TickWidgetActionStore` for small shared-data mutations.
 - Voice memo recording, playback, metadata, and audio-file persistence are coordinated through the view model and voice memo stores.
 

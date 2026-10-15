@@ -117,7 +117,7 @@ nonisolated enum TickSummaryCalculator {
     ) -> TickSummary {
         let interval = period.interval(containing: referenceDate, calendar: calendar)
         let projectNamesByID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0.name) })
-        let periodSessions = sessions.filter { interval.contains($0.referenceDate) }
+        let periodSessions = sessions.filter { $0.referenceDate >= interval.start && $0.referenceDate < interval.end }
         let durationsByProject = Dictionary(grouping: periodSessions, by: \.projectID)
             .map { projectID, sessions in
                 ProjectDurationSummary(

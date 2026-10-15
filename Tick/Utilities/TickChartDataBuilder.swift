@@ -38,7 +38,7 @@ nonisolated enum TickChartDataBuilder {
         let interval = period.interval(containing: referenceDate, calendar: calendar)
         let projectByID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
 
-        return Dictionary(grouping: sessions.filter { interval.contains($0.referenceDate) }, by: \.projectID)
+        return Dictionary(grouping: sessions.filter { $0.referenceDate >= interval.start && $0.referenceDate < interval.end }, by: \.projectID)
             .compactMap { projectID, groupedSessions in
                 guard let project = projectByID[projectID] else {
                     return nil
@@ -85,7 +85,7 @@ nonisolated enum TickChartDataBuilder {
                 return []
             }
 
-            let periodSessions = sessions.filter { interval.contains($0.referenceDate) }
+            let periodSessions = sessions.filter { $0.referenceDate >= interval.start && $0.referenceDate < interval.end }
             let durationsByDay = Dictionary(grouping: periodSessions) { session in
                 calendar.startOfDay(for: session.referenceDate)
             }
@@ -115,7 +115,7 @@ nonisolated enum TickChartDataBuilder {
     ) -> [TickPeriodProjectChartEntry] {
         let interval = period.interval(containing: referenceDate, calendar: calendar)
         let projectByID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
-        let periodSessions = sessions.filter { interval.contains($0.referenceDate) }
+        let periodSessions = sessions.filter { $0.referenceDate >= interval.start && $0.referenceDate < interval.end }
 
         return Dictionary(grouping: periodSessions) { session in
             PeriodProjectKey(
