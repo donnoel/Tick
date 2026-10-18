@@ -8,7 +8,12 @@
 ## Overview
 Tick is a playful, lightweight SwiftUI timekeeping app for recording how long spaces actually take.
 
-Current MVP foundation:
+## Current status — October 18, 2026
+
+Don confirmed the current Tick work is complete, with nothing outstanding from his perspective. This closes the prior acceptance and delete-confirmation follow-ups for the current scope on owner confirmation; it does not claim new tests, device observations, or an application release. New requests or reported regressions are follow-up work.
+
+Implemented scope:
+
 - create spaces
 - start and stop one active Tick session
 - add missed time manually
@@ -50,7 +55,10 @@ xcodebuild \
 
 CI creates and boots an available iPhone simulator dynamically before running tests, so local simulator names do not need to match GitHub Actions exactly.
 
-## Release Checklist
+## Future release rechecks
+
+These are reference procedures for a future release, not outstanding tasks for the owner-confirmed current closeout.
+
 - Build and launch a signed Debug or Release build on Don iPhone.
 - Create an Auto Tick rule from current location, allow When In Use and Always access when prompted, and verify arrival/departure behavior on device.
 - Start and stop a Tick from the Home Screen widget and, where supported, a Lock Screen widget.
@@ -81,9 +89,10 @@ Tick/
 - [x] Add Home Screen and Lock Screen widget foundation
 - [x] Add iCloud Key-Value Store sync foundation
 - [x] Add space archiving UI
-- [ ] Add map/search support for Auto Tick locations
 - [x] Add daily, weekly, monthly, yearly, and lifetime charts
-- [ ] Add export after the local foundation is stable
+- [x] Add shareable dated Space work reports
+
+There are no outstanding tasks in the current scope. Map/search for Auto Tick locations and additional file-export formats are optional future ideas, not committed closeout work.
 
 ## Credits
 Built with care by **Don Noel** and Codex collaboration.
@@ -96,8 +105,7 @@ files directly. Run `swift test -Xswiftc -warnings-as-errors` for the shared mod
 Start/Stop, merge and wire-format tests. No third-party packages are used.
 
 The current default timer sync uses CloudKit; KVS is a legacy import path.
-Cross-device widget Stop propagation remains a physical validation checkpoint
-from commit `4e84aa9`, not a verified fix.
+Commit `4e84aa9` recorded an unresolved physical widget Stop-propagation checkpoint at that time. Don's October 18 owner confirmation closes the current follow-up; no new independent device verification is claimed.
 
 ## Apple Watch
 

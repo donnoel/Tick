@@ -4,6 +4,10 @@ The Watch app provides only an existing Space picker and Start, Pause, Resume,
 and Stop. Space management, session editing, summaries, voice memos, and Auto
 Tick configuration remain on the other clients. An active Tick locks its Space.
 
+## Current closeout — October 18, 2026
+
+Don confirms the current Tick work, including its Watch scope, is complete with nothing outstanding from his perspective. Earlier acceptance checkpoints below remain dated evidence of what was and was not observed at the time; they are superseded as the current task queue. This owner confirmation adds no independent device tests, battery measurements, accessibility observations, or release claim.
+
 ## Integration and persistence
 
 `TickWatchViewModel` owns observed UI state. `TickCloudClientStore` is an actor

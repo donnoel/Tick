@@ -12,7 +12,7 @@ Success for the current phase means the app can create spaces, capture one activ
 For product language only, the app is space-centric: users measure time for a Space. The internal model type is still `TickProject`.
 
 ## Current product phase
-Tick is in MVP foundation.
+As of October 18, 2026, Don confirms the current Tick work is complete, with no outstanding closeout tasks. Prior acceptance and delete-confirmation follow-ups are closed on owner confirmation. Do not infer newly performed tests, physical-device observations, or a release from that confirmation; new requests and reported regressions are follow-up work.
 
 Current scope:
 - space capture with local JSON persistence plus CloudKit synchronization
@@ -108,7 +108,7 @@ Current implementation includes:
 - visible "Manual" and "Auto" badges with spoken source descriptions
 - Dynamic Type-friendly SwiftUI text styles for major labels and timer readouts
 
-Still verify manually before submission:
+Reference checks for a future submission (not outstanding current closeout tasks):
 - VoiceOver reading order across all three tabs
 - large Dynamic Type behavior in Today cards and manual-entry form
 - light/dark contrast for material-backed timer and session rows
@@ -162,7 +162,10 @@ Still verify manually before submission:
 - CI creates an available iPhone simulator dynamically and runs `xcodebuild ... clean test`
 - Build warnings should be treated as failures.
 
-## Release validation checklist
+## Future release validation reference
+
+The current scope is owner-confirmed complete. Use these procedures when a future release is requested; they are not a remaining acceptance queue.
+
 - Run a signed build on Don iPhone before release checks that depend on system services.
 - Verify Auto Tick permission prompts, current-location rule creation, and region arrival/departure behavior on device.
 - Verify Home Screen and Lock Screen widget Start/Stop actions against the shared App Group store.
@@ -170,9 +173,10 @@ Still verify manually before submission:
 - Verify CloudKit sync between iPhone and iPad for spaces, sessions, Auto Tick rules, and widget-started sessions.
 - Re-check VoiceOver reading order, large Dynamic Type, and light/dark contrast before submission.
 
-## Near-term priorities
-- Add richer validation around manual duration entry.
-- Add more UI tests once flows stabilize.
+## Current closeout
+
+- No outstanding work as confirmed by Don on October 18, 2026.
+- Additional validation or UI coverage belongs to separately requested future work.
 
 ## Output expectations per patch
 Provide:
@@ -193,5 +197,6 @@ provides Mac/widget Start/Stop and the app's paused Stop date calculation. Its
 The Mac controls use the existing container and wire format. They preserve fields
 outside their editing scope, including Auto Tick rules. Review paired changes in
 both repositories. No data reset or KVS rollback is part of this integration.
-Physical widget Stop propagation was unresolved at checkpoint `4e84aa9`; builds and
-unit tests alone must not be reported as proof that this is fixed.
+Physical widget Stop propagation was unresolved at historical checkpoint `4e84aa9`.
+Don's October 18 confirmation closes the current follow-up; builds and unit tests
+alone must still not be presented as independent physical-device proof.
