@@ -1,19 +1,37 @@
-# Ticks
+# **Ticks**
+
+### *See where your time goes.*
 
 <p align="center">
-  <img src="https://img.shields.io/badge/SwiftUI-app-orange?logo=swift">
-  <img src="https://img.shields.io/badge/Platform-iOS%20%2B%20iPadOS%20%2B%20watchOS-blue">
+  <img src="https://img.shields.io/badge/SwiftUI-app-orange?logo=swift" alt="SwiftUI: app">
+  <img src="https://img.shields.io/badge/Platform-iOS%20%2B%20iPadOS%20%2B%20watchOS-blue" alt="Platform: iOS + iPadOS + watchOS">
 </p>
 
-## Overview
+---
+
+## ✨ Overview
+
+<a id="overview"></a>
+
 Tick is a playful, lightweight SwiftUI timekeeping app for recording how long spaces actually take.
 
-## Current status — October 18, 2026
+### Current status — October 18, 2026
 
 Don confirmed the current Tick work is complete, with nothing outstanding from his perspective. This closes the prior acceptance and delete-confirmation follow-ups for the current scope on owner confirmation; it does not claim new tests, device observations, or an application release. New requests or reported regressions are follow-up work.
 
-Implemented scope:
+## 💎 Core Features
 
+| Feature | What it does |
+| --- | --- |
+| **Timekeeping** | Create Spaces and record, edit, or add missed time. |
+| **Reports** | Review daily through lifetime summaries and share dated work reports. |
+| **Auto Tick** | Configure opt-in location rules for arrival and departure actions. |
+| **Connected surfaces** | Use widgets, Apple Watch, and the ProjectPilot Mac client with shared sync. |
+
+<details>
+<summary>Feature details and controls</summary>
+
+Implemented scope:
 - create spaces
 - start and stop one active Tick session
 - add missed time manually
@@ -28,13 +46,31 @@ Implemented scope:
 - sync Tick data between iPhone, iPad, Apple Watch, and the ProjectPilot Mac client with CloudKit
 - select a Space and Start/Pause/Resume/Stop from Apple Watch
 
-## Requirements
+<a id="apple-watch"></a>
+
+### Apple Watch
+
+Select the `TickWatch` scheme to build for watchOS 26 or later. The Watch uses the
+same iCloud container and timer records as the other clients, without a repeating
+background timer. See [Watch architecture and validation](docs/WATCH_APP.md).
+
+</details>
+
+---
+
+## 🚀 Getting Started
+
+<a id="requirements"></a>
+
+### Requirements
+
 - macOS with Xcode installed
-- Xcode with an iOS Simulator
+- Xcode with the iOS 26 SDK or newer and an installed iPhone or iPad Simulator
 - SwiftUI
 - iCloud capability for device-to-device sync builds
 
-## Getting Started
+<a id="getting-started"></a>
+
 1. Open `Tick.xcodeproj`
 2. Select an iPhone or iPad Simulator
 3. Build and Run
@@ -55,18 +91,12 @@ xcodebuild \
 
 CI creates and boots an available iPhone simulator dynamically before running tests, so local simulator names do not need to match GitHub Actions exactly.
 
-## Future release rechecks
+## 🧠 How It Works
 
-These are reference procedures for a future release, not outstanding tasks for the owner-confirmed current closeout.
+<a id="project-structure"></a>
 
-- Build and launch a signed Debug or Release build on Don iPhone.
-- Create an Auto Tick rule from current location, allow When In Use and Always access when prompted, and verify arrival/departure behavior on device.
-- Start and stop a Tick from the Home Screen widget and, where supported, a Lock Screen widget.
-- Record, play, rename, delete, and relaunch-check a voice memo for an active Space.
-- Verify CloudKit sync between iPhone and iPad on the same Apple ID for spaces, sessions, Auto Tick rules, and widget-started sessions.
-- Before submission, manually check VoiceOver reading order, large Dynamic Type layout, and light/dark contrast for material-backed timer and session rows.
+### Project Structure
 
-## Project Structure
 ```text
 Tick/
 ├── Tick/
@@ -80,24 +110,9 @@ Tick/
 └── TickUITests/
 ```
 
-## Roadmap
-- [x] Define app goals and core flows
-- [x] Add real UI and data model
-- [x] Add tests for key behaviors
-- [x] Add timer-session editing for title and notes
-- [x] Add Auto Ticks foundation
-- [x] Add Home Screen and Lock Screen widget foundation
-- [x] Add iCloud Key-Value Store sync foundation
-- [x] Add space archiving UI
-- [x] Add daily, weekly, monthly, yearly, and lifetime charts
-- [x] Add shareable dated Space work reports
+<a id="shared-timer-support"></a>
 
-There are no outstanding tasks in the current scope. Map/search for Auto Tick locations and additional file-export formats are optional future ideas, not committed closeout work.
-
-## Credits
-Built with care by **Don Noel** and Codex collaboration.
-
-## Shared timer support
+### Shared timer support
 
 `Package.swift` exposes the first-party `TickCore` library used by the sibling
 ProjectPilot Mac app. The iPhone app and widget compile the same portable source
@@ -107,8 +122,53 @@ Start/Stop, merge and wire-format tests. No third-party packages are used.
 The current default timer sync uses CloudKit; KVS is a legacy import path.
 Commit `4e84aa9` recorded an unresolved physical widget Stop-propagation checkpoint at that time. Don's October 18 owner confirmation closes the current follow-up; no new independent device verification is claimed.
 
-## Apple Watch
+## 🔒 Data and Privacy
 
-Select the `TickWatch` scheme to build for watchOS 26 or later. The Watch uses the
-same iCloud container and timer records as the other clients, without a repeating
-background timer. See [Watch architecture and validation](docs/WATCH_APP.md).
+The current shared-data path uses CloudKit, with the earlier iCloud key-value
+store retained for legacy import. The app persists local records and exposes
+location-based Auto Tick rules only when the user opts in. The historical physical
+widget Stop-propagation checkpoint was closed on owner confirmation; that does
+not claim new independent device verification.
+
+## 📚 Documentation
+
+<a id="release-checklist"></a>
+
+### Future release rechecks
+
+These are reference procedures for a future release, not outstanding tasks for the owner-confirmed current closeout.
+
+- Build and launch a signed Debug or Release build on Don iPhone.
+- Create an Auto Tick rule from current location, allow When In Use and Always access when prompted, and verify arrival/departure behavior on device.
+- Start and stop a Tick from the Home Screen widget and, where supported, a Lock Screen widget.
+- Record, play, rename, delete, and relaunch-check a voice memo for an active Space.
+- Verify CloudKit sync between iPhone and iPad on the same Apple ID for spaces, sessions, Auto Tick rules, and widget-started sessions.
+- Before submission, manually check VoiceOver reading order, large Dynamic Type layout, and light/dark contrast for material-backed timer and session rows.
+
+- [Repository guidance](AGENTS.md)
+- [Project guide](AGENTS.project.md)
+
+## 🗺️ Roadmap
+
+<a id="roadmap"></a>
+
+- [x] Define app goals and core flows
+- [x] Add real UI and data model
+- [x] Add tests for key behaviors
+- [x] Add timer-session editing for title and notes
+- [x] Add Auto Ticks foundation
+- [x] Add Home Screen and Lock Screen widget foundation
+- [x] Add CloudKit synchronization with legacy Key-Value Store import
+- [x] Add space archiving UI
+- [x] Add daily, weekly, monthly, yearly, and lifetime charts
+- [x] Share dated text work reports for a Space and selected period
+
+There are no outstanding tasks in the current scope. Map/search for Auto Tick locations and additional file-export formats are optional future ideas, not committed closeout work.
+
+---
+
+## 🤝 Credits
+
+<a id="credits"></a>
+
+Built with care by **Don Noel** and Codex collaboration.
