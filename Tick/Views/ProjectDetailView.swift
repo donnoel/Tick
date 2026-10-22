@@ -33,107 +33,9 @@ struct ProjectDetailView: View {
                     }
                 }
 
-                Section("Voice Memos") {
-                    if currentProject.isArchived {
-                        Label("Restore this space before recording new voice memos.", systemImage: "mic.slash")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .accessibilityLabel("Voice memo recording unavailable for archived space.")
-                    } else if viewModel.isRecordingVoiceMemo(for: currentProject.id) {
-                        HStack {
-                            Label("Recording", systemImage: "mic.fill")
-                                .foregroundStyle(.red)
-                                .font(.subheadline.weight(.semibold))
+                voiceMemosSection(for: currentProject)
 
-                            Spacer()
-
-                            Button {
-                                stopRecordingVoiceMemo()
-                            } label: {
-                                Image(systemName: "stop.fill")
-                                    .font(.headline)
-                                    .frame(width: 44, height: 44)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .accessibilityLabel("Stop recording")
-                            .accessibilityHint("Stops and saves this voice memo.")
-                        }
-                    } else {
-                        Button {
-                            startRecordingVoiceMemo(currentProject.id)
-                        } label: {
-                            Label("Record Voice Memo", systemImage: "mic")
-                        }
-                        .accessibilityHint("Starts a local voice memo for this space.")
-                    }
-
-                    let voiceMemos = viewModel.voiceMemos(for: currentProject.id)
-                    if voiceMemos.isEmpty {
-                        ContentUnavailableView(
-                            "No Voice Memos",
-                            systemImage: "waveform",
-                            description: Text("Recorded memos for this space will appear here.")
-                        )
-                    } else {
-                        ForEach(voiceMemos) { voiceMemo in
-                            VoiceMemoRowView(
-                                voiceMemo: voiceMemo,
-                                isPlaying: viewModel.playingVoiceMemoID == voiceMemo.id
-                            ) {
-                                playVoiceMemo(voiceMemo.id)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    deleteVoiceMemo(voiceMemo.id)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-
-                                Button {
-                                    beginRenamingVoiceMemo(voiceMemo)
-                                } label: {
-                                    Label("Rename", systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                            }
-                            .accessibilityHint("Plays this voice memo. Swipe for rename and delete actions.")
-                        }
-                    }
-                }
-
-                Section("Sessions") {
-                    let projectSessions = viewModel.sessions(for: currentProject.id)
-                    let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: projectSessions)
-                    if projectSessions.isEmpty {
-                        ContentUnavailableView(
-                            "No Ticks yet",
-                            systemImage: "clock",
-                            description: Text("Sessions for this space will appear here.")
-                        )
-                    } else {
-                        ForEach(projectSessions) { session in
-                            NavigationLink {
-                                SessionDetailView(viewModel: viewModel, session: session)
-                            } label: {
-                                SessionRowView(
-                                    session: session,
-                                    projectID: currentProject.id,
-                                    projectName: currentProject.name,
-                                    displayDate: timeline.date,
-                                    defaultTitle: fallbackTitles[session.id] ?? "Tick",
-                                    detailStyle: .date,
-                                    accentColor: projectAccent
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Opens session details.")
-                        }
-                        .onDelete { indexSet in
-                            sessionsPendingDeletion = indexSet.map { projectSessions[$0] }
-                        }
-                    }
-                }
+                sessionsSection(for: currentProject, at: timeline.date, accent: projectAccent)
             }
             .scrollContentBackground(.hidden)
             .background(TickPalette.appBackground)
@@ -211,6 +113,112 @@ struct ProjectDetailView: View {
         } message: {
             Text("Give this voice memo a short title.")
         }
+    }
+
+    private func voiceMemosSection(for currentProject: TickProject) -> some View {
+    Section("Voice Memos") {
+        if currentProject.isArchived {
+            Label("Restore this space before recording new voice memos.", systemImage: "mic.slash")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Voice memo recording unavailable for archived space.")
+        } else if viewModel.isRecordingVoiceMemo(for: currentProject.id) {
+            HStack {
+                Label("Recording", systemImage: "mic.fill")
+                    .foregroundStyle(.red)
+                    .font(.subheadline.weight(.semibold))
+
+                Spacer()
+
+                Button {
+                    stopRecordingVoiceMemo()
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.headline)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .accessibilityLabel("Stop recording")
+                .accessibilityHint("Stops and saves this voice memo.")
+            }
+        } else {
+            Button {
+                startRecordingVoiceMemo(currentProject.id)
+            } label: {
+                Label("Record Voice Memo", systemImage: "mic")
+            }
+            .accessibilityHint("Starts a local voice memo for this space.")
+        }
+
+        let voiceMemos = viewModel.voiceMemos(for: currentProject.id)
+        if voiceMemos.isEmpty {
+            ContentUnavailableView(
+                "No Voice Memos",
+                systemImage: "waveform",
+                description: Text("Recorded memos for this space will appear here.")
+            )
+        } else {
+            ForEach(voiceMemos) { voiceMemo in
+                VoiceMemoRowView(
+                    voiceMemo: voiceMemo,
+                    isPlaying: viewModel.playingVoiceMemoID == voiceMemo.id
+                ) {
+                    playVoiceMemo(voiceMemo.id)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        deleteVoiceMemo(voiceMemo.id)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                    Button {
+                        beginRenamingVoiceMemo(voiceMemo)
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    .tint(.blue)
+                }
+                .accessibilityHint("Plays this voice memo. Swipe for rename and delete actions.")
+            }
+        }
+    }
+    }
+
+    private func sessionsSection(for currentProject: TickProject, at date: Date, accent: Color) -> some View {
+    Section("Sessions") {
+        let projectSessions = viewModel.sessions(for: currentProject.id)
+        let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: projectSessions)
+        if projectSessions.isEmpty {
+            ContentUnavailableView(
+                "No Ticks yet",
+                systemImage: "clock",
+                description: Text("Sessions for this space will appear here.")
+            )
+        } else {
+            ForEach(projectSessions) { session in
+                NavigationLink {
+                    SessionDetailView(viewModel: viewModel, session: session)
+                } label: {
+                    SessionRowView(
+                        session: session,
+                        projectID: currentProject.id,
+                        projectName: currentProject.name,
+                        displayDate: date,
+                        defaultTitle: fallbackTitles[session.id] ?? "Tick",
+                        detailStyle: .date,
+                        accentColor: accent
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens session details.")
+            }
+            .onDelete { indexSet in
+                sessionsPendingDeletion = indexSet.map { projectSessions[$0] }
+            }
+        }
+    }
     }
 
     private var sessionDeletionConfirmationIsPresented: Binding<Bool> {
