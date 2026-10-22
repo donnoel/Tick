@@ -195,6 +195,7 @@ final class TickUITests: XCTestCase {
     }
 
     func testProjectDetailSessionCanBeDeleted() throws {
+        continueAfterFailure = false
         let app = launchResetApp()
 
         let projectName = "Delete UI Project"
@@ -240,7 +241,27 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.tap()
 
-        XCTAssertFalse(projectSessionRowText.waitForExistence(timeout: 5))
+        let confirmation = app.alerts["Delete Tick?"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", sessionTitle)).firstMatch.exists)
+        XCTAssertTrue(projectSessionRowText.exists)
+
+        let confirmationScreenshot = XCTAttachment(screenshot: app.screenshot())
+        confirmationScreenshot.name = "Delete Tick confirmation"
+        confirmationScreenshot.lifetime = .keepAlways
+        add(confirmationScreenshot)
+
+        confirmation.buttons["Cancel"].tap()
+        XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(projectSessionRowText.exists)
+
+        projectSessionRow.swipeLeft()
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.tap()
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        confirmation.buttons["Delete Tick"].tap()
+
+        XCTAssertTrue(projectSessionRowText.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No Ticks yet"].waitForExistence(timeout: 5))
     }
 

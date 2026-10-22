@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectDetailView: View {
     let viewModel: TickViewModel
     let project: TickProject
+    @State private var sessionsPendingDeletion: [TimeSession]?
     @State private var deletionMessage: String?
     @State private var projectActionMessage: String?
     @State private var voiceMemoMessage: String?
@@ -129,7 +130,7 @@ struct ProjectDetailView: View {
                             .accessibilityHint("Opens session details.")
                         }
                         .onDelete { indexSet in
-                            deleteSessions(at: indexSet, from: projectSessions)
+                            sessionsPendingDeletion = indexSet.map { projectSessions[$0] }
                         }
                     }
                 }
@@ -162,6 +163,24 @@ struct ProjectDetailView: View {
                 .accessibilityHint("Shows actions for this space.")
             }
         }
+        .alert(
+            sessionsPendingDeletion?.count == 1 ? "Delete Tick?" : "Delete Ticks?",
+            isPresented: sessionDeletionConfirmationIsPresented,
+            presenting: sessionsPendingDeletion
+        ) { sessions in
+            Button(sessions.count == 1 ? "Delete Tick" : "Delete Ticks", role: .destructive) {
+                deleteSessions(ids: sessions.map(\.id))
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { sessions in
+            if sessions.count == 1, let session = sessions.first {
+                let title = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name = title.isEmpty ? "This Tick" : "“\(title)”"
+                Text("\(name) and its recorded time will be permanently deleted. This cannot be undone.")
+            } else {
+                Text("These \(sessions.count) Ticks and their recorded time will be permanently deleted. This cannot be undone.")
+            }
+        }
         .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -191,6 +210,16 @@ struct ProjectDetailView: View {
             .disabled(voiceMemoRenameTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } message: {
             Text("Give this voice memo a short title.")
+        }
+    }
+
+    private var sessionDeletionConfirmationIsPresented: Binding<Bool> {
+        Binding {
+            sessionsPendingDeletion != nil
+        } set: { isPresented in
+            if !isPresented {
+                sessionsPendingDeletion = nil
+            }
         }
     }
 
@@ -234,10 +263,10 @@ struct ProjectDetailView: View {
         }
     }
 
-    private func deleteSessions(at indexSet: IndexSet, from sessions: [TimeSession]) {
+    private func deleteSessions(ids: [TimeSession.ID]) {
         Task {
-            for index in indexSet {
-                let didDelete = await viewModel.deleteSession(id: sessions[index].id)
+            for id in ids {
+                let didDelete = await viewModel.deleteSession(id: id)
                 if !didDelete {
                     deletionMessage = viewModel.errorMessage ?? "Tick could not delete that session."
                     return

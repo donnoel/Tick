@@ -132,6 +132,7 @@ Reference checks for a future submission (not outstanding current closeout tasks
 - Auto Tick departure must not stop timer-created or manual sessions.
 - Deleting an Auto Tick rule must remove its monitored geofence without deleting existing sessions.
 - Deleting a session must not delete its project or Auto Tick rules; active sessions must be stopped before they can be deleted.
+- Deleting a Tick from a Space requires confirmation. Cancel leaves the Tick and its recorded time unchanged.
 - Archiving a space removes it from active capture lists without deleting its sessions, Auto Tick rules, or voice memos.
 - Voice memo recording is space-scoped and unavailable for archived spaces.
 
