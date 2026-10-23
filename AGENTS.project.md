@@ -18,7 +18,7 @@ Current scope:
 - space capture with local JSON persistence plus CloudKit synchronization
 - Today, Spaces, and Summaries tabs
 - duration-only manual time entry
-- session detail review and title/notes/space editing
+- session detail review and title/notes/space editing, plus date/start/end/duration/source corrections for stopped Ticks
 - space detail review with space-scoped session lists, session deletion, archive/restore actions, and voice memos
 - Auto Ticks foundation with opt-in Core Location permission, current-location rule creation, rule edit/delete, and region-monitoring service boundary
 - WidgetKit foundation with Home Screen and Lock Screen widgets plus App Intent-powered Start/Stop actions where supported
@@ -117,6 +117,7 @@ Reference checks for a future submission (not outstanding current closeout tasks
 - Starting a timer must not require a form.
 - Only one active timer session may exist at a time.
 - A manual session uses `manualDuration` as its source of truth.
+- Timing corrections are drafts until Save; active or paused Ticks must be stopped first. End/duration edits preserve recorded pause time, source conversions stay completed, and stale timing edits are rejected.
 - A timer session duration is derived from `startedAt` and `endedAt`.
 - A running session uses `Date.now - startedAt` only for display; elapsed time is not stored continuously.
 - Local data should survive app relaunches.

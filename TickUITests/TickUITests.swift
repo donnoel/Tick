@@ -194,6 +194,54 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[editedSessionTitle].waitForExistence(timeout: 5))
     }
 
+    func testSessionTimingEditsCanBeCancelledSavedAndRestored() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = launchResetApp()
+        createProject(named: "Timing Project", in: app)
+        addManualSession(titled: "Timing work", in: app)
+        app.staticTexts["Timing work"].tap()
+        XCTAssertTrue(app.datePickers["sessionDetail.date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.datePickers["sessionDetail.start"].exists)
+
+        let duration = app.descendants(matching: .any).matching(identifier: "sessionDetail.duration").firstMatch
+        duration.tap()
+        let minutes = app.steppers["sessionDetail.durationMinutes"]
+        XCTAssertTrue(minutes.waitForExistence(timeout: 5))
+        minutes.buttons["sessionDetail.durationMinutes-Increment"].tap()
+        XCTAssertTrue(minutes.label.contains("31"))
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.staticTexts["Timing work"].waitForExistence(timeout: 5))
+        app.staticTexts["Timing work"].tap()
+        duration.tap()
+        XCTAssertTrue(minutes.waitForExistence(timeout: 5))
+        XCTAssertTrue(minutes.label.contains("30"))
+        minutes.buttons["sessionDetail.durationMinutes-Increment"].tap()
+
+        let source = app.buttons["sessionDetail.source"]
+        source.tap()
+        let timer = app.buttons["Timer"]
+        XCTAssertTrue(timer.waitForExistence(timeout: 5))
+        timer.tap()
+        XCTAssertTrue(app.datePickers["sessionDetail.end"].waitForExistence(timeout: 5))
+        app.buttons["sessionDetail.saveButton"].tap()
+        XCTAssertTrue(app.staticTexts["Timing work"].waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launchArguments = ["-disableCloudSyncForUITests"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Timing work"].waitForExistence(timeout: 5))
+        app.staticTexts["Timing work"].tap()
+        XCTAssertTrue(app.datePickers["sessionDetail.end"].waitForExistence(timeout: 5))
+        duration.tap()
+        XCTAssertTrue(minutes.label.contains("31"))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Editable timing"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
     func testProjectDetailSessionCanBeDeleted() throws {
         continueAfterFailure = false
         let app = launchResetApp()

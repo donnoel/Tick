@@ -879,7 +879,8 @@ final class TickViewModel {
         id: TimeSession.ID,
         title: String,
         notes: String,
-        projectID: TickProject.ID
+        projectID: TickProject.ID,
+        timing: SessionTimingDraft? = nil
     ) async -> Bool {
         guard projects.contains(where: { $0.id == projectID }) else {
             errorMessage = "Choose a space for this Tick."
@@ -891,9 +892,20 @@ final class TickViewModel {
             return false
         }
 
-        sessions[sessionIndex].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        sessions[sessionIndex].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        sessions[sessionIndex].projectID = projectID
+        var updated = sessions[sessionIndex]
+        if let timing, timing.hasChanges {
+            do {
+                updated = try timing.applying(to: updated)
+            } catch {
+                errorMessage = error.localizedDescription
+                return false
+            }
+            if projectID != updated.projectID { updated.autoTickRuleID = nil }
+        }
+        updated.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.projectID = projectID
+        sessions[sessionIndex] = updated
         sessions.sort { $0.referenceDate > $1.referenceDate }
         await persist()
         return true
