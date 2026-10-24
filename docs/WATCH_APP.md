@@ -62,6 +62,8 @@ refreshes it. Source inspection does not establish measured battery drain.
   active Space, and relaunch while paused against an isolated simulator fixture.
 - Use `-watchPreviewFixture` only in a Debug Watch simulator to show sample
   Spaces. Fixture cloud data is local and separate from real iCloud.
+- Add `-watchPreviewOffline` to that fixture to simulate a temporary fetch
+  failure. A cached pending edit can then exercise the syncing presentation.
 - Build with `GCC_TREAT_WARNINGS_AS_ERRORS=YES`,
   `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`, and `SWIFT_SUPPRESS_WARNINGS=NO`.
 - Signed device builds require `dn.tick.watchkitapp` on the existing team with
@@ -111,3 +113,40 @@ The physical build 14 cloud checkpoint was fresh with no pending edits before
 these spacing updates. Verification did not perform any live timer action.
 The update introduces no data migration or additional background work; measured
 energy use and physical accessibility checks remain unverified.
+
+## Watch layout follow-up — October 24, 2026
+
+Build 22 replaces the circular controls with equal-width text capsules. The
+Space name uses the same 44-point header region before and during a Tick, with
+no chevron or changing background shape. The timer is the primary text; the
+Space name, action labels, and status use smaller, explicitly scaled sizes.
+Start, Pause/Resume, and Stop share a minimum 44-point control height.
+
+A reserved line below the timer holds Running, Paused, or sync status. The
+ready state leaves this line empty, and pending edits no longer add a footer
+that moves the other controls. Active pending edits announce both the timer
+state and syncing. Timer mutations, write eligibility, CloudKit, retries, and
+Always On behavior are unchanged. There is no migration or additional
+background work. Existing Reduce Transparency, increased contrast, dimmed
+appearance, semantic labels, and accessibility-size vertical layouts remain.
+
+The signed Watch build passed without warnings using Xcode 26.6, and strict
+signature verification passed. Its watchOS 26.5 simulator could not launch the
+UI test runner, so no tests executed on that runtime. Separately, the full
+Watch UI suite passed on Xcode 27/watchOS 27: Space selection, timer actions,
+paused relaunch, matching control sizes, bottom clearance, and stable header,
+timer-line, and control positions at the largest standard text size. Simulator
+screenshots covered ready, running, paused, a three-hour elapsed time, and a
+cached pending edit with the offline fixture.
+
+Build 22 was installed and launched on Don's Apple Watch. Physical screenshots
+confirmed the updated timer layout and the Spaces picker. The cloud checkpoint
+was confirmed at 23:15:55 UTC with 17 Spaces, 458 sessions, and no pending local
+edits. Verification did not perform any live timer action. Don approved the
+on-watch appearance after installation. VoiceOver operation and measured energy
+use remain unverified.
+
+Before publication, the Xcode 26.6/iOS 26.5 CI script's clean build and all 113
+unit tests passed without warnings. The additional iPhone UI run was stopped
+at Don's request; it does not establish a full CI pass. The separate Watch UI
+suite result above remains the validation for the changed Watch layout.

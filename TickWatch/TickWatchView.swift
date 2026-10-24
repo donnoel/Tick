@@ -6,8 +6,12 @@ struct TickWatchView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var controlDiameter = 64
-    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 32
+    @ScaledMetric(relativeTo: .caption2) private var controlHeight = 44
+    @ScaledMetric(relativeTo: .caption2) private var statusHeight = 18
+    @ScaledMetric(relativeTo: .subheadline) private var spaceFontSize = 16
+    @ScaledMetric(relativeTo: .footnote) private var controlFontSize = 14
+    @ScaledMetric(relativeTo: .caption2) private var statusFontSize = 12
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 34
     @State private var viewModel = TickWatchViewModel()
     @State private var isChoosingSpace = false
 
@@ -15,21 +19,19 @@ struct TickWatchView: View {
         NavigationStack {
             GeometryReader { geometry in
                 ScrollView {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 12) {
                         spaceControl
                         timer
                         controls
                         if let message = viewModel.errorMessage {
-                            Text(message).font(.footnote).foregroundStyle(secondaryInk).multilineTextAlignment(.center)
+                            Text(message).font(.caption2).foregroundStyle(secondaryInk).multilineTextAlignment(.center)
                             Button("Try Again", systemImage: "arrow.clockwise") { Task { await viewModel.refresh() } }
                                 .disabled(viewModel.isRefreshing || viewModel.isActing)
-                        } else if let message = viewModel.syncMessage {
-                            Text(message).font(.caption2).foregroundStyle(secondaryInk)
                         }
                     }
                     .padding(.horizontal, 8)
                     .padding(.top, 4)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 20)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: geometry.size.height)
                 }
@@ -77,30 +79,30 @@ struct TickWatchView: View {
         Group {
             if viewModel.activeSession != nil {
                 Text(viewModel.displayedSpace?.name ?? "Space")
-                    .font(.headline).foregroundStyle(ink).multilineTextAlignment(.center)
-                    .frame(minHeight: 24)
+                    .multilineTextAlignment(.center)
                     .accessibilityLabel("Active Space, \(viewModel.displayedSpace?.name ?? "Space")")
             } else if !viewModel.spaces.isEmpty {
                 Button { isChoosingSpace = true } label: {
-                    Text(viewModel.displayedSpace?.name ?? "Choose Space").font(.headline)
-                    .padding(.horizontal, 14)
-                    .frame(minWidth: 44, minHeight: 44)
+                    Text(viewModel.displayedSpace?.name ?? "Choose Space")
+                        .padding(.horizontal, 14)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
-                .modifier(TickWatchGlassSurface(shape: Capsule()))
                 .accessibilityLabel("Choose Space")
                 .accessibilityValue(viewModel.displayedSpace?.name ?? "None selected")
                 .accessibilityHint("Choose an existing Space to record time.")
                 .disabled(viewModel.isActing)
             } else {
-                Text(viewModel.hasLoaded ? "Create a Space in Tick on your iPhone or iPad." : "Loading Spaces…")
+                Text(viewModel.hasLoaded ? "Create a Space in Tick on your iPhone or iPad." : "Spaces")
                     .font(.footnote).foregroundStyle(secondaryInk).multilineTextAlignment(.center)
             }
         }
+        .font(.system(size: spaceFontSize, weight: .medium))
+        .frame(minHeight: 44)
     }
 
     private var timer: some View {
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Group {
                     if let session = viewModel.activeSession, session.pausedAt == nil, let start = session.startedAt {
                         // watchOS owns display updates (including Always On).
@@ -110,14 +112,27 @@ struct TickWatchView: View {
                         Text(TickDurationFormatter.timerString(from: viewModel.activeSession?.duration(at: .now) ?? 0))
                     }
                 }
-                    .font(.system(size: timerFontSize, weight: .regular, design: .rounded))
+                    .font(.system(size: timerFontSize, weight: .medium, design: .rounded))
                     .monospacedDigit().minimumScaleFactor(0.65).lineLimit(1)
                     .contentTransition(.identity)
-                Text(viewModel.activeSession == nil ? "Ready" : viewModel.isPaused ? "Paused" : "Running")
-                    .font(.caption).foregroundStyle(secondaryInk)
+                Text(statusText)
+                    .font(.system(size: statusFontSize)).foregroundStyle(secondaryInk)
+                    .lineLimit(1).minimumScaleFactor(0.85)
+                    .frame(height: statusHeight)
+                    .accessibilityHidden(statusText.isEmpty)
             }
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("watch-timer")
+    }
+
+    private var statusText: String {
+        if let syncMessage = viewModel.syncMessage {
+            guard viewModel.activeSession != nil else { return syncMessage }
+            return viewModel.isPaused ? "Paused · Syncing" : "Running · Syncing"
+        }
+        guard viewModel.activeSession != nil else { return "" }
+        return viewModel.isPaused ? "Paused" : "Running"
     }
 
     private var shouldRetryPendingChanges: Bool {
@@ -126,21 +141,21 @@ struct TickWatchView: View {
 
     @ViewBuilder private var controls: some View {
         if viewModel.activeSession != nil {
-            GlassEffectContainer(spacing: 18) {
+            GlassEffectContainer(spacing: 12) {
                 controlLayout {
                     Button { Task { await viewModel.pauseOrResume() } } label: {
-                        actionLabel(viewModel.isPaused ? "Resume" : "Pause", symbol: viewModel.isPaused ? "play.fill" : "pause.fill")
+                        actionLabel(viewModel.isPaused ? "Resume" : "Pause")
                     }
                     .buttonStyle(.plain)
-                    .modifier(TickWatchGlassSurface(shape: Circle(), prominent: true))
+                    .modifier(TickWatchGlassSurface(shape: Capsule(), prominent: true))
                     .accessibilityLabel(viewModel.isPaused ? "Resume Tick" : "Pause Tick")
                     .accessibilityHint(viewModel.isPaused ? "Continue recording the same Tick." : "Paused time won't be recorded.")
                     .disabled(!viewModel.canRecord)
                     Button { Task { await viewModel.stop() } } label: {
-                        actionLabel("Stop", symbol: "stop.fill")
+                        actionLabel("Stop")
                     }
                     .buttonStyle(.plain)
-                    .modifier(TickWatchGlassSurface(shape: Circle()))
+                    .modifier(TickWatchGlassSurface(shape: Capsule()))
                     .accessibilityLabel("Stop Tick")
                     .accessibilityHint("Save this Tick and return to the ready screen.")
                     .disabled(!viewModel.canRecord)
@@ -148,10 +163,7 @@ struct TickWatchView: View {
             }
         } else {
             Button { Task { await viewModel.start() } } label: {
-                Label(viewModel.isActing ? "Starting…" : "Start Tick", systemImage: "play.fill")
-                    .font(.body)
-                    .padding(.horizontal, 18)
-                    .frame(minHeight: 52)
+                actionLabel(viewModel.isActing ? "Starting…" : "Start Tick", symbol: "play.fill")
             }
             .buttonStyle(.plain)
             .modifier(TickWatchGlassSurface(shape: Capsule(), prominent: true))
@@ -160,19 +172,22 @@ struct TickWatchView: View {
         }
     }
 
-    private func actionLabel(_ title: String, symbol: String) -> some View {
-        VStack(spacing: 5) {
-            Image(systemName: symbol).font(.title3).accessibilityHidden(true)
-            Text(title).font(.caption2)
+    private func actionLabel(_ title: String, symbol: String? = nil) -> some View {
+        Group {
+            if let symbol { Label(title, systemImage: symbol) }
+            else { Text(title) }
         }
-        .frame(width: controlDiameter, height: controlDiameter)
-        .contentShape(Circle())
+            .font(.system(size: controlFontSize, weight: .medium))
+            .lineLimit(1).minimumScaleFactor(0.85)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, minHeight: max(44, controlHeight))
+            .contentShape(Capsule())
     }
 
     private var ink: Color { isLuminanceReduced ? TickWatchPalette.dimmedInk : TickWatchPalette.ink }
     private var secondaryInk: Color { isLuminanceReduced ? TickWatchPalette.dimmedInk : TickWatchPalette.secondaryInk }
     private var controlLayout: AnyLayout {
-        dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 18)) : AnyLayout(HStackLayout(spacing: 18))
+        dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
     }
 }
 

@@ -1,4 +1,5 @@
 #if targetEnvironment(simulator)
+import CloudKit
 import Foundation
 import TickCore
 
@@ -44,7 +45,10 @@ enum TickWatchPreview {
         }
         func accountID() -> String { "watch-preview" }
         func subscribe() {}
-        func fetch() -> TickCloudRemote? { TickCloudRemote(payload: payload, version: nil) }
+        func fetch() throws -> TickCloudRemote? {
+            if ProcessInfo.processInfo.arguments.contains("-watchPreviewOffline") { throw CKError(.networkUnavailable) }
+            return TickCloudRemote(payload: payload, version: nil)
+        }
         func save(_ payload: TickCloudPayload, version: Data?) throws -> TickCloudRemote {
             try TickCloudCodec.encode(payload).write(to: fileURL, options: .atomic)
             self.payload = payload
