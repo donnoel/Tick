@@ -4,9 +4,14 @@ The Watch app provides only an existing Space picker and Start, Pause, Resume,
 and Stop. Space management, session editing, summaries, voice memos, and Auto
 Tick configuration remain on the other clients. An active Tick locks its Space.
 
-## Current closeout — October 18, 2026
+## Current closeout — October 24, 2026
 
-Don confirms the current Tick work, including its Watch scope, is complete with nothing outstanding from his perspective. Earlier acceptance checkpoints below remain dated evidence of what was and was not observed at the time; they are superseded as the current task queue. This owner confirmation adds no independent device tests, battery measurements, accessibility observations, or release claim.
+Don closed the Watch UI follow-up sprint after approving build 22 on his Watch.
+The implementation is committed and pushed in `f31b53e`. No sprint work remains;
+new requests or reported issues are follow-up work. Earlier checkpoints below
+remain dated evidence, including validation limits. This closeout adds no
+independent battery measurements, accessibility observations, hosted CI result,
+or App Store release claim.
 
 ## Integration and persistence
 

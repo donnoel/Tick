@@ -12,7 +12,7 @@ Success for the current phase means the app can create spaces, capture one activ
 For product language only, the app is space-centric: users measure time for a Space. The internal model type is still `TickProject`.
 
 ## Current product phase
-As of October 18, 2026, Don confirms the current Tick work is complete, with no outstanding closeout tasks. Prior acceptance and delete-confirmation follow-ups are closed on owner confirmation. Do not infer newly performed tests, physical-device observations, or a release from that confirmation; new requests and reported regressions are follow-up work.
+As of October 24, 2026, Don confirms the Watch UI follow-up sprint is complete after accepting build 22 on his Watch. The implementation is published in `f31b53e`. Prior acceptance and delete-confirmation follow-ups remain closed on owner confirmation. Do not infer additional tests, battery measurements, accessibility observations, or a release from that confirmation; new requests and reported regressions are follow-up work.
 
 Current scope:
 - space capture with local JSON persistence plus CloudKit synchronization
@@ -177,7 +177,8 @@ The current scope is owner-confirmed complete. Use these procedures when a futur
 
 ## Current closeout
 
-- No outstanding work as confirmed by Don on October 18, 2026.
+- The Watch UI follow-up sprint is closed at Don's request on October 24, 2026; build 22 is installed, visually accepted, and published in `f31b53e`.
+- The signed Watch build and Watch UI suite passed. The additional iPhone UI run was stopped at Don's request after the clean build and 113 unit tests passed; full local CI success is not claimed. See `docs/WATCH_APP.md` for the dated evidence and toolchain details.
 - Additional validation or UI coverage belongs to separately requested future work.
 
 ## Output expectations per patch
