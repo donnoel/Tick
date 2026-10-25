@@ -459,6 +459,70 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["today.playButton"].exists)
     }
 
+    func testTodayTimerCardsCanBeReorderedWithoutChangingTheirTicks() throws {
+        continueAfterFailure = false
+        let app = launchResetApp()
+        createProject(named: "Puzzles", in: app)
+        createProject(named: "Ticks", in: app)
+        tab(named: "Today", in: app).tap()
+
+        app.buttons["today.playButton"].tap()
+        let expand = app.buttons["today.secondTimer.expand"]
+        if expand.exists { expand.tap() }
+        app.buttons["today.playButton.secondary"].tap()
+
+        let firstCard = app.otherElements["today.timerCard"]
+        let secondCard = app.otherElements["today.timerCard.secondary"]
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondCard.waitForExistence(timeout: 5))
+
+        func isBefore(_ first: XCUIElement, _ second: XCUIElement) -> Bool {
+            if abs(first.frame.midY - second.frame.midY) < 30 {
+                return first.frame.minX < second.frame.minX
+            }
+            return first.frame.minY < second.frame.minY
+        }
+
+        XCTAssertTrue(isBefore(firstCard, secondCard))
+        let dragPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.87, dy: 0.12))
+        let dropPoint = secondCard.coordinate(withNormalizedOffset: CGVector(dx: 0.87, dy: 0.12))
+        dragPoint.press(forDuration: 0.8, thenDragTo: dropPoint)
+
+        XCTAssertTrue(isBefore(secondCard, firstCard))
+        app.buttons["today.pauseButton.secondary"].tap()
+        XCTAssertTrue(app.buttons["today.playButton.secondary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["today.pauseButton"].exists)
+
+        app.terminate()
+        app.launchArguments = ["-disableCloudSyncForUITests"]
+        app.launch()
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(isBefore(secondCard, firstCard))
+    }
+
+    func testCollapsedSecondTimerCanBeDraggedToTop() throws {
+        continueAfterFailure = false
+        let app = launchResetApp()
+        createProject(named: "Puzzles", in: app)
+        createProject(named: "Ticks", in: app)
+        tab(named: "Today", in: app).tap()
+
+        let firstCard = app.otherElements["today.timerCard"]
+        let secondCard = app.otherElements["today.timerCard.secondary"]
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["today.secondTimer.expand"].exists)
+
+        let dragPoint = secondCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        let dropPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.12))
+        dragPoint.press(forDuration: 0.8, thenDragTo: dropPoint)
+
+        XCTAssertLessThan(secondCard.frame.minY, firstCard.frame.minY)
+        XCTAssertTrue(app.buttons["today.playButton.secondary"].exists)
+        XCTAssertTrue(app.buttons["today.secondTimer.expand"].exists)
+    }
+
     func testTodayTotalIncludesEverySpaceBeforeAndAfterStop() throws {
         continueAfterFailure = false
         let app = launchResetApp()

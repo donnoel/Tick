@@ -110,6 +110,7 @@ struct ContentView: View {
 
 nonisolated enum TickUIStateStorage {
     static let selectedContentTabKey = "selectedContentTab"
+    static let todayTimerOrderKey = "todayTimerOrder"
 
     static func selectedContentTab(defaults: UserDefaults = .standard) -> ContentTab {
         guard let rawValue = defaults.string(forKey: selectedContentTabKey),
@@ -129,6 +130,7 @@ nonisolated enum TickUIStateStorage {
 
     static func resetForUITests(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: selectedContentTabKey)
+        defaults.removeObject(forKey: todayTimerOrderKey)
     }
 }
 

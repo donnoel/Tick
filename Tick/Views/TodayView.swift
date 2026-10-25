@@ -8,6 +8,8 @@ struct TodayView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(TickUIStateStorage.todayTimerOrderKey) private var timerOrder = ""
 
     @Bindable var viewModel: TickViewModel
     @State private var isAddingTime = false
@@ -199,42 +201,108 @@ struct TodayView: View {
         let secondOptions = viewModel.alphabeticalActiveProjects.filter { $0.id != primaryID }
         let secondaryID = active.dropFirst().first?.projectID
             ?? secondOptions.first(where: { $0.id == secondProjectID })?.id
+            ?? secondOptions.first(where: { timerOrder.contains($0.id.uuidString) })?.id
             ?? secondOptions.first?.id
+        let isReversed = primaryID.flatMap { primaryID in
+            secondaryID.map { timerOrder == "\($0.uuidString)|\(primaryID.uuidString)" }
+        } ?? false
 
         return Group {
             if UIDevice.current.userInterfaceIdiom == .pad {
                 HStack(alignment: .top, spacing: 16) {
-                    capturePanel(sessions: sessions, projectID: primaryID, activeSession: active.first,
-                                 displayDate: displayDate, isSecondary: false)
-                    if let secondaryID {
-                        capturePanel(sessions: sessions, projectID: secondaryID,
-                                     activeSession: active.dropFirst().first,
-                                     displayDate: displayDate, isSecondary: true)
+                    if isReversed, let secondaryID {
+                        reorderableTimerCard(sessions: sessions, projectID: secondaryID,
+                                             activeSession: active.dropFirst().first,
+                                             displayDate: displayDate, isSecondary: true,
+                                             otherProjectID: primaryID, isFirst: true)
+                    }
+                    reorderableTimerCard(sessions: sessions, projectID: primaryID,
+                                         activeSession: active.first, displayDate: displayDate,
+                                         isSecondary: false, otherProjectID: secondaryID,
+                                         isFirst: !isReversed)
+                    if !isReversed, let secondaryID {
+                        reorderableTimerCard(sessions: sessions, projectID: secondaryID,
+                                             activeSession: active.dropFirst().first,
+                                             displayDate: displayDate, isSecondary: true,
+                                             otherProjectID: primaryID, isFirst: false)
                     }
                 }
             } else {
                 VStack(spacing: 12) {
-                    capturePanel(sessions: sessions, projectID: primaryID, activeSession: active.first,
-                                 displayDate: displayDate, isSecondary: false)
-                    if let secondaryID {
-                        if let secondSession = active.dropFirst().first {
-                            capturePanel(sessions: sessions, projectID: secondaryID,
-                                         activeSession: secondSession, displayDate: displayDate,
-                                         isSecondary: true)
-                        } else if isSecondTimerExpanded {
-                            capturePanel(sessions: sessions, projectID: secondaryID,
-                                         activeSession: nil, displayDate: displayDate,
-                                         isSecondary: true, showsCollapseButton: true)
-                        } else {
-                            collapsedSecondTimer(projectID: secondaryID)
-                        }
+                    if isReversed, let secondaryID {
+                        reorderableTimerCard(sessions: sessions, projectID: secondaryID,
+                                             activeSession: active.dropFirst().first,
+                                             displayDate: displayDate, isSecondary: true,
+                                             otherProjectID: primaryID, isFirst: true)
+                    }
+                    reorderableTimerCard(sessions: sessions, projectID: primaryID,
+                                         activeSession: active.first, displayDate: displayDate,
+                                         isSecondary: false, otherProjectID: secondaryID,
+                                         isFirst: !isReversed)
+                    if !isReversed, let secondaryID {
+                        reorderableTimerCard(sessions: sessions, projectID: secondaryID,
+                                             activeSession: active.dropFirst().first,
+                                             displayDate: displayDate, isSecondary: true,
+                                             otherProjectID: primaryID, isFirst: false)
                     }
                 }
             }
         }
     }
 
-    private func collapsedSecondTimer(projectID: TickProject.ID) -> some View {
+    @ViewBuilder
+    private func reorderableTimerCard(
+        sessions: [TimeSession], projectID: TickProject.ID?, activeSession: TimeSession?,
+        displayDate: Date, isSecondary: Bool, otherProjectID: TickProject.ID?, isFirst: Bool
+    ) -> some View {
+        if let projectID, let otherProjectID {
+            timerCard(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                      displayDate: displayDate, isSecondary: isSecondary, isFirst: isFirst,
+                      showsDragHandle: true)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier(isSecondary ? "today.timerCard.secondary" : "today.timerCard")
+                .draggable(projectID.uuidString)
+                .dropDestination(for: String.self) { items, _ in
+                    guard items.contains(otherProjectID.uuidString) else { return false }
+                    swapTimerCards(topProjectID: isFirst ? projectID : otherProjectID,
+                                   bottomProjectID: isFirst ? otherProjectID : projectID)
+                    return true
+                }
+                .accessibilityAction(named: Text(isFirst ? "Move timer down" : "Move timer up")) {
+                    swapTimerCards(topProjectID: isFirst ? projectID : otherProjectID,
+                                   bottomProjectID: isFirst ? otherProjectID : projectID)
+                }
+        } else {
+            timerCard(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                      displayDate: displayDate, isSecondary: isSecondary, isFirst: isFirst,
+                      showsDragHandle: false)
+        }
+    }
+
+    @ViewBuilder
+    private func timerCard(
+        sessions: [TimeSession], projectID: TickProject.ID?, activeSession: TimeSession?,
+        displayDate: Date, isSecondary: Bool, isFirst: Bool, showsDragHandle: Bool
+    ) -> some View {
+        if UIDevice.current.userInterfaceIdiom == .phone, !isFirst,
+           activeSession == nil, !isSecondTimerExpanded, let projectID {
+            collapsedSecondTimer(projectID: projectID, showsDragHandle: showsDragHandle)
+        } else {
+            capturePanel(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                         displayDate: displayDate, isSecondary: isSecondary,
+                         showsCollapseButton: UIDevice.current.userInterfaceIdiom == .phone
+                             && !isFirst && activeSession == nil,
+                         showsDragHandle: showsDragHandle)
+        }
+    }
+
+    private func swapTimerCards(topProjectID: TickProject.ID, bottomProjectID: TickProject.ID) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+            timerOrder = "\(bottomProjectID.uuidString)|\(topProjectID.uuidString)"
+        }
+    }
+
+    private func collapsedSecondTimer(projectID: TickProject.ID, showsDragHandle: Bool) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = true }
         } label: {
@@ -250,6 +318,12 @@ struct TodayView: View {
                 Text("Start another Tick")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if showsDragHandle {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
                     .accessibilityHidden(true)
@@ -275,11 +349,19 @@ struct TodayView: View {
         activeSession: TimeSession?,
         displayDate: Date,
         isSecondary: Bool,
-        showsCollapseButton: Bool = false
+        showsCollapseButton: Bool = false,
+        showsDragHandle: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 projectSelector(projectID: projectID, activeSession: activeSession, isSecondary: isSecondary)
+                if showsDragHandle {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 44)
+                        .accessibilityHidden(true)
+                }
                 if showsCollapseButton {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = false }
