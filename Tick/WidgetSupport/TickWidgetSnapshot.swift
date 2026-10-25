@@ -13,6 +13,9 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
     var todayTotalDuration: TimeInterval
     var lastUpdatedAt: Date
     var runningStateConfirmedAt: Date? = nil
+    var activeSessionCount: Int? = nil
+
+    var needsTickChoice: Bool { (activeSessionCount ?? 1) > 1 }
 
     var isActivePaused: Bool {
         activeSessionID != nil && activePausedAt != nil
@@ -94,13 +97,15 @@ nonisolated enum TickWidgetSnapshotBuilder {
     ) -> TickWidgetSnapshot {
         let activeProjects = TickWidgetStoredProject.activeSortedByDisplayOrder(storageSnapshot.projects)
         let verifiedDefaultProject = activeProjects.first { $0.id == defaultProjectID } ?? activeProjects.first
-        let activeSession = storageSnapshot.sessions.first { $0.isActive }
+        let activeSessions = storageSnapshot.sessions.filter(\.isActive)
+        let activeSession = activeSessions.first { $0.projectID == verifiedDefaultProject?.id }
+            ?? activeSessions.first
         let activeProject = activeSession.flatMap { session in
             storageSnapshot.projects.first { $0.id == session.projectID }
         }
         let activeElapsedDuration = activeSession.map { $0.duration(at: date) }
 
-        return TickWidgetSnapshot(
+        var snapshot = TickWidgetSnapshot(
             hasProjects: !activeProjects.isEmpty,
             defaultProjectID: verifiedDefaultProject?.id,
             defaultProjectName: verifiedDefaultProject?.name,
@@ -113,6 +118,8 @@ nonisolated enum TickWidgetSnapshotBuilder {
             todayTotalDuration: totalDurationToday(for: storageSnapshot.sessions, at: date, calendar: calendar),
             lastUpdatedAt: date
         )
+        snapshot.activeSessionCount = activeSessions.count
+        return snapshot
     }
 
     private static func displayTitle(

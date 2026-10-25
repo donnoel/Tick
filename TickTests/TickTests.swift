@@ -1571,6 +1571,22 @@ final class TickTests: XCTestCase {
         )
     }
 
+    func testWidgetShowsTwoActiveTicksAsChoice() throws {
+        let date = Date(timeIntervalSince1970: 100)
+        let first = TickWidgetStoredProject(id: UUID(), name: "Puzzles", createdAt: date, isArchived: false)
+        let second = TickWidgetStoredProject(id: UUID(), name: "Ticks", createdAt: date, isArchived: false)
+        var storage = TickWidgetStorageSnapshot(projects: [first, second], sessions: [])
+        try TickTimerMutation.start(in: &storage, projectID: first.id, at: date)
+        try TickTimerMutation.start(in: &storage, projectID: second.id, at: date.addingTimeInterval(10))
+
+        let snapshot = TickWidgetSnapshotBuilder.snapshot(from: storage, defaultProjectID: second.id,
+                                                          at: date.addingTimeInterval(20))
+        XCTAssertTrue(snapshot.needsTickChoice)
+        XCTAssertEqual(snapshot.activeProjectName, "Ticks")
+        let content = TickAccessoryWidgetContentBuilder.content(from: snapshot, at: date.addingTimeInterval(20))
+        XCTAssertEqual(content.rectangularTitle, "2 Ticks active")
+    }
+
     func testAccessoryRectangularNoProjectContent() {
         let content = TickAccessoryWidgetContentBuilder.content(
             from: .empty(lastUpdatedAt: Date(timeIntervalSince1970: 100)),
@@ -2007,6 +2023,37 @@ final class TickTests: XCTestCase {
         XCTAssertTrue(firstStart)
         XCTAssertFalse(secondStart)
         XCTAssertEqual(viewModel.sessions.filter(\.isActive).count, 1)
+    }
+
+    @MainActor
+    func testTwoSpaceTicksPauseStopAndPersistIndependently() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        let addedFirst = await viewModel.addProject(name: "Puzzles", createdAt: Date(timeIntervalSince1970: 0))
+        let addedSecond = await viewModel.addProject(name: "Ticks", createdAt: Date(timeIntervalSince1970: 1))
+        XCTAssertTrue(addedFirst)
+        XCTAssertTrue(addedSecond)
+        let firstSpace = try XCTUnwrap(viewModel.projects.first { $0.name == "Puzzles" }?.id)
+        let secondSpace = try XCTUnwrap(viewModel.projects.first { $0.name == "Ticks" }?.id)
+        let startedFirst = await viewModel.startTick(projectID: firstSpace, at: Date(timeIntervalSince1970: 100))
+        let startedSecond = await viewModel.startTick(projectID: secondSpace, at: Date(timeIntervalSince1970: 110))
+        let duplicateStart = await viewModel.startTick(projectID: secondSpace, at: Date(timeIntervalSince1970: 120))
+        XCTAssertTrue(startedFirst)
+        XCTAssertTrue(startedSecond)
+        XCTAssertFalse(duplicateStart)
+        let firstID = try XCTUnwrap(viewModel.activeSessions.first { $0.projectID == firstSpace }?.id)
+        let secondID = try XCTUnwrap(viewModel.activeSessions.first { $0.projectID == secondSpace }?.id)
+        let pausedFirst = await viewModel.pauseTick(sessionID: firstID, at: Date(timeIntervalSince1970: 130))
+        let stoppedSecond = await viewModel.stopTick(sessionID: secondID, at: Date(timeIntervalSince1970: 150))
+        XCTAssertTrue(pausedFirst)
+        XCTAssertTrue(stoppedSecond)
+        let saved = try await store.load()
+        XCTAssertEqual(saved.sessions.first { $0.id == firstID }?.duration(at: Date(timeIntervalSince1970: 160)), 30)
+        XCTAssertEqual(saved.sessions.first { $0.id == firstID }?.isPaused, true)
+        XCTAssertEqual(saved.sessions.first { $0.id == secondID }?.duration(at: Date(timeIntervalSince1970: 160)), 40)
+        XCTAssertEqual(saved.sessions.first { $0.id == secondID }?.isActive, false)
     }
 
     @MainActor

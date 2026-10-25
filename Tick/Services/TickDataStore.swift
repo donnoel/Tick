@@ -10,7 +10,7 @@ private enum TickDataStoreError: LocalizedError {
         case .corruptDataPreserved(let backupURL):
             "Saved time could not be read. The original file was preserved as \(backupURL.lastPathComponent). Please contact support before adding more time."
         case .concurrentActiveSessions:
-            "Another Tick started on a device or widget. Reload before starting a new Tick."
+            "Two Ticks are already active, or this Space has an active Tick. Reload before starting another."
         case .concurrentSpaceChange:
             "A Space changed on another device or widget. Reload before saving this change."
         }
@@ -95,7 +95,9 @@ actor TickDataStore {
             let checkpoint = existing.isEmpty ? nil :
                 (try? decoder.decode(TickStorageFileEnvelope<TickStorageSnapshot>.self, from: existing).cloudSync)
             let merged = TickStorageSnapshot.mergingEdits(base: base, proposed: proposed, latest: latest)
-            guard merged.sessions.filter(\.isActive).count <= 1 else {
+            let activeSessions = merged.sessions.filter(\.isActive)
+            guard activeSessions.count <= 2,
+                  Set(activeSessions.map(\.projectID)).count == activeSessions.count else {
                 throw TickDataStoreError.concurrentActiveSessions
             }
             let projectIDs = Set(merged.projects.map(\.id))

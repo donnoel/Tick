@@ -25,7 +25,7 @@ struct StopTickIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let invokedAt = Date.now
         let actionStore = TickWidgetActionStore()
-        let tappedSessionID = try actionStore.loadStorageSnapshot().sessions.first(where: \.isActive)?.id
+        let tappedSessionID = try actionStore.loadWidgetSnapshot().activeSessionID
         _ = try? await TickCloudSyncStore.shared.synchronize()
         let result: TickWidgetActionResult
         if let tappedSessionID {

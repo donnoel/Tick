@@ -414,6 +414,32 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No time recorded yet today"].waitForExistence(timeout: 5))
     }
 
+    func testTodayControlsTwoSpaceTicksIndependently() throws {
+        continueAfterFailure = false
+        let app = launchResetApp()
+        createProject(named: "Puzzles", in: app)
+        createProject(named: "Ticks", in: app)
+        tab(named: "Today", in: app).tap()
+
+        let firstStart = app.buttons["today.playButton"]
+        let secondStart = app.buttons["today.playButton.secondary"]
+        XCTAssertTrue(firstStart.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondStart.waitForExistence(timeout: 5))
+        firstStart.tap()
+        secondStart.tap()
+
+        let firstPause = app.buttons["today.pauseButton"]
+        let secondPause = app.buttons["today.pauseButton.secondary"]
+        XCTAssertTrue(firstPause.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondPause.waitForExistence(timeout: 5))
+        firstPause.tap()
+        XCTAssertTrue(app.buttons["today.playButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(secondPause.exists)
+        app.buttons["today.stopButton.secondary"].tap()
+        XCTAssertTrue(secondStart.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["today.playButton"].exists)
+    }
+
     func testSummarySpaceOpensDetailedShareableReport() throws {
         continueAfterFailure = false
         let app = launchResetApp()

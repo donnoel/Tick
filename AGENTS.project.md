@@ -7,7 +7,7 @@ Tick is a lightweight timekeeping app for people who want a quick record of how 
 
 The first product goal is effortless capture: starting and stopping time should be immediate, while titles, notes, and missed time can be added later through lightweight manual entry.
 
-Success for the current phase means the app can create spaces, capture one active timer session, add manual time, summarize recorded time, and preserve local data between launches.
+Success for the current phase means the app can create spaces, capture up to two active timer sessions in different Spaces, add manual time, summarize recorded time, and preserve local data between launches.
 
 For product language only, the app is space-centric: users measure time for a Space. The internal model type is still `TickProject`.
 
@@ -60,7 +60,7 @@ Persistence:
   `TickSnapshotV1` / `snapshot-v1` record in `iCloud.dn.tick`.
 - The snapshot and its server acknowledgment form an atomic durable outbox.
   `TickCloudMerge` performs a three-way merge, preserves deletion tombstones,
-  makes Stop terminal and resolves simultaneous starts to one active session.
+  makes Stop terminal and resolves simultaneous starts to at most two active sessions in different Spaces.
 - Legacy iCloud KVS snapshots are imported one way when binding the account.
   `TickICloudSyncStore` remains for compatibility/testing; the default app no longer
   publishes timer snapshots to KVS. Do not restore the old timestamp-only policy.
@@ -115,7 +115,7 @@ Reference checks for a future submission (not outstanding current closeout tasks
 
 ## Behavior invariants
 - Starting a timer must not require a form.
-- Only one active timer session may exist at a time.
+- At most two active timer sessions may exist at a time, one per Space. Paused sessions occupy a slot.
 - A manual session uses `manualDuration` as its source of truth.
 - Timing corrections are drafts until Save; active or paused Ticks must be stopped first. End/duration edits preserve recorded pause time, source conversions stay completed, and stale timing edits are rejected.
 - A timer session duration is derived from `startedAt` and `endedAt`.
@@ -123,8 +123,8 @@ Reference checks for a future submission (not outstanding current closeout tasks
 - Local data should survive app relaunches.
 - iCloud sync must preserve the same space/session/Auto Tick snapshot across iPhone and iPad when both devices use the same Apple ID and have iCloud enabled.
 - CloudKit uses `TickCloudMerge` and optimistic record-version saves. Preserve offline edits, deletion tombstones, terminal Stop, and account separation.
-- Widget Start must not create a duplicate active session.
-- Widget Stop must stop only the current active timer/Auto Tick session.
+- Widget Start must not create a duplicate active session in a Space or exceed two active sessions.
+- Widget Stop must target the Tick shown in its snapshot; with two active Ticks, widgets open Today to choose rather than stopping ambiguously.
 - Widget snapshots store dates and totals, not constantly changing elapsed time.
 - Lock Screen widgets use the same snapshot as Home Screen widgets and derive compact elapsed text from `activeStartedAt`.
 - Lock Screen accessory rectangular may show Start/Stop buttons where WidgetKit supports App Intent buttons; compact families should still be readable as tap-to-open widgets when direct actions are unavailable.

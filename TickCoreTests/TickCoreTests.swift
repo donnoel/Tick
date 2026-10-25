@@ -57,6 +57,37 @@ struct TickCoreTests {
         #expect(state.sessions.count == 1)
     }
 
+    @Test func twoSpacesCanRunAndPauseIndependently() throws {
+        var state = snapshot()
+        let secondSpace = TickWidgetStoredProject(id: UUID(), name: "Ticks", createdAt: date, isArchived: false)
+        state.projects.append(secondSpace)
+        let firstID = UUID(), secondID = UUID()
+        try TickTimerMutation.start(in: &state, projectID: state.projects[0].id, sessionID: firstID, at: date)
+        try TickTimerMutation.start(in: &state, projectID: secondSpace.id, sessionID: secondID,
+                                    at: date.addingTimeInterval(10))
+        #expect(throws: TickTimerMutation.Failure.alreadyActive) {
+            try TickTimerMutation.start(in: &state, projectID: secondSpace.id, at: date.addingTimeInterval(20))
+        }
+        try TickTimerMutation.pause(in: &state, sessionID: firstID, at: date.addingTimeInterval(30))
+        #expect(state.sessions.first { $0.id == firstID }?.duration(at: date.addingTimeInterval(50)) == 30)
+        #expect(state.sessions.first { $0.id == secondID }?.duration(at: date.addingTimeInterval(50)) == 40)
+        try TickTimerMutation.stop(in: &state, sessionID: secondID, at: date.addingTimeInterval(60))
+        #expect(state.sessions.first { $0.id == firstID }?.isActive == true)
+        #expect(state.sessions.first { $0.id == secondID }?.isActive == false)
+    }
+
+    @Test func cloudMergeKeepsTwoDifferentSpacesActive() throws {
+        var base = snapshot()
+        let secondSpace = TickWidgetStoredProject(id: UUID(), name: "Ticks", createdAt: date, isArchived: false)
+        base.projects.append(secondSpace)
+        var phone = base, watch = base
+        try TickTimerMutation.start(in: &phone, projectID: base.projects[0].id, at: date)
+        try TickTimerMutation.start(in: &watch, projectID: secondSpace.id, at: date.addingTimeInterval(10))
+        let merged = TickCloudMerge.resolve(base: base, local: watch, remote: TickCloudPayload(snapshot: phone))
+        #expect(merged.snapshot.sessions.filter(\.isActive).count == 2)
+        #expect(Set(merged.snapshot.sessions.filter(\.isActive).map(\.projectID)).count == 2)
+    }
+
     @Test func staleStopCannotStopAnotherSession() throws {
         var state = snapshot()
         let first = UUID()

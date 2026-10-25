@@ -171,6 +171,13 @@ final class TickViewModel {
         sessions.first { $0.isActive }
     }
 
+    var activeSessions: [TimeSession] {
+        sessions.filter(\.isActive).sorted {
+            if $0.referenceDate == $1.referenceDate { return $0.id.uuidString < $1.id.uuidString }
+            return $0.referenceDate < $1.referenceDate
+        }
+    }
+
     func loadIfNeeded() async {
         guard !hasLoaded else {
             return
@@ -305,7 +312,7 @@ final class TickViewModel {
             return false
         }
 
-        guard activeSession?.projectID != id else {
+        guard !activeSessions.contains(where: { $0.projectID == id }) else {
             errorMessage = "Stop the active Tick before deleting this space."
             return false
         }
@@ -351,7 +358,7 @@ final class TickViewModel {
             return false
         }
 
-        guard activeSession?.projectID != id else {
+        guard !activeSessions.contains(where: { $0.projectID == id }) else {
             errorMessage = "Stop the active Tick before archiving this space."
             return false
         }
@@ -382,14 +389,14 @@ final class TickViewModel {
     }
 
     @discardableResult
-    func startTick(at date: Date = .now) async -> Bool {
-        guard activeSession == nil else {
-            errorMessage = "Stop the current Tick before starting another one."
+    func startTick(projectID: TickProject.ID? = nil, at date: Date = .now) async -> Bool {
+        guard let selectedProjectID = projectID ?? selectedProjectID else {
+            errorMessage = "Choose or create a space before starting Tick."
             return false
         }
 
-        guard let selectedProjectID else {
-            errorMessage = "Choose or create a space before starting Tick."
+        guard activeSessions.count < 2, !activeSessions.contains(where: { $0.projectID == selectedProjectID }) else {
+            errorMessage = "You can run two Ticks at once, one per Space. Stop a Tick before starting another."
             return false
         }
 
@@ -414,8 +421,9 @@ final class TickViewModel {
     }
 
     @discardableResult
-    func stopTick(at date: Date = .now) async -> Bool {
-        guard let activeSession, let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
+    func stopTick(sessionID: TimeSession.ID? = nil, at date: Date = .now) async -> Bool {
+        guard let activeSession = sessionForAction(id: sessionID),
+              let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
             errorMessage = "There is no active Tick to stop."
             return false
         }
@@ -429,8 +437,9 @@ final class TickViewModel {
     }
 
     @discardableResult
-    func pauseTick(at date: Date = .now) async -> Bool {
-        guard let activeSession, let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
+    func pauseTick(sessionID: TimeSession.ID? = nil, at date: Date = .now) async -> Bool {
+        guard let activeSession = sessionForAction(id: sessionID),
+              let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
             errorMessage = "There is no active Tick to pause."
             return false
         }
@@ -445,8 +454,9 @@ final class TickViewModel {
     }
 
     @discardableResult
-    func resumeTick(at date: Date = .now) async -> Bool {
-        guard let activeSession, let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
+    func resumeTick(sessionID: TimeSession.ID? = nil, at date: Date = .now) async -> Bool {
+        guard let activeSession = sessionForAction(id: sessionID),
+              let activeIndex = sessions.firstIndex(where: { $0.id == activeSession.id }) else {
             errorMessage = "There is no paused Tick to resume."
             return false
         }
@@ -459,6 +469,13 @@ final class TickViewModel {
         sessions[activeIndex].accumulatedPausedDuration = (activeSession.accumulatedPausedDuration ?? 0) + pauseDuration
         sessions[activeIndex].pausedAt = nil
         return await persist()
+    }
+
+    private func sessionForAction(id: TimeSession.ID?) -> TimeSession? {
+        if let id { return sessions.first { $0.id == id && $0.isActive } }
+        // Legacy callers may omit the ID only when there is no ambiguity.
+        guard activeSessions.count == 1 else { return nil }
+        return activeSessions.first
     }
 
     @discardableResult
@@ -1209,7 +1226,7 @@ final class TickViewModel {
         sessions = storageSnapshot.sessions.sorted { $0.referenceDate > $1.referenceDate }
         autoTickRules = storageSnapshot.autoTickRules.sorted { $0.createdAt < $1.createdAt }
 
-        if let activeSession {
+        if let activeSession, activeSessions.count == 1 {
             selectedProjectID = activeSession.projectID
         } else if let selectedProjectID {
             if !activeProjects.contains(where: { $0.id == selectedProjectID }) {
@@ -1284,15 +1301,17 @@ final class TickViewModel {
             return false
         }
 
-        if let activeSession {
+        if let activeSession = activeSessions.first(where: { $0.projectID == rule.projectID }) {
             guard activeSession.isPaused,
                   activeSession.entrySource == .autoLocation,
                   activeSession.autoTickRuleID == rule.id else {
                 return false
             }
 
-            return await resumeTick(at: date)
+            return await resumeTick(sessionID: activeSession.id, at: date)
         }
+
+        guard activeSessions.count < 2 else { return false }
 
         let session = TimeSession(
             projectID: rule.projectID,

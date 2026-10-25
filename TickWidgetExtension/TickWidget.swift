@@ -273,13 +273,19 @@ struct TickWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                compactPrimaryActionButton(
-                    title: "Stop Tick",
-                    systemImage: "stop.fill",
-                    tint: TickWidgetStyle.running,
-                    projectName: entry.snapshot.activeProjectName ?? "Ticks",
-                    intent: StopTickIntent()
-                )
+                if entry.snapshot.needsTickChoice {
+                    Label("Open Ticks to choose", systemImage: "arrow.up.right")
+                        .font(.caption.weight(.semibold))
+                        .accessibilityHint("Opens Today to choose which Tick to control.")
+                } else {
+                    compactPrimaryActionButton(
+                        title: "Stop Tick",
+                        systemImage: "stop.fill",
+                        tint: TickWidgetStyle.running,
+                        projectName: entry.snapshot.activeProjectName ?? "Ticks",
+                        intent: StopTickIntent()
+                    )
+                }
             }
             .background {
                 compactProjectWatermark(
@@ -315,13 +321,19 @@ struct TickWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                actionFooter(
-                    title: "Stop Tick",
-                    caption: activeStatusCaption(isStale: isStale),
-                    systemImage: "stop.fill",
-                    tint: TickWidgetStyle.running,
-                    intent: StopTickIntent()
-                )
+                if entry.snapshot.needsTickChoice {
+                    Label("2 Ticks active · Open to choose", systemImage: "arrow.up.right")
+                        .font(.caption.weight(.semibold))
+                        .accessibilityHint("Opens Today to choose which Tick to control.")
+                } else {
+                    actionFooter(
+                        title: "Stop Tick",
+                        caption: activeStatusCaption(isStale: isStale),
+                        systemImage: "stop.fill",
+                        tint: TickWidgetStyle.running,
+                        intent: StopTickIntent()
+                    )
+                }
             }
         }
     }
@@ -588,12 +600,17 @@ struct TickWidgetView: View {
             .accessibilityLabel("Start Tick")
             .accessibilityHint("Starts a Tick for the default space.")
         case .active:
-            Button(intent: StopTickIntent()) {
-                Image(systemName: "stop.fill")
+            if entry.snapshot.needsTickChoice {
+                Image(systemName: "arrow.up.right")
+                    .accessibilityLabel("Open Ticks to choose which Tick to control")
+            } else {
+                Button(intent: StopTickIntent()) {
+                    Image(systemName: "stop.fill")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Stop Tick")
+                .accessibilityHint("Stops the active Tick session.")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Stop Tick")
-            .accessibilityHint("Stops the active Tick session.")
         }
     }
 

@@ -29,13 +29,18 @@ final class TickWatchViewModel {
     var spaces: [TickWidgetStoredProject] {
         TickWidgetStoredProject.activeSortedByDisplayOrder(state.snapshot.projects)
     }
-    var activeSession: TickWidgetStoredSession? { state.snapshot.sessions.first(where: \.isActive) }
+    var activeSession: TickWidgetStoredSession? {
+        state.snapshot.sessions.first { $0.isActive && $0.projectID == selectedSpaceID }
+    }
+    var activeSessionCount: Int { state.snapshot.sessions.filter(\.isActive).count }
     var displayedSpace: TickWidgetStoredProject? {
         state.snapshot.projects.first { $0.id == (activeSession?.projectID ?? selectedSpaceID) }
     }
     var isPaused: Bool { activeSession?.pausedAt != nil }
     var canRecord: Bool { state.canRecord && !writesBlocked && !isActing && !isRefreshing }
-    var canStart: Bool { canRecord && activeSession == nil && spaces.contains { $0.id == selectedSpaceID } }
+    var canStart: Bool {
+        canRecord && activeSession == nil && activeSessionCount < 2 && spaces.contains { $0.id == selectedSpaceID }
+    }
     var syncMessage: String? {
         if state.hasPendingChanges { return "Waiting to sync" }
         if !hasLoaded { return "Loading Spaces…" }

@@ -11,9 +11,9 @@ struct ManualTimeEntryView: View {
     @State private var minutes = 30
 
     @MainActor
-    init(viewModel: TickViewModel) {
+    init(viewModel: TickViewModel, initialProjectID: TickProject.ID? = nil) {
         self.viewModel = viewModel
-        _projectID = State(initialValue: viewModel.selectedProjectID ?? viewModel.activeProjects.first?.id)
+        _projectID = State(initialValue: initialProjectID ?? viewModel.selectedProjectID ?? viewModel.activeProjects.first?.id)
     }
 
     var body: some View {

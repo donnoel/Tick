@@ -8,7 +8,7 @@ nonisolated public enum TickTimerMutation {
 
         public var errorDescription: String? {
             switch self {
-            case .alreadyActive: "Stop the current Tick before starting another one."
+                case .alreadyActive: "Two Ticks are already active, or this Space has an active Tick."
             case .unavailableSpace: "This Space is no longer available. Choose another Space."
             case .changedSession: "The active Tick changed. Review it before changing it."
             }
@@ -17,7 +17,11 @@ nonisolated public enum TickTimerMutation {
 
     public static func start(in snapshot: inout TickWidgetStorageSnapshot, projectID: UUID,
                              sessionID: UUID = UUID(), at date: Date) throws {
-        guard !snapshot.sessions.contains(where: \.isActive) else { throw Failure.alreadyActive }
+        let activeSessions = snapshot.sessions.filter(\.isActive)
+        guard activeSessions.count < 2,
+              !activeSessions.contains(where: { $0.projectID == projectID }) else {
+            throw Failure.alreadyActive
+        }
         guard snapshot.projects.contains(where: { $0.id == projectID && !$0.isArchived }) else {
             throw Failure.unavailableSpace
         }

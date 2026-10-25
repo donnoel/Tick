@@ -49,6 +49,18 @@ nonisolated enum TickAccessoryWidgetContentBuilder {
         }
 
         let total = compactDurationString(from: snapshot.todayTotalDuration)
+        if snapshot.needsTickChoice {
+            return TickAccessoryWidgetContent(
+                state: .active,
+                rectangularTitle: "2 Ticks active",
+                rectangularDetail: total,
+                rectangularFootnote: "Open to choose",
+                circularText: "2",
+                circularSystemImage: "timer",
+                inlineText: "2 Ticks active",
+                accessibilityLabel: "Two Ticks active. Open Ticks to choose which one to control."
+            )
+        }
         let projectName = snapshot.activeProjectName ?? "Ticks"
         let status = snapshot.isActivePaused ? "Paused" : "Running"
         let spokenStatus = snapshot.isActivePaused ? "paused" : "running"

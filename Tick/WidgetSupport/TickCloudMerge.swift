@@ -57,17 +57,24 @@ nonisolated public enum TickCloudMerge {
             }
         }
 
-        // Concurrent offline starts retain both records, but only the latest start runs.
+        // Concurrent offline starts retain every record. At most two different
+        // Spaces remain active; ties converge deterministically on every client.
         let active = sessions.filter(\.isActive).sorted {
             if $0.referenceDate == $1.referenceDate { return $0.id.uuidString > $1.id.uuidString }
             return $0.referenceDate > $1.referenceDate
         }
-        if let winner = active.first {
-            for index in sessions.indices where sessions[index].isActive && sessions[index].id != winner.id {
-                sessions[index].endedAt = max(sessions[index].startedAt ?? winner.referenceDate,
-                                             sessions[index].pausedAt ?? winner.referenceDate)
-                sessions[index].pausedAt = nil
+        var survivingIDs = Set<UUID>()
+        var occupiedSpaces = Set<UUID>()
+        for session in active where survivingIDs.count < 2 {
+            if occupiedSpaces.insert(session.projectID).inserted {
+                survivingIDs.insert(session.id)
             }
+        }
+        for index in sessions.indices where sessions[index].isActive && !survivingIDs.contains(sessions[index].id) {
+            let session = sessions[index]
+            sessions[index].endedAt = max(session.startedAt ?? session.referenceDate,
+                                          session.pausedAt ?? active.first?.referenceDate ?? session.referenceDate)
+            sessions[index].pausedAt = nil
         }
         result.snapshot = TickWidgetStorageSnapshot(
             projects: projects.sorted { $0.id.uuidString < $1.id.uuidString },

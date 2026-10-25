@@ -11,6 +11,8 @@ struct TodayView: View {
 
     @Bindable var viewModel: TickViewModel
     @State private var isAddingTime = false
+    @State private var manualProjectID: TickProject.ID?
+    @State private var secondProjectID: TickProject.ID?
     @State private var selectedSession: TimeSession?
     @State private var sessionPendingDeletion: TimeSession?
     @State private var deletionMessage: String?
@@ -21,7 +23,6 @@ struct TodayView: View {
             let todaySessions = viewModel.sessions(on: displayDate)
             let fallbackTitles = SessionFallbackTitleProvider.untitledSessionTitles(for: todaySessions)
             let projectIDs = viewModel.projects.map(\.id)
-            let activeSession = viewModel.activeSession
 
             ScrollView {
                 if UIDevice.current.userInterfaceIdiom == .pad {
@@ -29,7 +30,6 @@ struct TodayView: View {
                         sessions: todaySessions,
                         fallbackTitles: fallbackTitles,
                         projectIDs: projectIDs,
-                        activeSession: activeSession,
                         displayDate: displayDate
                     )
                     .frame(maxWidth: 1120, alignment: .leading)
@@ -42,7 +42,6 @@ struct TodayView: View {
                         sessions: todaySessions,
                         fallbackTitles: fallbackTitles,
                         projectIDs: projectIDs,
-                        activeSession: activeSession,
                         displayDate: displayDate
                     )
                     .frame(maxWidth: 1000, alignment: .leading)
@@ -56,7 +55,7 @@ struct TodayView: View {
             .navigationTitle("Start Ticking")
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTime) {
-                ManualTimeEntryView(viewModel: viewModel)
+                ManualTimeEntryView(viewModel: viewModel, initialProjectID: manualProjectID)
             }
             .navigationDestination(item: $selectedSession) { session in
                 SessionDetailView(viewModel: viewModel, session: session)
@@ -83,13 +82,11 @@ struct TodayView: View {
         sessions: [TimeSession],
         fallbackTitles: [TimeSession.ID: String],
         projectIDs: [TickProject.ID],
-        activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
         VStack(alignment: .leading, spacing: 32) {
             iPadCurrentTickHero(
                 sessions: sessions,
-                activeSession: activeSession,
                 displayDate: displayDate
             )
 
@@ -104,14 +101,13 @@ struct TodayView: View {
 
     private func iPadCurrentTickHero(
         sessions: [TimeSession],
-        activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             todayHeader(at: displayDate)
-            capturePanel(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
+            capturePanels(sessions: sessions, displayDate: displayDate)
         }
-        .frame(maxWidth: 760)
+        .frame(maxWidth: 1120)
         .frame(maxWidth: .infinity)
     }
 
@@ -168,14 +164,12 @@ struct TodayView: View {
         sessions: [TimeSession],
         fallbackTitles: [TimeSession.ID: String],
         projectIDs: [TickProject.ID],
-        activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
         VStack(alignment: .leading, spacing: 22) {
             todayHeader(at: displayDate)
             iPhoneCurrentTickSection(
                 sessions: sessions,
-                activeSession: activeSession,
                 displayDate: displayDate
             )
             todaySessionsSection(
@@ -193,44 +187,82 @@ struct TodayView: View {
 
     private func iPhoneCurrentTickSection(
         sessions: [TimeSession],
-        activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
-        capturePanel(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
+        capturePanels(sessions: sessions, displayDate: displayDate)
+    }
+
+    private func capturePanels(sessions: [TimeSession], displayDate: Date) -> some View {
+        let active = viewModel.activeSessions
+        let primaryID = active.first?.projectID ?? selectedProjectID
+        let secondOptions = viewModel.alphabeticalActiveProjects.filter { $0.id != primaryID }
+        let secondaryID = active.dropFirst().first?.projectID
+            ?? secondOptions.first(where: { $0.id == secondProjectID })?.id
+            ?? secondOptions.first?.id
+
+        return Group {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                HStack(alignment: .top, spacing: 16) {
+                    capturePanel(sessions: sessions, projectID: primaryID, activeSession: active.first,
+                                 displayDate: displayDate, isSecondary: false)
+                    if let secondaryID {
+                        capturePanel(sessions: sessions, projectID: secondaryID,
+                                     activeSession: active.dropFirst().first,
+                                     displayDate: displayDate, isSecondary: true)
+                    }
+                }
+            } else {
+                VStack(spacing: 12) {
+                    capturePanel(sessions: sessions, projectID: primaryID, activeSession: active.first,
+                                 displayDate: displayDate, isSecondary: false)
+                    if let secondaryID {
+                        capturePanel(sessions: sessions, projectID: secondaryID,
+                                     activeSession: active.dropFirst().first,
+                                     displayDate: displayDate, isSecondary: true)
+                    }
+                }
+            }
+        }
     }
 
     private func capturePanel(
         sessions: [TimeSession],
+        projectID: TickProject.ID?,
         activeSession: TimeSession?,
-        displayDate: Date
+        displayDate: Date,
+        isSecondary: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            projectSelector()
+            projectSelector(projectID: projectID, activeSession: activeSession, isSecondary: isSecondary)
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: 20) {
-                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
+                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                                  displayDate: displayDate)
                         .fixedSize(horizontal: true, vertical: false)
                     Spacer(minLength: 0)
-                    panelActions()
+                    panelActions(activeSession: activeSession, projectID: projectID, isSecondary: isSecondary)
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: 16) {
-                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
-                    panelActions()
+                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                                  displayDate: displayDate)
+                    panelActions(activeSession: activeSession, projectID: projectID, isSecondary: isSecondary)
                 }
             }
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 12) {
-                    addTimeButton()
+                    addTimeButton(projectID: projectID, isSecondary: isSecondary)
                     Spacer(minLength: 0)
-                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate, presentation: .totalOnly)
+                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                                  displayDate: displayDate, presentation: .totalOnly)
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    addTimeButton()
-                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate, presentation: .totalOnly)
+                    addTimeButton(projectID: projectID, isSecondary: isSecondary)
+                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                                  displayDate: displayDate, presentation: .totalOnly)
                 }
             }
         }
@@ -255,14 +287,17 @@ struct TodayView: View {
         }
     }
 
-    private func panelActions() -> some View {
+    private func panelActions(activeSession: TimeSession?, projectID: TickProject.ID?,
+                              isSecondary: Bool) -> some View {
         VStack(alignment: .trailing, spacing: 8) {
-            timerActionButtons(presentation: .compact)
+            timerActionButtons(activeSession: activeSession, projectID: projectID,
+                               isSecondary: isSecondary, presentation: .compact)
         }
     }
 
     @ViewBuilder
-    private func projectSelector(presentation: CapturePresentation = .compact) -> some View {
+    private func projectSelector(projectID: TickProject.ID?, activeSession: TimeSession?, isSecondary: Bool,
+                                 presentation: CapturePresentation = .compact) -> some View {
         if viewModel.activeProjects.isEmpty {
             if presentation == .iPadHero {
                 Label("Add a Space in Spaces to begin", systemImage: "folder.badge.plus")
@@ -283,14 +318,17 @@ struct TodayView: View {
             }
         } else {
             Menu {
-                ForEach(viewModel.alphabeticalActiveProjects) { project in
+                ForEach(viewModel.alphabeticalActiveProjects.filter { project in
+                    project.id == projectID || !viewModel.activeSessions.contains(where: { $0.projectID == project.id })
+                }) { project in
                     Button {
-                        viewModel.selectedProjectID = project.id
+                        if isSecondary { secondProjectID = project.id }
+                        else { viewModel.selectedProjectID = project.id }
                     } label: {
                         HStack {
                             Text(project.name)
 
-                            if project.id == selectedProjectID {
+                            if project.id == projectID {
                                 Image(systemName: "checkmark")
                             }
                         }
@@ -299,10 +337,11 @@ struct TodayView: View {
             } label: {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(selectedProjectAccent)
+                    .fill(projectID.map { TickProjectAccent.color(for: $0, among: viewModel.projects.map(\.id)) }
+                          ?? TickPalette.primaryAction)
                         .frame(width: 9, height: 9)
                         .accessibilityHidden(true)
-                    Text(selectedProjectName)
+                    Text(projectID.flatMap { viewModel.project(for: $0)?.name } ?? "Choose a Space")
                         .font(.headline)
                         .foregroundStyle(.primary)
                         .lineLimit(2)
@@ -315,13 +354,15 @@ struct TodayView: View {
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
-            .accessibilityLabel("Space, \(selectedProjectName)")
+            .disabled(activeSession != nil)
+            .accessibilityLabel("Space, \(projectID.flatMap { viewModel.project(for: $0)?.name } ?? "Choose a Space")")
             .accessibilityHint("Choose the space for the next timer session.")
         }
     }
 
-    private func addTimeButton() -> some View {
+    private func addTimeButton(projectID: TickProject.ID?, isSecondary: Bool) -> some View {
         Button {
+            manualProjectID = projectID
             isAddingTime = true
         } label: {
             Label("Add Time", systemImage: "plus")
@@ -332,31 +373,35 @@ struct TodayView: View {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.activeProjects.isEmpty)
-        .accessibilityIdentifier("today.addTimeButton")
+        .accessibilityIdentifier(isSecondary ? "today.addTimeButton.secondary" : "today.addTimeButton")
         .accessibilityLabel("Add Time")
         .accessibilityHint("Add time manually when you forgot to start Tick.")
     }
 
     private func timerTimeline(
         sessions: [TimeSession],
+        projectID: TickProject.ID?,
         activeSession: TimeSession?,
         displayDate: Date,
         presentation: TodayTimerDisplay.Presentation = .compact
     ) -> some View {
         TodayTimerTimeline(
-            staticTotalDuration: staticTotalDuration(from: sessions, at: displayDate),
+            staticTotalDuration: staticTotalDuration(from: sessions.filter { $0.projectID == projectID },
+                                                     at: displayDate),
             activeSession: activeSession,
-            activeSessionCountsTowardTotal: activeSession.map { activeSession in
-                sessions.contains { $0.id == activeSession.id }
-            } ?? false,
+            activeSessions: viewModel.activeSessions.filter { active in
+                active.projectID == projectID && sessions.contains { $0.id == active.id }
+            },
             displayDate: displayDate,
             presentation: presentation
         )
     }
 
     @ViewBuilder
-    private func timerActionButtons(presentation: CapturePresentation) -> some View {
-        if let activeSession = viewModel.activeSession {
+    private func timerActionButtons(activeSession: TimeSession?, projectID: TickProject.ID?, isSecondary: Bool,
+                                    presentation: CapturePresentation) -> some View {
+        let spaceName = projectID.flatMap { viewModel.project(for: $0)?.name } ?? "Space"
+        if let activeSession {
             if activeSession.isPaused {
                 TimerTextButton(
                     systemImage: "play.fill",
@@ -367,10 +412,12 @@ struct TodayView: View {
                     presentation: presentation == .iPadHero ? .iPadHero : .compact
                 ) {
                     Task {
-                        await viewModel.resumeTick()
+                        await viewModel.resumeTick(sessionID: activeSession.id)
                     }
                 }
-                .accessibilityIdentifier("today.playButton")
+                .accessibilityIdentifier(isSecondary ? "today.playButton.secondary" : "today.playButton")
+                .accessibilityLabel("Resume Tick")
+                .accessibilityValue(spaceName)
                 .accessibilityHint("Resumes the paused Tick.")
             } else {
                 TimerTextButton(
@@ -382,10 +429,12 @@ struct TodayView: View {
                     presentation: presentation == .iPadHero ? .iPadHero : .compact
                 ) {
                     Task {
-                        await viewModel.pauseTick()
+                        await viewModel.pauseTick(sessionID: activeSession.id)
                     }
                 }
-                .accessibilityIdentifier("today.pauseButton")
+                .accessibilityIdentifier(isSecondary ? "today.pauseButton.secondary" : "today.pauseButton")
+                .accessibilityLabel("Pause Tick")
+                .accessibilityValue(spaceName)
                 .accessibilityHint("Pauses the active Tick without recording the paused time.")
             }
 
@@ -398,10 +447,12 @@ struct TodayView: View {
                 presentation: presentation == .iPadHero ? .iPadHero : .compact
             ) {
                 Task {
-                    await viewModel.stopTick()
+                    await viewModel.stopTick(sessionID: activeSession.id)
                 }
             }
-            .accessibilityIdentifier("today.stopButton")
+            .accessibilityIdentifier(isSecondary ? "today.stopButton.secondary" : "today.stopButton")
+            .accessibilityLabel("Stop Tick")
+            .accessibilityValue(spaceName)
             .accessibilityHint("Stops and saves the active Tick session.")
         } else {
             TimerTextButton(
@@ -413,11 +464,13 @@ struct TodayView: View {
                 presentation: presentation == .iPadHero ? .iPadHero : .compact
             ) {
                 Task {
-                    await viewModel.startTick()
+                    await viewModel.startTick(projectID: projectID)
                 }
             }
-            .disabled(viewModel.selectedProjectID == nil)
-            .accessibilityIdentifier("today.playButton")
+            .disabled(projectID == nil || viewModel.activeSessions.count >= 2)
+            .accessibilityIdentifier(isSecondary ? "today.playButton.secondary" : "today.playButton")
+            .accessibilityLabel("Start Tick")
+            .accessibilityValue(spaceName)
             .accessibilityHint("Starts a timer immediately for the selected space.")
         }
     }
@@ -543,18 +596,6 @@ struct TodayView: View {
         viewModel.selectedProjectID ?? viewModel.activeProjects.first?.id
     }
 
-    private var selectedProjectName: String {
-        selectedProjectID.flatMap { viewModel.project(for: $0)?.name } ?? "Choose a Space"
-    }
-
-    private var selectedProjectAccent: Color {
-        guard let selectedProjectID else {
-            return TickPalette.primaryAction
-        }
-
-        return TickProjectAccent.color(for: selectedProjectID, among: viewModel.projects.map(\.id))
-    }
-
     private func projectName(for projectID: TickProject.ID) -> String {
         viewModel.project(for: projectID)?.name ?? "Unknown Space"
     }
@@ -591,6 +632,8 @@ private struct TodaySessionSwipeRow<Content: View>: View {
                 .background(.red, in: RoundedRectangle(cornerRadius: 12))
                 .accessibilityIdentifier("today.deleteButton")
                 .accessibilityHidden(!isRevealed)
+                .opacity(visibleOffset < 0 ? 1 : 0)
+                .allowsHitTesting(isRevealed)
 
                 content
                     .offset(x: visibleOffset)
@@ -698,12 +741,12 @@ private struct TodayTimerDisplay: View {
 private struct TodayTimerTimeline: View {
     let staticTotalDuration: TimeInterval
     let activeSession: TimeSession?
-    let activeSessionCountsTowardTotal: Bool
+    let activeSessions: [TimeSession]
     let displayDate: Date
     var presentation: TodayTimerDisplay.Presentation = .compact
 
     var body: some View {
-        if let activeSession, !activeSession.isPaused {
+        if activeSessions.contains(where: { !$0.isPaused }) {
             TimelineView(.periodic(from: .now, by: 1)) { timeline in
                 timerDisplay(activeSession: activeSession, displayDate: timeline.date)
             }
@@ -722,11 +765,7 @@ private struct TodayTimerTimeline: View {
     }
 
     private func totalDuration(activeSession: TimeSession?, displayDate: Date) -> TimeInterval {
-        guard activeSessionCountsTowardTotal, let activeSession else {
-            return staticTotalDuration
-        }
-
-        return staticTotalDuration + activeSession.duration(at: displayDate)
+        return staticTotalDuration + activeSessions.reduce(0) { $0 + $1.duration(at: displayDate) }
     }
 }
 

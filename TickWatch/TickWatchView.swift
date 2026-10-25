@@ -77,11 +77,7 @@ struct TickWatchView: View {
 
     private var spaceControl: some View {
         Group {
-            if viewModel.activeSession != nil {
-                Text(viewModel.displayedSpace?.name ?? "Space")
-                    .multilineTextAlignment(.center)
-                    .accessibilityLabel("Active Space, \(viewModel.displayedSpace?.name ?? "Space")")
-            } else if !viewModel.spaces.isEmpty {
+            if !viewModel.spaces.isEmpty {
                 Button { isChoosingSpace = true } label: {
                     Text(viewModel.displayedSpace?.name ?? "Choose Space")
                         .padding(.horizontal, 14)
@@ -90,7 +86,7 @@ struct TickWatchView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Choose Space")
                 .accessibilityValue(viewModel.displayedSpace?.name ?? "None selected")
-                .accessibilityHint("Choose an existing Space to record time.")
+                .accessibilityHint("Choose the Space and its Tick to control.")
                 .disabled(viewModel.isActing)
             } else {
                 Text(viewModel.hasLoaded ? "Create a Space in Tick on your iPhone or iPad." : "Spaces")
@@ -200,7 +196,6 @@ private struct TickWatchSpacePicker: View {
         NavigationStack {
             List(viewModel.spaces) { space in
                 Button {
-                    guard viewModel.activeSession == nil else { dismiss(); return }
                     viewModel.selectedSpaceID = space.id
                     dismiss()
                 } label: {
@@ -218,9 +213,6 @@ private struct TickWatchSpacePicker: View {
             .navigationTitle("Spaces")
             .toolbarForegroundStyle(isLuminanceReduced ? TickWatchPalette.dimmedInk : TickWatchPalette.ink, for: .navigationBar)
             .containerBackground(for: .navigation) { TickWatchPalette.background(dimmed: isLuminanceReduced) }
-        }
-        .onChange(of: viewModel.activeSession?.id) { _, sessionID in
-            if sessionID != nil { dismiss() }
         }
     }
 }

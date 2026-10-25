@@ -117,8 +117,8 @@ nonisolated final class TickWidgetActionStore {
         return try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
             var storageSnapshot = try loadStorageState(from: coordinatedDataFileURL).snapshot
 
-            guard storageSnapshot.sessions.first(where: \.isActive) == nil else {
-                return TickWidgetActionResult(didChange: false, message: "A Tick is already running.")
+            guard storageSnapshot.sessions.filter(\.isActive).count < 2 else {
+                return TickWidgetActionResult(didChange: false, message: "Two Ticks are already active.")
             }
 
             let activeProjects = TickWidgetStoredProject.activeSortedByDisplayOrder(storageSnapshot.projects)
@@ -130,6 +130,9 @@ nonisolated final class TickWidgetActionStore {
 
             let existingSnapshot = try? loadCachedWidgetSnapshot()
             let selectedProject = activeProjects.first { $0.id == existingSnapshot?.defaultProjectID } ?? activeProjects[0]
+            guard !storageSnapshot.sessions.contains(where: { $0.isActive && $0.projectID == selectedProject.id }) else {
+                return TickWidgetActionResult(didChange: false, message: "This Space already has an active Tick. Open Ticks to choose another Space.")
+            }
             try TickTimerMutation.start(in: &storageSnapshot, projectID: selectedProject.id, at: date)
             try saveStorageSnapshot(storageSnapshot, updatedAt: date, to: coordinatedDataFileURL)
             try saveWidgetSnapshot(
@@ -155,10 +158,14 @@ nonisolated final class TickWidgetActionStore {
         return try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
             var storageSnapshot = try loadStorageState(from: coordinatedDataFileURL).snapshot
 
-            guard let activeIndex = storageSnapshot.sessions.firstIndex(where: \.isActive) else {
+            let activeSessions = storageSnapshot.sessions.filter(\.isActive)
+            guard !activeSessions.isEmpty else {
                 return TickWidgetActionResult(didChange: false, message: "No Tick is running.")
             }
-            if let expectedSessionID, storageSnapshot.sessions[activeIndex].id != expectedSessionID {
+            guard let targetID = expectedSessionID ?? (activeSessions.count == 1 ? activeSessions[0].id : nil) else {
+                return TickWidgetActionResult(didChange: false, message: "Open Ticks to choose which Tick to stop.")
+            }
+            guard let activeIndex = storageSnapshot.sessions.firstIndex(where: { $0.isActive && $0.id == targetID }) else {
                 return TickWidgetActionResult(
                     didChange: false, message: "That Tick changed on another device. Open Ticks to review it."
                 )
