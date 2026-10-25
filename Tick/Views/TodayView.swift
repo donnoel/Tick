@@ -11,6 +11,9 @@ struct TodayView: View {
 
     @Bindable var viewModel: TickViewModel
     @State private var isAddingTime = false
+    @State private var selectedSession: TimeSession?
+    @State private var sessionPendingDeletion: TimeSession?
+    @State private var deletionMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -54,6 +57,24 @@ struct TodayView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTime) {
                 ManualTimeEntryView(viewModel: viewModel)
+            }
+            .navigationDestination(item: $selectedSession) { session in
+                SessionDetailView(viewModel: viewModel, session: session)
+            }
+            .alert("Delete Tick?", isPresented: sessionDeletionConfirmationIsPresented, presenting: sessionPendingDeletion) { session in
+                Button("Delete Tick", role: .destructive) {
+                    deleteSession(id: session.id)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { session in
+                let title = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name = title.isEmpty ? "This Tick" : "“\(title)”"
+                Text("\(name) and its recorded time will be permanently deleted. This cannot be undone.")
+            }
+            .alert("Could Not Delete", isPresented: deletionAlertIsPresented) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deletionMessage ?? "Tick could not delete that session.")
             }
         }
     }
@@ -130,21 +151,13 @@ struct TodayView: View {
                     spacing: 18
                 ) {
                     ForEach(sessions) { session in
-                        NavigationLink {
-                            SessionDetailView(viewModel: viewModel, session: session)
-                        } label: {
-                            LiveSessionRowView(
-                                session: session,
-                                projectID: session.projectID,
-                                projectName: projectName(for: session.projectID),
-                                displayDate: displayDate,
-                                defaultTitle: fallbackTitles[session.id] ?? "Tick",
-                                accentColor: TickProjectAccent.color(for: session.projectID, among: projectIDs),
-                                presentation: .card
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Opens session details.")
+                        todaySessionRow(
+                            session,
+                            fallbackTitle: fallbackTitles[session.id] ?? "Tick",
+                            projectIDs: projectIDs,
+                            displayDate: displayDate,
+                            presentation: .card
+                        )
                     }
                 }
             }
@@ -439,20 +452,13 @@ struct TodayView: View {
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(sessions) { session in
-                        NavigationLink {
-                            SessionDetailView(viewModel: viewModel, session: session)
-                        } label: {
-                            LiveSessionRowView(
-                                session: session,
-                                projectID: session.projectID,
-                                projectName: projectName(for: session.projectID),
-                                displayDate: displayDate,
-                                defaultTitle: fallbackTitles[session.id] ?? "Tick",
-                                accentColor: TickProjectAccent.color(for: session.projectID, among: projectIDs)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Opens session details.")
+                        todaySessionRow(
+                            session,
+                            fallbackTitle: fallbackTitles[session.id] ?? "Tick",
+                            projectIDs: projectIDs,
+                            displayDate: displayDate,
+                            presentation: .plain
+                        )
 
                         if session.id != sessions.last?.id {
                             Divider()
@@ -460,6 +466,65 @@ struct TodayView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private func todaySessionRow(
+        _ session: TimeSession,
+        fallbackTitle: String,
+        projectIDs: [TickProject.ID],
+        displayDate: Date,
+        presentation: SessionRowView.Presentation
+    ) -> some View {
+        TodaySessionSwipeRow(canDelete: !session.isActive) {
+            sessionPendingDeletion = session
+        } content: {
+            LiveSessionRowView(
+                session: session,
+                projectID: session.projectID,
+                projectName: projectName(for: session.projectID),
+                displayDate: displayDate,
+                defaultTitle: fallbackTitle,
+                accentColor: TickProjectAccent.color(for: session.projectID, among: projectIDs),
+                presentation: presentation
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                selectedSession = session
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default) {
+                selectedSession = session
+            }
+            .accessibilityIdentifier("today.sessionRow.\(session.id.uuidString)")
+            .accessibilityHint(session.isActive
+                ? "Opens session details. Stop this Tick before deleting it."
+                : "Opens session details. Swipe left for Delete.")
+        }
+    }
+
+    private var sessionDeletionConfirmationIsPresented: Binding<Bool> {
+        Binding {
+            sessionPendingDeletion != nil
+        } set: { isPresented in
+            if !isPresented { sessionPendingDeletion = nil }
+        }
+    }
+
+    private var deletionAlertIsPresented: Binding<Bool> {
+        Binding {
+            deletionMessage != nil
+        } set: { isPresented in
+            if !isPresented { deletionMessage = nil }
+        }
+    }
+
+    private func deleteSession(id: TimeSession.ID) {
+        Task {
+            guard await viewModel.deleteSession(id: id) else {
+                deletionMessage = viewModel.errorMessage ?? "Tick could not delete that session."
+                return
             }
         }
     }
@@ -492,6 +557,79 @@ struct TodayView: View {
 
     private func projectName(for projectID: TickProject.ID) -> String {
         viewModel.project(for: projectID)?.name ?? "Unknown Space"
+    }
+}
+
+private struct TodaySessionSwipeRow<Content: View>: View {
+    private let actionWidth: CGFloat = 96
+
+    let canDelete: Bool
+    let onDelete: () -> Void
+    let content: Content
+
+    @State private var isRevealed = false
+    @State private var dragOffset: CGFloat = 0
+
+    init(canDelete: Bool, onDelete: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+        self.canDelete = canDelete
+        self.onDelete = onDelete
+        self.content = content()
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if canDelete {
+            ZStack(alignment: .trailing) {
+                Button(action: requestDelete) {
+                    Label("Delete", systemImage: "trash")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: actionWidth)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(.red, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier("today.deleteButton")
+                .accessibilityHidden(!isRevealed)
+
+                content
+                    .offset(x: visibleOffset)
+                    .simultaneousGesture(swipeGesture)
+                    .accessibilityAction(named: Text("Delete Tick")) {
+                        requestDelete()
+                    }
+            }
+            .clipped()
+        } else {
+            content
+        }
+    }
+
+    private var visibleOffset: CGFloat {
+        min(0, max(-actionWidth, (isRevealed ? -actionWidth : 0) + dragOffset))
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                dragOffset = value.translation.width
+            }
+            .onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else {
+                    dragOffset = 0
+                    return
+                }
+                withAnimation(.easeOut(duration: 0.18)) {
+                    isRevealed = value.translation.width < -40 || (isRevealed && value.translation.width < 40)
+                    dragOffset = 0
+                }
+            }
+    }
+
+    private func requestDelete() {
+        isRevealed = false
+        onDelete()
     }
 }
 

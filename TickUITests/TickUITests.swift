@@ -379,6 +379,41 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No Ticks yet"].waitForExistence(timeout: 5))
     }
 
+    func testTodaySessionSwipeDeleteRequiresConfirmation() throws {
+        continueAfterFailure = false
+        let app = launchResetApp()
+        createProject(named: "Today Delete Space", in: app)
+        addManualSession(titled: "Today Delete Tick", in: app)
+
+        let row = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "today.sessionRow.")
+        ).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.swipeLeft()
+
+        let deleteButton = app.buttons["today.deleteButton"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.tap()
+
+        let confirmation = app.alerts["Delete Tick?"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmation.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Today Delete Tick")
+        ).firstMatch.exists)
+        confirmation.buttons["Cancel"].tap()
+        XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(row.exists)
+
+        row.swipeLeft()
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.tap()
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        confirmation.buttons["Delete Tick"].tap()
+
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No time recorded yet today"].waitForExistence(timeout: 5))
+    }
+
     func testSummarySpaceOpensDetailedShareableReport() throws {
         continueAfterFailure = false
         let app = launchResetApp()
