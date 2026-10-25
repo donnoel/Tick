@@ -324,7 +324,7 @@ struct TodayView: View {
             }
         } else {
             Menu {
-                ForEach(viewModel.activeProjects) { project in
+                ForEach(viewModel.alphabeticalActiveProjects) { project in
                     Button {
                         viewModel.selectedProjectID = project.id
                     } label: {

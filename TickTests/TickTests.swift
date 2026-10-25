@@ -3,6 +3,30 @@ import XCTest
 @testable import Tick
 
 final class TickTests: XCTestCase {
+    @MainActor
+    func testAlphabeticalPickerTracksRenamesWithoutChangingSelectionOrSpaceOrder() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        let projects = [
+            TickProject(name: "Project 10", sortOrder: 0),
+            TickProject(name: "Beam", sortOrder: 1),
+            TickProject(name: "alpha", sortOrder: 2),
+            TickProject(name: "Project 2", sortOrder: 3),
+            TickProject(name: "Archived", isArchived: true, sortOrder: 4)
+        ]
+        let store = TickDataStore(fileURL: fileURL)
+        try await store.save(TickStorageSnapshot(projects: projects, sessions: []))
+        let model = TickViewModel(store: store)
+        await model.loadIfNeeded()
+        model.selectedProjectID = projects[0].id
+        XCTAssertEqual(model.alphabeticalActiveProjects.map(\.name), ["alpha", "Beam", "Project 2", "Project 10"])
+        let renamed = await model.updateProjectName(id: projects[0].id, name: "Aardvark")
+        XCTAssertTrue(renamed)
+        XCTAssertEqual(model.alphabeticalActiveProjects.map(\.name), ["Aardvark", "alpha", "Beam", "Project 2"])
+        XCTAssertEqual(model.activeProjects.map(\.id), Array(projects.prefix(4)).map(\.id))
+        XCTAssertEqual(model.selectedProjectID, projects[0].id)
+    }
+
     func testTimerDurationFormattingMatchesAcrossDevicePresentations() {
         XCTAssertEqual(TickDurationFormatter.timerString(from: 0), "0:00")
         XCTAssertEqual(TickDurationFormatter.timerString(from: 1_106), "18:26")

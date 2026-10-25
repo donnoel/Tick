@@ -156,6 +156,13 @@ final class TickViewModel {
         TickProject.sortedByDisplayOrder(projects.filter { !$0.isArchived })
     }
 
+    var alphabeticalActiveProjects: [TickProject] {
+        projects.filter { !$0.isArchived }.sorted {
+            let comparison = $0.name.localizedStandardCompare($1.name)
+            return comparison == .orderedSame ? $0.id.uuidString < $1.id.uuidString : comparison == .orderedAscending
+        }
+    }
+
     var spacesStartedAt: Date? {
         projects.lazy.map(\.createdAt).min()
     }
