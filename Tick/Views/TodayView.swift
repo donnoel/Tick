@@ -299,7 +299,7 @@ struct TodayView: View {
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: 20) {
-                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                    timerTimeline(sessions: sessions, activeSession: activeSession,
                                   displayDate: displayDate)
                         .fixedSize(horizontal: true, vertical: false)
                     Spacer(minLength: 0)
@@ -307,7 +307,7 @@ struct TodayView: View {
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: 16) {
-                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                    timerTimeline(sessions: sessions, activeSession: activeSession,
                                   displayDate: displayDate)
                     panelActions(activeSession: activeSession, projectID: projectID, isSecondary: isSecondary)
                 }
@@ -317,13 +317,13 @@ struct TodayView: View {
                 HStack(spacing: 12) {
                     addTimeButton(projectID: projectID, isSecondary: isSecondary)
                     Spacer(minLength: 0)
-                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                    timerTimeline(sessions: sessions, activeSession: activeSession,
                                   displayDate: displayDate, presentation: .totalOnly)
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     addTimeButton(projectID: projectID, isSecondary: isSecondary)
-                    timerTimeline(sessions: sessions, projectID: projectID, activeSession: activeSession,
+                    timerTimeline(sessions: sessions, activeSession: activeSession,
                                   displayDate: displayDate, presentation: .totalOnly)
                 }
             }
@@ -442,17 +442,15 @@ struct TodayView: View {
 
     private func timerTimeline(
         sessions: [TimeSession],
-        projectID: TickProject.ID?,
         activeSession: TimeSession?,
         displayDate: Date,
         presentation: TodayTimerDisplay.Presentation = .compact
     ) -> some View {
         TodayTimerTimeline(
-            staticTotalDuration: staticTotalDuration(from: sessions.filter { $0.projectID == projectID },
-                                                     at: displayDate),
+            staticTotalDuration: staticTotalDuration(from: sessions, at: displayDate),
             activeSession: activeSession,
             activeSessions: viewModel.activeSessions.filter { active in
-                active.projectID == projectID && sessions.contains { $0.id == active.id }
+                sessions.contains { $0.id == active.id }
             },
             displayDate: displayDate,
             presentation: presentation

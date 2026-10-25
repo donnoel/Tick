@@ -455,6 +455,32 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["today.playButton"].exists)
     }
 
+    func testTodayTotalIncludesEverySpaceBeforeAndAfterStop() throws {
+        continueAfterFailure = false
+        let app = launchResetApp()
+        createProject(named: "Puzzles", in: app)
+        addManualSession(titled: "Planning", in: app)
+        createProject(named: "Tonight", in: app)
+        tab(named: "Today", in: app).tap()
+
+        let expand = app.buttons["today.secondTimer.expand"]
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        expand.tap()
+        let totals = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Today total "))
+        XCTAssertEqual(totals.count, 2)
+        XCTAssertEqual(totals.element(boundBy: 0).label, "Today total 30:00")
+        XCTAssertEqual(totals.element(boundBy: 1).label, "Today total 30:00")
+
+        app.buttons["today.playButton"].tap()
+        let stop = app.buttons["today.stopButton"]
+        XCTAssertTrue(stop.waitForExistence(timeout: 5))
+        stop.tap()
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        expand.tap()
+        XCTAssertEqual(totals.count, 2)
+        XCTAssertEqual(totals.element(boundBy: 0).label, totals.element(boundBy: 1).label)
+    }
+
     func testSummarySpaceOpensDetailedShareableReport() throws {
         continueAfterFailure = false
         let app = launchResetApp()
