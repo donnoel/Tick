@@ -79,13 +79,15 @@ For the release validation gate, select an installed iOS 26.5 simulator UDID
 from `xcrun simctl list devices available`, then run:
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer
 SIMULATOR_ID="<iOS-26.5-simulator-UDID>"
-bash Scripts/ci.sh all "$SIMULATOR_ID"
-swift test -Xswiftc -warnings-as-errors
+bash Scripts/local-check.sh bash Scripts/ci.sh all "$SIMULATOR_ID"
+bash Scripts/local-check.sh swift test -Xswiftc -warnings-as-errors
 ```
 
-Use focused tests while developing small changes. CI creates and boots an
+Use focused tests while developing small changes through
+`bash Scripts/local-check.sh <command> [args...]`. The launcher selects an
+already-installed CI Xcode for that command, respects `DEVELOPER_DIR`, and never
+installs tools or changes global defaults. CI creates and boots an
 available iPhone simulator dynamically; local simulator names need not match.
 
 ## 🧠 How It Works

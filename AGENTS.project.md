@@ -204,11 +204,15 @@ Physical widget Stop propagation was unresolved at historical checkpoint `4e84aa
 Don's October 18 confirmation closes the current follow-up; builds and unit tests
 alone must still not be presented as independent physical-device proof.
 
-## CI reliability and pre-push validation
+## CI reliability and local validation
 
-- Run `bash Scripts/ci.sh all <fresh-iOS-26.5-simulator-UDID>` with Xcode 26.6 selected through `DEVELOPER_DIR`. The script rejects mismatched toolchains and runtimes; report any additional checks with a different local compiler separately.
+- For ordinary changes, start with the narrowest relevant build, unit test or UI check. Expand for shared behavior, persistence, startup or release risk. Documentation and local tool-selection helper changes need scoped structural/contract checks; they do not require an application rebuild solely to repeat CI.
+- Use `bash Scripts/local-check.sh <command> [args...]` for local checks. It selects already-installed Xcode 26.6 for that command without changing global defaults, and preserves an explicit `DEVELOPER_DIR`. If unavailable, focused commands can use the existing compiler with the difference reported; the strict CI driver still rejects a mismatch.
+- GitHub keeps Xcode 26.6 and Simulator 26.5. For deliberate complete reproduction use `bash Scripts/local-check.sh bash Scripts/ci.sh all <fresh-iOS-26.5-simulator-UDID>`. Fresh simulators are for isolated/full reproduction; preserve existing simulator data. Upgrade pinned baselines in a separate validated change.
+- Run the complete affected suites when changing build/test workflow behavior, test harnesses or shared fixtures, or when reproducing a hosted failure. Full local CI is not a blanket prerequisite for every edit. Keep GitHub CI enabled and all existing suites/assertions; a focused pass is not a full-suite pass.
+- Check installed tools and equivalent capabilities before proposing a download. Do not install or switch global tools merely to obtain exact CI parity for an unrelated change. Report local compiler/runtime/browser/OS differences and checks not run; only observed GitHub results establish hosted CI success.
 - Keep clean build-for-testing, unit tests, and the full UI suite visible as distinct phases. The same built artifacts are used for both test phases; preserve warnings as errors and test assertions.
-- UI/harness/CI changes require the full relevant suite, including deletion confirmation and cancel behavior. A focused test or unit-only pass does not establish full CI success.
+- Changes to UI/harness/CI build/test behavior require the full relevant suite, including deletion confirmation and cancel behavior. A focused test or unit-only pass does not establish full CI success.
 - Date fixtures must use an explicit calendar/timezone consistently. UI helpers must replace text deterministically and verify the value, wait for observable readiness, and isolate cloud/Keychain dependencies when those services are not the subject of the test.
 - Treat zero-step account/payment/spending-limit failures as unavailable execution evidence. Diagnose the job annotation before changing application code. Keep deployment failures separate from build/test failures.
-- Prose-only pushes skip expensive CI; pull-request checks still run so required statuses are present. New pushes cancel superseded runs of this workflow on the same ref. Never disable CI or weaken assertions to make a run green.
+- Prose-only pushes skip expensive CI; optional pull-request checks still run. New pushes cancel superseded runs of this workflow on the same ref. Never disable CI or weaken assertions to make a run green.
