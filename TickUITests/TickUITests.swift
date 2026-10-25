@@ -389,7 +389,11 @@ final class TickUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", "today.sessionRow.")
         ).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let initialRowX = row.frame.minX
+        row.swipeUp()
+        XCTAssertEqual(row.frame.minX, initialRowX, accuracy: 3)
         row.swipeLeft()
+        XCTAssertLessThan(row.frame.minX, initialRowX - 40)
 
         let deleteButton = app.buttons["today.deleteButton"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))

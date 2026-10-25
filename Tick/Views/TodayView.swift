@@ -666,12 +666,18 @@ struct TodayView: View {
 private struct TodaySessionSwipeRow<Content: View>: View {
     private let actionWidth: CGFloat = 96
 
+    private enum DragAxis {
+        case horizontal
+        case vertical
+    }
+
     let canDelete: Bool
     let onDelete: () -> Void
     let content: Content
 
     @State private var isRevealed = false
     @State private var dragOffset: CGFloat = 0
+    @State private var dragAxis: DragAxis?
 
     init(canDelete: Bool, onDelete: @escaping () -> Void, @ViewBuilder content: () -> Content) {
         self.canDelete = canDelete
@@ -717,11 +723,16 @@ private struct TodaySessionSwipeRow<Content: View>: View {
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 20)
             .onChanged { value in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                if dragAxis == nil {
+                    dragAxis = abs(value.translation.width) > abs(value.translation.height)
+                        ? .horizontal : .vertical
+                }
+                guard dragAxis == .horizontal else { return }
                 dragOffset = value.translation.width
             }
             .onEnded { value in
-                guard abs(value.translation.width) > abs(value.translation.height) else {
+                guard dragAxis == .horizontal else {
+                    dragAxis = nil
                     dragOffset = 0
                     return
                 }
@@ -729,6 +740,7 @@ private struct TodaySessionSwipeRow<Content: View>: View {
                     isRevealed = value.translation.width < -40 || (isRevealed && value.translation.width < 40)
                     dragOffset = 0
                 }
+                dragAxis = nil
             }
     }
 

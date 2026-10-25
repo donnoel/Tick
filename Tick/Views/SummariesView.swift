@@ -2,92 +2,22 @@ import Charts
 import SwiftUI
 
 struct SummariesView: View {
+    @Environment(\.scenePhase) private var scenePhase
     let viewModel: TickViewModel
     @State private var selectedPeriod = SummaryPeriod.week
     @State private var selectedReport: SpaceReportDestination?
+    @State private var referenceDate = Date.now
 
     var body: some View {
         NavigationStack {
-            TimelineView(.periodic(from: .now, by: 60)) { timeline in
-                let summary = viewModel.summary(for: selectedPeriod, at: timeline.date)
-                let periodProjectChartEntries = TickChartDataBuilder.periodProjectEntries(
-                    for: selectedPeriod,
-                    projects: viewModel.projects,
-                    sessions: viewModel.sessions,
-                    referenceDate: timeline.date
-                )
-                let projectIDs = viewModel.projects.map(\.id)
-
-                List {
-                    Section {
-                        Picker("Period", selection: $selectedPeriod) {
-                            ForEach(SummaryPeriod.allCases) { period in
-                                Text(period.pickerTitle)
-                                    .accessibilityLabel(period.title)
-                                    .tag(period)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .accessibilityHint("Choose a daily, weekly, monthly, yearly, or lifetime summary.")
+            Group {
+                if hasRunningSessionInSelectedPeriod {
+                    TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                        summaryList(at: timeline.date)
                     }
-                    .listRowBackground(Color.clear)
-
-                    Section {
-                        SummaryHeroCard(
-                            periodTitle: selectedPeriod.title,
-                            totalDuration: summary.totalDuration,
-                            sessionCount: summary.sessionCount
-                        )
-                    }
-                    .listRowBackground(Color.clear)
-
-                    if let timelineTitle = selectedPeriod.timelineTitle {
-                        Section {
-                            if periodProjectChartEntries.isEmpty {
-                                Text("No time recorded in this period.")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                SummaryPeriodProjectChart(
-                                    entries: periodProjectChartEntries,
-                                    selectedPeriod: selectedPeriod,
-                                    projectIDs: projectIDs
-                                )
-                            }
-                        } header: {
-                            SummarySectionHeader(
-                                title: timelineTitle,
-                                subtitle: selectedPeriod.timelineSubtitle
-                            )
-                        }
-                    }
-
-                    Section {
-                        if summary.durationByProject.isEmpty {
-                            Text("No time recorded in this period.")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            SummarySpaceBreakdown(
-                                summaries: summary.durationByProject,
-                                projectIDs: projectIDs
-                            ) { space in
-                                selectedReport = SpaceReportDestination(
-                                    projectID: space.projectID,
-                                    projectName: space.projectName,
-                                    period: selectedPeriod,
-                                    referenceDate: timeline.date
-                                )
-                            }
-                        }
-                    } header: {
-                        SummarySectionHeader(
-                            title: "By Space",
-                            subtitle: summary.durationByProject.isEmpty
-                                ? nil
-                                : "Ranked by recorded time"
-                        )
-                    }
+                } else {
+                    summaryList(at: referenceDate)
                 }
-                .tickScreenBackground()
             }
             .navigationTitle("Summaries")
             .navigationDestination(item: $selectedReport) { destination in
@@ -99,7 +29,102 @@ struct SummariesView: View {
                     referenceDate: destination.referenceDate
                 )
             }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { referenceDate = .now }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+                referenceDate = .now
+            }
         }
+    }
+
+    private var hasRunningSessionInSelectedPeriod: Bool {
+        let interval = selectedPeriod.interval(containing: .now)
+        return viewModel.activeSessions.contains { session in
+            !session.isPaused && session.referenceDate >= interval.start && session.referenceDate < interval.end
+        }
+    }
+
+    private func summaryList(at date: Date) -> some View {
+        let summary = viewModel.summary(for: selectedPeriod, at: date)
+        let periodProjectChartEntries = TickChartDataBuilder.periodProjectEntries(
+            for: selectedPeriod,
+            projects: viewModel.projects,
+            sessions: viewModel.sessions,
+            referenceDate: date
+        )
+        let projectIDs = viewModel.projects.map(\.id)
+
+        return List {
+            Section {
+                Picker("Period", selection: $selectedPeriod) {
+                    ForEach(SummaryPeriod.allCases) { period in
+                        Text(period.pickerTitle)
+                            .accessibilityLabel(period.title)
+                            .tag(period)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityHint("Choose a daily, weekly, monthly, yearly, or lifetime summary.")
+            }
+            .listRowBackground(Color.clear)
+
+            Section {
+                SummaryHeroCard(
+                    periodTitle: selectedPeriod.title,
+                    totalDuration: summary.totalDuration,
+                    sessionCount: summary.sessionCount
+                )
+            }
+            .listRowBackground(Color.clear)
+
+            if let timelineTitle = selectedPeriod.timelineTitle {
+                Section {
+                    if periodProjectChartEntries.isEmpty {
+                        Text("No time recorded in this period.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        SummaryPeriodProjectChart(
+                            entries: periodProjectChartEntries,
+                            selectedPeriod: selectedPeriod,
+                            projectIDs: projectIDs
+                        )
+                    }
+                } header: {
+                    SummarySectionHeader(
+                        title: timelineTitle,
+                        subtitle: selectedPeriod.timelineSubtitle
+                    )
+                }
+            }
+
+            Section {
+                if summary.durationByProject.isEmpty {
+                    Text("No time recorded in this period.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    SummarySpaceBreakdown(
+                        summaries: summary.durationByProject,
+                        projectIDs: projectIDs
+                    ) { space in
+                        selectedReport = SpaceReportDestination(
+                            projectID: space.projectID,
+                            projectName: space.projectName,
+                            period: selectedPeriod,
+                            referenceDate: date
+                        )
+                    }
+                }
+            } header: {
+                SummarySectionHeader(
+                    title: "By Space",
+                    subtitle: summary.durationByProject.isEmpty
+                        ? nil
+                        : "Ranked by recorded time"
+                )
+            }
+        }
+        .tickScreenBackground()
     }
 }
 
