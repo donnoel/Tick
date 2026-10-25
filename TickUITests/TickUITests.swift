@@ -423,7 +423,18 @@ final class TickUITests: XCTestCase {
 
         let firstStart = app.buttons["today.playButton"]
         let secondStart = app.buttons["today.playButton.secondary"]
+        let expandSecondTimer = app.buttons["today.secondTimer.expand"]
         XCTAssertTrue(firstStart.waitForExistence(timeout: 5))
+        let isCollapsible = expandSecondTimer.exists
+        if isCollapsible {
+            XCTAssertFalse(secondStart.exists)
+            expandSecondTimer.tap()
+            let collapseSecondTimer = app.buttons["today.secondTimer.collapse"]
+            XCTAssertTrue(collapseSecondTimer.waitForExistence(timeout: 5))
+            collapseSecondTimer.tap()
+            XCTAssertTrue(expandSecondTimer.waitForExistence(timeout: 5))
+            expandSecondTimer.tap()
+        }
         XCTAssertTrue(secondStart.waitForExistence(timeout: 5))
         firstStart.tap()
         secondStart.tap()
@@ -436,7 +447,11 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["today.playButton"].waitForExistence(timeout: 5))
         XCTAssertTrue(secondPause.exists)
         app.buttons["today.stopButton.secondary"].tap()
-        XCTAssertTrue(secondStart.waitForExistence(timeout: 5))
+        if isCollapsible {
+            XCTAssertTrue(expandSecondTimer.waitForExistence(timeout: 5))
+        } else {
+            XCTAssertTrue(secondStart.waitForExistence(timeout: 5))
+        }
         XCTAssertTrue(app.buttons["today.playButton"].exists)
     }
 

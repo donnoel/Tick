@@ -13,6 +13,7 @@ struct TodayView: View {
     @State private var isAddingTime = false
     @State private var manualProjectID: TickProject.ID?
     @State private var secondProjectID: TickProject.ID?
+    @State private var isSecondTimerExpanded = false
     @State private var selectedSession: TimeSession?
     @State private var sessionPendingDeletion: TimeSession?
     @State private var deletionMessage: String?
@@ -216,13 +217,56 @@ struct TodayView: View {
                     capturePanel(sessions: sessions, projectID: primaryID, activeSession: active.first,
                                  displayDate: displayDate, isSecondary: false)
                     if let secondaryID {
-                        capturePanel(sessions: sessions, projectID: secondaryID,
-                                     activeSession: active.dropFirst().first,
-                                     displayDate: displayDate, isSecondary: true)
+                        if let secondSession = active.dropFirst().first {
+                            capturePanel(sessions: sessions, projectID: secondaryID,
+                                         activeSession: secondSession, displayDate: displayDate,
+                                         isSecondary: true)
+                        } else if isSecondTimerExpanded {
+                            capturePanel(sessions: sessions, projectID: secondaryID,
+                                         activeSession: nil, displayDate: displayDate,
+                                         isSecondary: true, showsCollapseButton: true)
+                        } else {
+                            collapsedSecondTimer(projectID: secondaryID)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func collapsedSecondTimer(projectID: TickProject.ID) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = true }
+        } label: {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(TickProjectAccent.color(for: projectID, among: viewModel.projects.map(\.id)))
+                    .frame(width: 9, height: 9)
+                    .accessibilityHidden(true)
+                Text(projectName(for: projectID))
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text("Start another Tick")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .foregroundStyle(.primary)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 18)
+            .background(TickPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("today.secondTimer.expand")
+        .accessibilityLabel("Expand \(projectName(for: projectID)) timer")
+        .accessibilityHint("Shows the second Space timer and its Start Tick button.")
     }
 
     private func capturePanel(
@@ -230,10 +274,28 @@ struct TodayView: View {
         projectID: TickProject.ID?,
         activeSession: TimeSession?,
         displayDate: Date,
-        isSecondary: Bool
+        isSecondary: Bool,
+        showsCollapseButton: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            projectSelector(projectID: projectID, activeSession: activeSession, isSecondary: isSecondary)
+            HStack(spacing: 8) {
+                projectSelector(projectID: projectID, activeSession: activeSession, isSecondary: isSecondary)
+                if showsCollapseButton {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = false }
+                    } label: {
+                        Image(systemName: "chevron.up")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("today.secondTimer.collapse")
+                    .accessibilityLabel("Collapse second timer")
+                    .accessibilityHint("Hides the unused timer controls on iPhone.")
+                }
+            }
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: 20) {
@@ -447,7 +509,9 @@ struct TodayView: View {
                 presentation: presentation == .iPadHero ? .iPadHero : .compact
             ) {
                 Task {
-                    await viewModel.stopTick(sessionID: activeSession.id)
+                    if await viewModel.stopTick(sessionID: activeSession.id) {
+                        isSecondTimerExpanded = false
+                    }
                 }
             }
             .accessibilityIdentifier(isSecondary ? "today.stopButton.secondary" : "today.stopButton")
