@@ -15,31 +15,31 @@
 
 Tick is a playful, lightweight SwiftUI timekeeping app for recording how long spaces actually take.
 
-### Current status — October 18, 2026
+### Current status — October 25, 2026
 
-Don confirmed the current Tick work is complete, with nothing outstanding from his perspective. This closes the prior acceptance and delete-confirmation follow-ups for the current scope on owner confirmation; it does not claim new tests, device observations, or an application release. New requests or reported regressions are follow-up work.
+Ticks is in active development and has not been submitted to the App Store. Development build `2.0 (37)` was installed and launched on Don's iPhone and iPad; Don confirmed that dragging the Today timers to reorder them works. This is device feedback on that feature, not a full release qualification.
 
 ## 💎 Core Features
 
 | Feature | What it does |
 | --- | --- |
-| **Timekeeping** | Create Spaces and record, edit, or add missed time. |
+| **Timekeeping** | Run up to two independent Ticks in different Spaces, edit recorded sessions, and add missed time. |
 | **Reports** | Review daily through lifetime summaries and share dated work reports. |
 | **Auto Tick** | Configure opt-in location rules for arrival and departure actions. |
-| **Connected surfaces** | Use widgets, Apple Watch, and the ProjectPilot Mac client with shared sync. |
+| **Connected surfaces** | Use widgets, Apple Watch, and the ProjectPilot Mac client with CloudKit sync. |
 
 <details>
 <summary>Feature details and controls</summary>
 
 Implemented scope:
-- create spaces
-- start and stop one active Tick session
-- add missed time manually
-- review and edit session title, notes, and space
-- archive and restore spaces without deleting their recorded time
+- create, archive, and restore Spaces without losing recorded time
+- run up to two Ticks at once, one per Space, with independent Start, Pause, Resume, and Stop controls; a paused Tick still occupies one of the two slots
+- press and drag the Today timer cards to swap their order; the order persists locally after reopening the app, and an unused lower card can collapse on iPhone
+- see today's total across all Spaces and review today's Ticks; swipe left on a completed Tick to delete it with confirmation
+- add missed time manually; edit a session's title, notes, or Space, and correct a stopped Tick's date, start, end, duration, or entry source
+- record, play, rename, and delete voice memos in a Space
 - create, edit, and delete opt-in Auto Tick location rules for automatic arrival/departure actions
-- use Home Screen and Lock Screen widgets to glance at, start, or stop the current Tick
-- view today's recorded time and sessions
+- use Home Screen and Lock Screen widgets to glance at a Tick and start or stop when the action is unambiguous; when two Ticks are active, the Home Screen widget shows the other Space, and tapping the widget opens Ticks to choose which one to control
 - review daily, weekly, monthly, yearly, and lifetime summaries
 - tap a space in Summaries for a dated work report with description totals and daily sessions; adjust dates, optionally omit notes, and share the text through Mail or another app
 - persist local data between launches
@@ -65,7 +65,7 @@ background timer. See [Watch architecture and validation](docs/WATCH_APP.md).
 ### Requirements
 
 - macOS with Xcode installed
-- Xcode with the iOS 26 SDK or newer and an installed iPhone or iPad Simulator
+- Xcode 26.6 and an installed iOS 26.5 iPhone or iPad Simulator for local CI reproduction
 - SwiftUI
 - iCloud capability for device-to-device sync builds
 
@@ -75,7 +75,7 @@ background timer. See [Watch architecture and validation](docs/WATCH_APP.md).
 2. Select an iPhone or iPad Simulator
 3. Build and Run
 
-For the release validation gate, select an installed iOS 26.5 simulator UDID
+For a deliberate full CI reproduction, select an installed iOS 26.5 simulator UDID
 from `xcrun simctl list devices available`, then run:
 
 ```sh
@@ -104,9 +104,13 @@ Tick/
 │   ├── Utilities/
 │   ├── ViewModels/
 │   └── Views/
+├── TickWatch/
 ├── TickWidgetExtension/
 ├── TickTests/
-└── TickUITests/
+├── TickUITests/
+├── TickCoreTests/
+├── Scripts/
+└── docs/
 ```
 
 <a id="shared-timer-support"></a>
@@ -118,8 +122,7 @@ ProjectPilot Mac app. The iPhone app and widget compile the same portable source
 files directly. Run `swift test -Xswiftc -warnings-as-errors` for the shared model,
 Start/Stop, merge and wire-format tests. No third-party packages are used.
 
-The current default timer sync uses CloudKit; KVS is a legacy import path.
-Commit `4e84aa9` recorded an unresolved physical widget Stop-propagation checkpoint at that time. Don's October 18 owner confirmation closes the current follow-up; no new independent device verification is claimed.
+The current timer sync uses CloudKit; iCloud key-value storage is a legacy import path. The shared merge preserves offline edits and limits active Ticks to two different Spaces. Today timer-card order is a local display preference on each device; moving a card does not change its recorded time or CloudKit data. When two Ticks are active, widgets do not stop either one ambiguously: choose the Tick in the app.
 
 ## 🔒 Data and Privacy
 
@@ -128,11 +131,10 @@ from the Privacy Policy button in the Spaces toolbar. App, widget, and Watch
 privacy manifests and their source evidence are documented in
 [Privacy configuration](docs/PRIVACY_CONFIGURATION.md).
 
-The current shared-data path uses CloudKit, with the earlier iCloud key-value
-store retained for legacy import. The app persists local records and exposes
-location-based Auto Tick rules only when the user opts in. The historical physical
-widget Stop-propagation checkpoint was closed on owner confirmation; that does
-not claim new independent device verification.
+The app stores Space and Tick records locally and syncs them through private CloudKit data, with
+the earlier iCloud key-value store retained for legacy import. Location-based
+Auto Ticks require opt-in permission; voice memo recording uses the microphone
+only when started by the user.
 
 ## 📚 Documentation
 
@@ -140,11 +142,12 @@ not claim new independent device verification.
 
 ### Future release rechecks
 
-These are reference procedures for a future release, not outstanding tasks for the owner-confirmed current closeout.
+Repeat these checks when preparing a future release; feature acceptance does not substitute for release validation.
 
 - Build and launch a signed Debug or Release build on Don iPhone.
+- Confirm two independent Ticks and timer-card drag ordering on iPhone and iPad.
 - Create an Auto Tick rule from current location, allow When In Use and Always access when prompted, and verify arrival/departure behavior on device.
-- Start and stop a Tick from the Home Screen widget and, where supported, a Lock Screen widget.
+- With one active Tick, verify widget Start/Stop on Home Screen and, where supported, Lock Screen; with two active Ticks, verify tapping opens the app without stopping either one.
 - Record, play, rename, delete, and relaunch-check a voice memo for an active Space.
 - Verify CloudKit sync between iPhone and iPad on the same Apple ID for spaces, sessions, Auto Tick rules, and widget-started sessions.
 - Before submission, manually check VoiceOver reading order, large Dynamic Type layout, and light/dark contrast for material-backed timer and session rows.
@@ -159,15 +162,17 @@ These are reference procedures for a future release, not outstanding tasks for t
 - [x] Define app goals and core flows
 - [x] Add real UI and data model
 - [x] Add tests for key behaviors
-- [x] Add timer-session editing for title and notes
+- [x] Run two independent Ticks in different Spaces and reorder their Today cards
+- [x] Edit stopped Tick timing and session details; add missed time manually
+- [x] Record and manage Space voice memos
 - [x] Add Auto Ticks foundation
-- [x] Add Home Screen and Lock Screen widget foundation
+- [x] Add Home Screen and Lock Screen widgets and Apple Watch controls
 - [x] Add CloudKit synchronization with legacy Key-Value Store import
 - [x] Add space archiving UI
 - [x] Add daily, weekly, monthly, yearly, and lifetime charts
 - [x] Share dated text work reports for a Space and selected period
 
-There are no outstanding tasks in the current scope. Map/search for Auto Tick locations and additional file-export formats are optional future ideas, not committed closeout work.
+App Store submission remains a separate release step. Map/search for Auto Tick locations and additional file-export formats are optional future ideas, not committed work.
 
 ---
 
