@@ -75,7 +75,6 @@ jobs:
         run: swift test -Xswiftc -warnings-as-errors
 
       - name: UI smoke tests
-        if: github.event_name != 'pull_request'
         run: bash Scripts/ci.sh ui-smoke '${{ steps.simulator.outputs.id }}'
 
       - name: Upload xcodebuild artifacts

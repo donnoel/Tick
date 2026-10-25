@@ -19,7 +19,7 @@ system UI.
 
 ### UI smoke tests
 
-The smoke suite runs on pushes to `main` and exercises five representative
+The smoke suite runs on pushes to `main` and pull requests, and exercises five representative
 customer journeys:
 
 - create a Space, start and stop a Tick, and observe the session
@@ -40,7 +40,6 @@ Smoke tests are a fast integration signal, not a substitute for the full suite.
 
 Every UI assertion remains in `TickUITests`. The complete suite runs:
 
-- for pull requests that can affect the app, tests, project, scripts, or workflows
 - nightly on the default branch
 - on demand through the **UI Regression** GitHub Actions workflow
 
@@ -76,7 +75,7 @@ persistence journeys continue to create their data through the UI.
 
 ## CI policy
 
-The push workflow uses one build-for-testing artifact for unit and smoke phases.
+The push and pull-request workflow uses one build-for-testing artifact for unit and smoke phases.
 The full regression workflow separately builds once and runs the complete UI
 suite. Both use Xcode 26.6, iOS Simulator 26.5, warnings as errors, no retries,
 and failure artifacts. Superseded runs on the same ref are cancelled.
