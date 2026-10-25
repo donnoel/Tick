@@ -5,9 +5,8 @@ nonisolated enum SessionFallbackTitleProvider {
         Dictionary(
             uniqueKeysWithValues: sessions
                 .filter { $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                .enumerated()
-                .map { index, session in
-                    (session.id, "\(index + 1) Tick")
+                .map { session in
+                    (session.id, "Ticking...")
                 }
         )
     }

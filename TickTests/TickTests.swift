@@ -3127,7 +3127,7 @@ final class TickTests: XCTestCase {
         return try decoder.decode(TickVoiceMemoStorageSnapshot.self, from: data)
     }
 
-    func testUntitledSessionTitlesNumbersOnlyUntitledSessionsInInputOrder() {
+    func testUntitledSessionsUseTickingPlaceholderWithoutReplacingNamedSessions() {
         let projectID = UUID()
         let titled = TimeSession(
             projectID: projectID,
@@ -3159,8 +3159,8 @@ final class TickTests: XCTestCase {
 
         let titles = SessionFallbackTitleProvider.untitledSessionTitles(for: [titled, untitledA, untitledB])
 
-        XCTAssertEqual(titles[untitledA.id], "1 Tick")
-        XCTAssertEqual(titles[untitledB.id], "2 Tick")
+        XCTAssertEqual(titles[untitledA.id], "Ticking...")
+        XCTAssertEqual(titles[untitledB.id], "Ticking...")
         XCTAssertNil(titles[titled.id])
     }
 
