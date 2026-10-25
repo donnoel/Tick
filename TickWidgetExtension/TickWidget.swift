@@ -336,14 +336,14 @@ struct TickWidgetView: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
-                .accessibilityLabel("Last confirmed elapsed time")
+                .accessibilityLabel("Last confirmed elapsed time, \(timerDurationString(from: activeElapsedDuration))")
         } else if entry.snapshot.isActivePaused, let activeElapsedDuration = entry.snapshot.activeElapsedDuration {
             Text(timerDurationString(from: activeElapsedDuration))
                 .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
-                .accessibilityLabel("Paused elapsed time")
+                .accessibilityLabel("Paused elapsed time, \(timerDurationString(from: activeElapsedDuration))")
         } else if let runningTimerStartDate = entry.snapshot.runningTimerStartDate,
                   let runningTimerFreshUntil = entry.snapshot.runningTimerFreshUntil {
             Text(
@@ -355,7 +355,6 @@ struct TickWidgetView: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
-                .accessibilityLabel("Elapsed time")
         } else {
             Text("Running")
                 .font(.title2.weight(.bold))
@@ -570,7 +569,7 @@ struct TickWidgetView: View {
 
             accessoryActionButton
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(accessoryContent.accessibilityLabel)
     }
 

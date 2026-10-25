@@ -139,6 +139,9 @@ jobs:
       - name: Unit tests
         run: bash Scripts/ci.sh unit '${{ steps.simulator.outputs.id }}'
 
+      - name: TickCore package tests
+        run: swift test -Xswiftc -warnings-as-errors
+
       - name: UI tests
         run: bash Scripts/ci.sh ui '${{ steps.simulator.outputs.id }}'
 

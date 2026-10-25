@@ -1,5 +1,22 @@
 import Foundation
 
+private enum TickDataStoreError: LocalizedError {
+    case corruptDataPreserved(URL)
+    case concurrentActiveSessions
+    case concurrentSpaceChange
+
+    var errorDescription: String? {
+        switch self {
+        case .corruptDataPreserved(let backupURL):
+            "Saved time could not be read. The original file was preserved as \(backupURL.lastPathComponent). Please contact support before adding more time."
+        case .concurrentActiveSessions:
+            "Another Tick started on a device or widget. Reload before starting a new Tick."
+        case .concurrentSpaceChange:
+            "A Space changed on another device or widget. Reload before saving this change."
+        }
+    }
+}
+
 actor TickDataStore {
     private let fileURL: URL
     private let legacyFileURL: URL?
@@ -26,6 +43,16 @@ actor TickDataStore {
         try loadVersionedSnapshot().snapshot
     }
 
+    func boundCloudAccountID() throws -> String? {
+        try TickSharedFileCoordinator.coordinateReading(at: fileURL) { coordinatedURL in
+            guard fileManager.fileExists(atPath: coordinatedURL.path) else { return nil }
+            let data = try Data(contentsOf: coordinatedURL)
+            return try decoder.decode(
+                TickStorageFileEnvelope<TickStorageSnapshot>.self, from: data
+            ).cloudSync?.accountID
+        }
+    }
+
     func runningStateConfirmationDate() -> Date? {
         try? TickWidgetActionStore(dataFileURL: fileURL, widgetSnapshotFileURL: fileURL).runningStateConfirmationDate()
     }
@@ -48,16 +75,48 @@ actor TickDataStore {
         }
 
         do {
-            if let envelope = try? decoder.decode(
-                TickStorageFileEnvelope<TickStorageSnapshot>.self,
-                from: storedData.0
-            ) {
-                return (envelope.snapshot, envelope.updatedAt)
-            }
-
-            return (try decoder.decode(TickStorageSnapshot.self, from: storedData.0), storedData.1)
+            return try decodeSnapshot(storedData.0, fallbackUpdatedAt: storedData.1)
         } catch {
-            return (try recoverCorruptStore(), nil)
+            let backupURL = try recoverCorruptStore()
+            throw TickDataStoreError.corruptDataPreserved(backupURL)
+        }
+    }
+
+    func mergeAndSave(
+        base: TickStorageSnapshot,
+        proposed: TickStorageSnapshot,
+        updatedAt: Date = .now
+    ) throws -> TickStorageSnapshot {
+        try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        return try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
+            let existing = fileManager.fileExists(atPath: coordinatedURL.path)
+                ? try Data(contentsOf: coordinatedURL) : Data()
+            let latest = existing.isEmpty ? .empty : try decodeSnapshot(existing, fallbackUpdatedAt: nil).snapshot
+            let checkpoint = existing.isEmpty ? nil :
+                (try? decoder.decode(TickStorageFileEnvelope<TickStorageSnapshot>.self, from: existing).cloudSync)
+            let merged = TickStorageSnapshot.mergingEdits(base: base, proposed: proposed, latest: latest)
+            guard merged.sessions.filter(\.isActive).count <= 1 else {
+                throw TickDataStoreError.concurrentActiveSessions
+            }
+            let projectIDs = Set(merged.projects.map(\.id))
+            let editedSessionIDs = Set(proposed.sessions.filter { session in
+                base.sessions.first(where: { $0.id == session.id }) != session
+            }.map(\.id))
+            let deletedProjectIDs = Set(base.projects.map(\.id))
+                .subtracting(proposed.projects.map(\.id))
+            guard merged.sessions.allSatisfy({ session in
+                if editedSessionIDs.contains(session.id) || deletedProjectIDs.contains(session.projectID) {
+                    return projectIDs.contains(session.projectID)
+                }
+                return true
+            }) else {
+                throw TickDataStoreError.concurrentSpaceChange
+            }
+            let data = try encoder.encode(
+                TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: merged, cloudSync: checkpoint)
+            )
+            try data.write(to: coordinatedURL, options: [.atomic])
+            return merged
         }
     }
 
@@ -66,10 +125,14 @@ actor TickDataStore {
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
         try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
-            let existing = try? Data(contentsOf: coordinatedURL)
-            let checkpoint = existing.flatMap {
-                try? decoder.decode(TickStorageFileEnvelope<TickStorageSnapshot>.self, from: $0).cloudSync
+            let existing = fileManager.fileExists(atPath: coordinatedURL.path)
+                ? try Data(contentsOf: coordinatedURL) : Data()
+            if !existing.isEmpty {
+                _ = try decodeSnapshot(existing, fallbackUpdatedAt: nil)
             }
+            let checkpoint = try? decoder.decode(
+                TickStorageFileEnvelope<TickStorageSnapshot>.self, from: existing
+            ).cloudSync
             let data = try encoder.encode(
                 TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: snapshot, cloudSync: checkpoint)
             )
@@ -92,14 +155,25 @@ actor TickDataStore {
         try fileManager.copyItem(at: legacyFileURL, to: fileURL)
     }
 
-    private func recoverCorruptStore() throws -> TickStorageSnapshot {
+    private func decodeSnapshot(
+        _ data: Data,
+        fallbackUpdatedAt: Date?
+    ) throws -> (snapshot: TickStorageSnapshot, updatedAt: Date?) {
+        if try TickStorageFileEnvelope<TickStorageSnapshot>.hasEnvelopeShape(data) {
+            let envelope = try decoder.decode(TickStorageFileEnvelope<TickStorageSnapshot>.self, from: data)
+            return (envelope.snapshot, envelope.updatedAt)
+        }
+        return (try decoder.decode(TickStorageSnapshot.self, from: data), fallbackUpdatedAt)
+    }
+
+    private func recoverCorruptStore() throws -> URL {
         let backupURL = corruptBackupFileURL()
 
         try TickSharedFileCoordinator.coordinateWriting(at: fileURL) { coordinatedURL in
-            try fileManager.moveItem(at: coordinatedURL, to: backupURL)
+            try fileManager.copyItem(at: coordinatedURL, to: backupURL)
         }
 
-        return .empty
+        return backupURL
     }
 
     private func corruptBackupFileURL() -> URL {

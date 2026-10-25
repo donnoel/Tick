@@ -25,6 +25,20 @@ extension TickVoiceMemoStorageSnapshot {
 }
 
 actor TickVoiceMemoStore {
+    enum AccountError: LocalizedError {
+        case unverified
+        case changed
+
+        var errorDescription: String? {
+            switch self {
+            case .unverified:
+                "Verify the current iCloud account before using voice memos. Existing recordings are preserved."
+            case .changed:
+                "The iCloud account changed. Voice memos are paused so recordings from another account stay separate."
+            }
+        }
+    }
+
     private let localMetadataFileURL: URL
     private let localVoiceMemoDirectoryURL: URL
     private let iCloudMetadataFileURL: URL?
@@ -32,6 +46,10 @@ actor TickVoiceMemoStore {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
     private let fileManager: FileManager
+    private let requiresAccountBinding: Bool
+    private var verifiedAccountID: String?
+    private var syncDeferred = false
+    private var cloudReadable = true
 
     init(
         metadataFileURL: URL? = nil,
@@ -39,6 +57,7 @@ actor TickVoiceMemoStore {
         iCloudMetadataFileURL: URL? = nil,
         iCloudVoiceMemoDirectoryURL: URL? = nil,
         usesICloud: Bool = true,
+        requiresAccountBinding: Bool? = nil,
         fileManager: FileManager = .default
     ) {
         self.fileManager = fileManager
@@ -46,6 +65,7 @@ actor TickVoiceMemoStore {
         self.localVoiceMemoDirectoryURL = voiceMemoDirectoryURL ?? TickSharedStorage.voiceMemoDirectoryURL(fileManager: fileManager)
         self.iCloudMetadataFileURL = iCloudMetadataFileURL ?? (usesICloud ? TickSharedStorage.iCloudVoiceMemoMetadataFileURL(fileManager: fileManager) : nil)
         self.iCloudVoiceMemoDirectoryURL = iCloudVoiceMemoDirectoryURL ?? (usesICloud ? TickSharedStorage.iCloudVoiceMemoDirectoryURL(fileManager: fileManager) : nil)
+        self.requiresAccountBinding = requiresAccountBinding ?? (metadataFileURL == nil && usesICloud)
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -57,16 +77,62 @@ actor TickVoiceMemoStore {
         self.encoder = encoder
     }
 
+    func bind(to accountID: String, trustedLegacyAccountID: String?) throws {
+        guard requiresAccountBinding else { return }
+        let ownerURL = localMetadataFileURL.appendingPathExtension("account")
+        if fileManager.fileExists(atPath: ownerURL.path) {
+            let storedID = try String(contentsOf: ownerURL, encoding: .utf8)
+            guard storedID == accountID else {
+                verifiedAccountID = nil
+                throw AccountError.changed
+            }
+        } else {
+            let hasLocalMetadata: Bool
+            if fileManager.fileExists(atPath: localMetadataFileURL.path) {
+                let attributes = try fileManager.attributesOfItem(atPath: localMetadataFileURL.path)
+                hasLocalMetadata = (attributes[.size] as? Int ?? 0) > 0
+            } else {
+                hasLocalMetadata = false
+            }
+            guard !hasLocalMetadata || trustedLegacyAccountID == accountID else {
+                verifiedAccountID = nil
+                throw AccountError.unverified
+            }
+            try fileManager.createDirectory(at: ownerURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try accountID.write(to: ownerURL, atomically: true, encoding: .utf8)
+        }
+        verifiedAccountID = accountID
+    }
+
+    func invalidateAccount() {
+        verifiedAccountID = nil
+    }
+
+    func hasDeferredSync() -> Bool { syncDeferred }
+
+    private func requireVerifiedAccount() throws {
+        guard !requiresAccountBinding || verifiedAccountID != nil else {
+            throw AccountError.unverified
+        }
+    }
+
     func load() throws -> [VoiceMemo] {
         let snapshot = try loadSnapshot()
         return snapshot.voiceMemos
     }
 
+    func saveLocalOnly(_ voiceMemos: [VoiceMemo]) throws {
+        try requireVerifiedAccount()
+        let existing = try loadSnapshot(at: localMetadataFileURL)
+        let merged = Self.merged(existing, TickVoiceMemoStorageSnapshot(voiceMemos: voiceMemos))
+        try write(merged, to: localMetadataFileURL)
+        syncDeferred = true
+    }
+
     func loadSnapshot() throws -> TickVoiceMemoStorageSnapshot {
+        try requireVerifiedAccount()
         let snapshot = try resolvedSnapshot()
-        try saveSnapshot(snapshot)
-        try syncAudioFiles(for: snapshot.voiceMemos)
-        try deleteAudioFiles(for: snapshot.deletedVoiceMemos)
+        try persistAndSync(snapshot)
         return snapshot
     }
 
@@ -77,6 +143,7 @@ actor TickVoiceMemoStore {
         deletedAt: Date = .now,
         audioFileNamesToSync: Set<String>? = nil
     ) throws -> TickVoiceMemoStorageSnapshot {
+        try requireVerifiedAccount()
         var snapshot = try resolvedSnapshot()
         let incomingSnapshot = TickVoiceMemoStorageSnapshot(
             voiceMemos: voiceMemos,
@@ -89,9 +156,7 @@ actor TickVoiceMemoStore {
             }
         )
         snapshot = Self.merged(snapshot, incomingSnapshot)
-        try saveSnapshot(snapshot)
-        try syncAudioFiles(for: snapshot.voiceMemos, fileNames: audioFileNamesToSync)
-        try deleteAudioFiles(for: snapshot.deletedVoiceMemos)
+        try persistAndSync(snapshot, fileNames: audioFileNamesToSync)
         return snapshot
     }
 
@@ -100,14 +165,14 @@ actor TickVoiceMemoStore {
         _ snapshot: TickVoiceMemoStorageSnapshot,
         audioFileNamesToSync: Set<String>? = nil
     ) throws -> TickVoiceMemoStorageSnapshot {
+        try requireVerifiedAccount()
         let mergedSnapshot = Self.merged(try resolvedSnapshot(), snapshot)
-        try saveSnapshot(mergedSnapshot)
-        try syncAudioFiles(for: mergedSnapshot.voiceMemos, fileNames: audioFileNamesToSync)
-        try deleteAudioFiles(for: mergedSnapshot.deletedVoiceMemos)
+        try persistAndSync(mergedSnapshot, fileNames: audioFileNamesToSync)
         return mergedSnapshot
     }
 
     func preparedFileURL(for fileName: String) throws -> URL {
+        try requireVerifiedAccount()
         try fileManager.createDirectory(at: localVoiceMemoDirectoryURL, withIntermediateDirectories: true)
         return fileURL(for: fileName)
     }
@@ -136,10 +201,20 @@ actor TickVoiceMemoStore {
     }
 
     private func resolvedSnapshot() throws -> TickVoiceMemoStorageSnapshot {
-        try Self.merged(
-            loadSnapshot(at: localMetadataFileURL),
-            iCloudMetadataFileURL.map(loadSnapshot) ?? .empty
-        )
+        let local = try loadSnapshot(at: localMetadataFileURL)
+        guard let iCloudMetadataFileURL else {
+            cloudReadable = true
+            return local
+        }
+        do {
+            let remote = try loadSnapshot(at: iCloudMetadataFileURL)
+            cloudReadable = true
+            return Self.merged(local, remote)
+        } catch {
+            cloudReadable = false
+            syncDeferred = true
+            return local
+        }
     }
 
     private func loadSnapshot(at fileURL: URL) throws -> TickVoiceMemoStorageSnapshot {
@@ -160,11 +235,25 @@ actor TickVoiceMemoStore {
         return TickVoiceMemoStorageSnapshot(voiceMemos: try decoder.decode([VoiceMemo].self, from: data))
     }
 
-    private func saveSnapshot(_ snapshot: TickVoiceMemoStorageSnapshot) throws {
+    private func persistAndSync(
+        _ snapshot: TickVoiceMemoStorageSnapshot,
+        fileNames: Set<String>? = nil
+    ) throws {
         try write(snapshot, to: localMetadataFileURL)
-
-        if let iCloudMetadataFileURL {
-            try write(snapshot, to: iCloudMetadataFileURL)
+        guard cloudReadable else {
+            syncDeferred = true
+            return
+        }
+        do {
+            if let iCloudMetadataFileURL {
+                try write(snapshot, to: iCloudMetadataFileURL)
+            }
+            try syncAudioFiles(for: snapshot.voiceMemos, fileNames: fileNames)
+            try deleteAudioFiles(for: snapshot.deletedVoiceMemos)
+            syncDeferred = false
+        } catch {
+            // Local metadata is durable. Keep audio until cloud metadata catches up.
+            syncDeferred = true
         }
     }
 

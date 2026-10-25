@@ -107,5 +107,5 @@ title: Tick
     <p class="eyebrow">Local first. Location only by choice.</p>
     <h2 id="foundation-title">Your time record stays dependable.</h2>
   </div>
-  <p>Tick writes atomically to the shared App Group container and mirrors its snapshot through iCloud KVS for your iPhone, iPad, and widgets. Auto Ticks request location only after you opt in, monitor enabled saved regions, and do not keep route or visit history.</p>
+  <p>Tick writes atomically to the shared App Group container and syncs time records through your private iCloud storage across iPhone, iPad, Apple Watch, and widgets. Auto Ticks request location only after you opt in, monitor enabled saved regions, and do not keep route or visit history.</p>
 </section>

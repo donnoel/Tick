@@ -4,6 +4,7 @@ struct ProjectsView: View {
     let viewModel: TickViewModel
     @AppStorage("spacesSortMode") private var spacesSortMode = ProjectSortMode.mostActive.rawValue
     @State private var isAddingProject = false
+    @State private var isShowingPrivacyPolicy = false
     @State private var deletionMessage: String?
     @State private var projectsPendingDeletion: [TickProject] = []
     @State private var projectActionMessage: String?
@@ -111,6 +112,16 @@ struct ProjectsView: View {
                     }
                 }
 
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isShowingPrivacyPolicy = true
+                    } label: {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+                    .accessibilityIdentifier("projects.privacyPolicyButton")
+                    .accessibilityHint("Read how Ticks stores and uses your information.")
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAddingProject = true
@@ -120,6 +131,9 @@ struct ProjectsView: View {
                     .accessibilityIdentifier("projects.addProjectButton")
                     .accessibilityHint("Create a new space for Tick sessions.")
                 }
+            }
+            .sheet(isPresented: $isShowingPrivacyPolicy) {
+                PrivacyPolicyView()
             }
             .sheet(isPresented: $isAddingProject) {
                 AddProjectView(viewModel: viewModel)

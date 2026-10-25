@@ -74,7 +74,8 @@ struct AutoTicksView: View {
     }
 
     private var shouldShowPermissionSection: Bool {
-        viewModel.autoTickLocationAuthorizationStatus != .authorizedAlways
+        viewModel.autoTickLocationAuthorizationStatus != .authorizedAlways ||
+            viewModel.autoTickLocationErrorMessage != nil
     }
 
     private var permissionSection: some View {
@@ -212,7 +213,7 @@ private struct LocationStatusCard: View {
                 Text(errorMessage)
                     .font(.subheadline)
                     .foregroundStyle(.red)
-                    .accessibilityLabel("Location error")
+                    .accessibilityLabel("Location error. \(errorMessage)")
             }
 
             switch status {
@@ -234,11 +235,12 @@ private struct LocationStatusCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .tickCard(tint: tint, isHighlighted: status == .authorizedAlways)
+        .tickCard(tint: tint, isHighlighted: status == .authorizedAlways && errorMessage == nil)
     }
 
     private var title: String {
-        switch status {
+        if errorMessage != nil { return "Location Needs Attention" }
+        return switch status {
         case .authorizedAlways:
             "Location Ready"
         case .authorizedWhenInUse:
@@ -253,7 +255,8 @@ private struct LocationStatusCard: View {
     }
 
     private var bodyText: String {
-        switch status {
+        if errorMessage != nil { return "Some Auto Tick rules may not be monitoring their locations." }
+        return switch status {
         case .authorizedAlways:
             "Auto Ticks can run for places you choose."
         case .authorizedWhenInUse:
@@ -283,7 +286,8 @@ private struct LocationStatusCard: View {
     }
 
     private var tint: Color {
-        switch status {
+        if errorMessage != nil { return .red }
+        return switch status {
         case .authorizedAlways:
             TickPalette.locationReady
         case .authorizedWhenInUse, .notDetermined:

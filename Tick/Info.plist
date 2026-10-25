@@ -5,7 +5,7 @@
     <key>UIBackgroundModes</key>
     <array><string>remote-notification</string></array>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Tick records voice memos only when you ask, and saves them locally with the Space you choose.</string>
+    <string>Ticks records voice memos only when you ask, saves them with the Space you choose, and syncs them through your private iCloud storage when available.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>Tick uses background location only for Auto Tick rules you create and enable, so time for your Spaces can start or stop when you arrive or leave.</string>
     <key>NSLocationWhenInUseUsageDescription</key>

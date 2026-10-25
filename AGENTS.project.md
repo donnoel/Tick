@@ -16,7 +16,7 @@ As of October 24, 2026, Don confirms the Watch UI follow-up sprint is complete a
 
 Current scope:
 - space capture with local JSON persistence plus CloudKit synchronization
-- Today, Spaces, and Summaries tabs
+- Today, Spaces, Auto Ticks, and Summaries tabs
 - duration-only manual time entry
 - session detail review and title/notes/space editing, plus date/start/end/duration/source corrections for stopped Ticks
 - space detail review with space-scoped session lists, session deletion, archive/restore actions, and voice memos
@@ -109,7 +109,7 @@ Current implementation includes:
 - Dynamic Type-friendly SwiftUI text styles for major labels and timer readouts
 
 Reference checks for a future submission (not outstanding current closeout tasks):
-- VoiceOver reading order across all three tabs
+- VoiceOver reading order across all four tabs
 - large Dynamic Type behavior in Today cards and manual-entry form
 - light/dark contrast for material-backed timer and session rows
 

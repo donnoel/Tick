@@ -108,7 +108,9 @@ actor TickCloudSyncStore {
             return Envelope(updatedAt: .distantPast, snapshot: .empty)
         }
         let data = try Data(contentsOf: url)
-        if let envelope = try? TickCloudCodec.decode(Envelope.self, from: data) { return envelope }
+        if try Envelope.hasEnvelopeShape(data) {
+            return try TickCloudCodec.decode(Envelope.self, from: data)
+        }
         let snapshot = try TickCloudCodec.decode(TickWidgetStorageSnapshot.self, from: data)
         let date = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
         return Envelope(updatedAt: date ?? .distantPast, snapshot: snapshot)

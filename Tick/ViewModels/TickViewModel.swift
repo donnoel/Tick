@@ -63,7 +63,7 @@ final class TickViewModel {
 
     init(store: TickDataStore) {
         self.store = store
-        self.voiceMemoStore = TickVoiceMemoStore()
+        self.voiceMemoStore = TickVoiceMemoStore(usesICloud: false)
         self.locationService = AutoTickLocationService()
         self.iCloudSyncStore = nil
         self.voiceMemoICloudSyncStore = nil
@@ -102,7 +102,7 @@ final class TickViewModel {
         locationService: AutoTickLocationService,
         iCloudSyncStore: TickICloudSyncStore? = nil,
         voiceMemoICloudSyncStore: TickVoiceMemoICloudSyncStore? = nil,
-        voiceMemoStore: TickVoiceMemoStore = TickVoiceMemoStore(),
+        voiceMemoStore: TickVoiceMemoStore = TickVoiceMemoStore(usesICloud: false),
         voiceMemoAudioController: TickVoiceMemoAudioController? = nil
     ) {
         self.store = store
@@ -277,8 +277,7 @@ final class TickViewModel {
 
         selectedProjectID = project.id
 
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -296,8 +295,7 @@ final class TickViewModel {
         }
 
         projects[projectIndex].name = trimmedName
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -312,19 +310,27 @@ final class TickViewModel {
             return false
         }
 
+        let deletedVoiceMemos = voiceMemos.filter { $0.projectID == id }
+        if !deletedVoiceMemos.isEmpty {
+            guard await voiceMemoAccountIsCurrent() else { return false }
+        }
         projects.remove(at: projectIndex)
         sessions.removeAll { $0.projectID == id }
         autoTickRules.removeAll { $0.projectID == id }
-        let deletedVoiceMemos = voiceMemos.filter { $0.projectID == id }
         voiceMemos.removeAll { $0.projectID == id }
 
         if selectedProjectID == id {
             selectedProjectID = activeProjects.first?.id
         }
 
-        await persist()
-        await persistVoiceMemos(deletedVoiceMemoIDs: deletedVoiceMemos.map(\.id))
-        await deleteVoiceMemoFiles(deletedVoiceMemos)
+        guard await persist() else { return false }
+        if !deletedVoiceMemos.isEmpty {
+            guard await persistVoiceMemos(deletedVoiceMemoIDs: deletedVoiceMemos.map(\.id)) else {
+                voiceMemos.append(contentsOf: deletedVoiceMemos)
+                voiceMemos.sort { $0.createdAt > $1.createdAt }
+                return false
+            }
+        }
         return true
     }
 
@@ -356,8 +362,7 @@ final class TickViewModel {
             selectedProjectID = activeProjects.first?.id
         }
 
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -373,8 +378,7 @@ final class TickViewModel {
             selectedProjectID = project(for: id)?.id ?? activeProjects.first?.id
         }
 
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -406,8 +410,7 @@ final class TickViewModel {
             createdAt: date
         )
         sessions.insert(session, at: 0)
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -422,8 +425,7 @@ final class TickViewModel {
         )
         sessions[activeIndex].pausedAt = nil
         sessions.sort { $0.referenceDate > $1.referenceDate }
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -439,8 +441,7 @@ final class TickViewModel {
 
         let startedAt = activeSession.startedAt ?? date
         sessions[activeIndex].pausedAt = date < startedAt ? startedAt : date
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -457,8 +458,7 @@ final class TickViewModel {
         let pauseDuration = max(0, date.timeIntervalSince(pausedAt))
         sessions[activeIndex].accumulatedPausedDuration = (activeSession.accumulatedPausedDuration ?? 0) + pauseDuration
         sessions[activeIndex].pausedAt = nil
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -471,6 +471,11 @@ final class TickViewModel {
     ) async -> Bool {
         guard let projectID else {
             errorMessage = "Choose a space for this manual time."
+            return false
+        }
+
+        guard activeProjects.contains(where: { $0.id == projectID }) else {
+            errorMessage = "That space is no longer available. Choose another space."
             return false
         }
 
@@ -491,8 +496,7 @@ final class TickViewModel {
         )
         sessions.insert(session, at: 0)
         sessions.sort { $0.referenceDate > $1.referenceDate }
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -547,8 +551,7 @@ final class TickViewModel {
         )
         autoTickRules.append(rule)
         autoTickRules.sort { $0.createdAt < $1.createdAt }
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -559,8 +562,7 @@ final class TickViewModel {
         }
 
         autoTickRules[ruleIndex].isEnabled = isEnabled
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -607,8 +609,7 @@ final class TickViewModel {
         autoTickRules[ruleIndex].stopsOnDeparture = stopsOnDeparture
         autoTickRules[ruleIndex].isEnabled = isEnabled
         autoTickRules.sort { $0.createdAt < $1.createdAt }
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -619,8 +620,7 @@ final class TickViewModel {
         }
 
         autoTickRules.remove(at: ruleIndex)
-        await persist()
-        return true
+        return await persist()
     }
 
     func autoTickRule(for id: AutoTickRule.ID) -> AutoTickRule? {
@@ -704,8 +704,7 @@ final class TickViewModel {
         }
 
         projects = TickProject.sortedByDisplayOrder(projects)
-        await persist()
-        return true
+        return await persist()
     }
 
     private static func reorderedProjects(
@@ -748,6 +747,7 @@ final class TickViewModel {
 
     @discardableResult
     func startRecordingVoiceMemo(for projectID: TickProject.ID, at date: Date = .now) async -> Bool {
+        guard await voiceMemoAccountIsCurrent() else { return false }
         guard let project = project(for: projectID) else {
             errorMessage = "Tick could not find that space."
             return false
@@ -765,19 +765,20 @@ final class TickViewModel {
 
         let voiceMemoID = VoiceMemo.ID()
         let fileName = "\(voiceMemoID.uuidString).m4a"
+        recordingVoiceMemoID = voiceMemoID
+        recordingVoiceMemoFileName = fileName
+        recordingVoiceMemoStartedAt = date
+        recordingVoiceMemoProjectID = projectID
 
         do {
             let fileURL = try await voiceMemoStore.preparedFileURL(for: fileName)
             try await voiceMemoAudioController.startRecording(to: fileURL)
 
-            recordingVoiceMemoID = voiceMemoID
-            recordingVoiceMemoFileName = fileName
-            recordingVoiceMemoStartedAt = date
-            recordingVoiceMemoProjectID = projectID
             playingVoiceMemoID = nil
             errorMessage = nil
             return true
         } catch {
+            clearVoiceMemoRecordingState()
             errorMessage = "Tick could not start that voice memo. \(error.localizedDescription)"
             return false
         }
@@ -808,8 +809,12 @@ final class TickViewModel {
             clearVoiceMemoRecordingState()
             voiceMemos.insert(voiceMemo, at: 0)
             voiceMemos.sort { $0.createdAt > $1.createdAt }
-            await persistVoiceMemos(audioFileNamesToSync: [voiceMemo.fileName])
-            return true
+            try await voiceMemoStore.saveLocalOnly(voiceMemos)
+            guard await voiceMemoAccountIsCurrent() else {
+                errorMessage = "Recording saved locally. Voice memo sync is paused until the iCloud account can be verified."
+                return true
+            }
+            return await persistVoiceMemos(audioFileNamesToSync: [voiceMemo.fileName])
         } catch {
             errorMessage = "Tick could not stop that voice memo. \(error.localizedDescription)"
             return false
@@ -818,6 +823,7 @@ final class TickViewModel {
 
     @discardableResult
     func playVoiceMemo(id: VoiceMemo.ID) async -> Bool {
+        guard await voiceMemoAccountIsCurrent() else { return false }
         guard recordingVoiceMemoProjectID == nil else {
             errorMessage = "Stop the active recording before playing a voice memo."
             return false
@@ -843,6 +849,7 @@ final class TickViewModel {
 
     @discardableResult
     func updateVoiceMemoTitle(id: VoiceMemo.ID, title: String, updatedAt: Date = .now) async -> Bool {
+        guard await voiceMemoAccountIsCurrent() else { return false }
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedTitle.isEmpty else {
@@ -855,15 +862,22 @@ final class TickViewModel {
             return false
         }
 
+        let originalMemo = voiceMemos[voiceMemoIndex]
         voiceMemos[voiceMemoIndex].title = trimmedTitle
         voiceMemos[voiceMemoIndex].updatedAt = updatedAt
         voiceMemos.sort { $0.createdAt > $1.createdAt }
-        await persistVoiceMemos(audioFileNamesToSync: [])
+        guard await persistVoiceMemos(audioFileNamesToSync: []) else {
+            if let index = voiceMemos.firstIndex(where: { $0.id == id }) {
+                voiceMemos[index] = originalMemo
+            }
+            return false
+        }
         return true
     }
 
     @discardableResult
     func deleteVoiceMemo(id: VoiceMemo.ID) async -> Bool {
+        guard await voiceMemoAccountIsCurrent() else { return false }
         guard let voiceMemoIndex = voiceMemos.firstIndex(where: { $0.id == id }) else {
             errorMessage = "Tick could not find that voice memo."
             return false
@@ -876,8 +890,10 @@ final class TickViewModel {
             playingVoiceMemoID = nil
         }
 
-        await persistVoiceMemos(deletedVoiceMemoIDs: [id])
-        await deleteVoiceMemoFiles([voiceMemo])
+        guard await persistVoiceMemos(deletedVoiceMemoIDs: [id]) else {
+            voiceMemos.insert(voiceMemo, at: voiceMemoIndex)
+            return false
+        }
         return true
     }
 
@@ -887,7 +903,8 @@ final class TickViewModel {
         title: String,
         notes: String,
         projectID: TickProject.ID,
-        timing: SessionTimingDraft? = nil
+        timing: SessionTimingDraft? = nil,
+        originalMetadata: TimeSession? = nil
     ) async -> Bool {
         guard projects.contains(where: { $0.id == projectID }) else {
             errorMessage = "Choose a space for this Tick."
@@ -909,13 +926,23 @@ final class TickViewModel {
             }
             if projectID != updated.projectID { updated.autoTickRuleID = nil }
         }
-        updated.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        updated.projectID = projectID
+        let editedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let editedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if originalMetadata == nil || editedTitle != originalMetadata?.title {
+            updated.title = editedTitle
+        }
+        if originalMetadata == nil || editedNotes != originalMetadata?.notes {
+            updated.notes = editedNotes
+        }
+        if originalMetadata == nil || projectID != originalMetadata?.projectID {
+            if projectID != updated.projectID {
+                updated.autoTickRuleID = nil
+            }
+            updated.projectID = projectID
+        }
         sessions[sessionIndex] = updated
         sessions.sort { $0.referenceDate > $1.referenceDate }
-        await persist()
-        return true
+        return await persist()
     }
 
     @discardableResult
@@ -931,8 +958,7 @@ final class TickViewModel {
         }
 
         sessions.remove(at: sessionIndex)
-        await persist()
-        return true
+        return await persist()
     }
 
     func sessions(on date: Date, calendar: Calendar = .current) -> [TimeSession] {
@@ -969,7 +995,8 @@ final class TickViewModel {
         errorMessage = nil
     }
 
-    private func persist() async {
+    @discardableResult
+    private func persist() async -> Bool {
         let proposedSnapshot = TickStorageSnapshot(
             projects: projects,
             sessions: sessions,
@@ -977,9 +1004,12 @@ final class TickViewModel {
         )
 
         do {
-            let snapshot = try await snapshotForPersist(proposedSnapshot)
             let updatedAt = Date.now
-            try await store.save(snapshot, updatedAt: updatedAt)
+            let snapshot = try await store.mergeAndSave(
+                base: lastPersistedStorageSnapshot ?? .empty,
+                proposed: proposedSnapshot,
+                updatedAt: updatedAt
+            )
             lastPersistedStorageSnapshot = snapshot
             if snapshot != proposedSnapshot {
                 apply(storageSnapshot: snapshot)
@@ -1005,8 +1035,16 @@ final class TickViewModel {
                     errorMessage = "Time is saved on this device. \(error.localizedDescription)"
                 }
             }
+            return true
         } catch {
             errorMessage = "Tick could not save your changes. \(error.localizedDescription)"
+            if let latest = try? await store.load() {
+                apply(storageSnapshot: latest)
+                lastPersistedStorageSnapshot = latest
+            } else if let lastPersistedStorageSnapshot {
+                apply(storageSnapshot: lastPersistedStorageSnapshot)
+            }
+            return false
         }
     }
 
@@ -1021,8 +1059,17 @@ final class TickViewModel {
                 deletedVoiceMemoIDs: deletedVoiceMemoIDs,
                 audioFileNamesToSync: audioFileNamesToSync
             )
-            try voiceMemoICloudSyncStore?.save(snapshot)
-            errorMessage = nil
+            let syncDeferred = await voiceMemoStore.hasDeferredSync()
+            do {
+                if !syncDeferred {
+                    try voiceMemoICloudSyncStore?.save(snapshot)
+                }
+                errorMessage = syncDeferred
+                    ? "Voice memos are saved locally; iCloud sync will retry."
+                    : nil
+            } catch {
+                errorMessage = "Voice memos are saved locally; iCloud metadata will retry. \(error.localizedDescription)"
+            }
             return true
         } catch {
             errorMessage = "Tick could not save your voice memos. \(error.localizedDescription)"
@@ -1031,12 +1078,31 @@ final class TickViewModel {
     }
 
     private func reloadVoiceMemos() async {
+        guard await voiceMemoAccountIsCurrent() else { return }
         do {
             let localSnapshot = try await voiceMemoStore.loadSnapshot()
             let resolvedSnapshot = try await resolveVoiceMemoICloudSnapshot(localSnapshot)
             voiceMemos = resolvedSnapshot.voiceMemos.sorted { $0.createdAt > $1.createdAt }
+            if await voiceMemoStore.hasDeferredSync() {
+                errorMessage = "Voice memos are saved locally; iCloud sync will retry."
+            }
         } catch {
             errorMessage = "Tick could not load saved voice memos. \(error.localizedDescription)"
+        }
+    }
+
+    private func voiceMemoAccountIsCurrent() async -> Bool {
+        guard usesCloudKit else { return true }
+        do {
+            let accountID = try await TickCloudKitTransport().accountID()
+            let trustedLegacyAccountID = try await store.boundCloudAccountID()
+            try await voiceMemoStore.bind(to: accountID, trustedLegacyAccountID: trustedLegacyAccountID)
+            return true
+        } catch {
+            await voiceMemoStore.invalidateAccount()
+            voiceMemos = []
+            errorMessage = "Voice memos are paused until this iCloud account can be verified. \(error.localizedDescription)"
+            return false
         }
     }
 
@@ -1048,7 +1114,7 @@ final class TickViewModel {
         }
 
         guard let remoteSnapshot = try voiceMemoICloudSyncStore.loadSnapshot() else {
-            if !localSnapshot.isEmpty {
+            if !localSnapshot.isEmpty, !(await voiceMemoStore.hasDeferredSync()) {
                 try voiceMemoICloudSyncStore.save(localSnapshot)
             }
 
@@ -1061,19 +1127,11 @@ final class TickViewModel {
             try await voiceMemoStore.save(resolvedSnapshot)
         }
 
-        if resolvedSnapshot != remoteSnapshot {
+        if resolvedSnapshot != remoteSnapshot, !(await voiceMemoStore.hasDeferredSync()) {
             try voiceMemoICloudSyncStore.save(resolvedSnapshot)
         }
 
         return resolvedSnapshot
-    }
-
-    private func deleteVoiceMemoFiles(_ voiceMemos: [VoiceMemo]) async {
-        do {
-            try await voiceMemoStore.deleteAudioFiles(for: voiceMemos)
-        } catch {
-            errorMessage = "Tick removed the voice memo record but could not delete the audio file. \(error.localizedDescription)"
-        }
     }
 
     private func resolveICloudSnapshot(
@@ -1136,35 +1194,6 @@ final class TickViewModel {
             projects: projects,
             sessions: sessions,
             autoTickRules: autoTickRules
-        )
-    }
-
-    private func snapshotForPersist(_ proposedSnapshot: TickStorageSnapshot) async throws -> TickStorageSnapshot {
-        guard let lastPersistedStorageSnapshot else {
-            return proposedSnapshot
-        }
-
-        let latestStoredSnapshot = try await store.load()
-        guard latestStoredSnapshot != lastPersistedStorageSnapshot else {
-            return proposedSnapshot
-        }
-
-        return Self.mergedSnapshotForPersist(
-            base: lastPersistedStorageSnapshot,
-            proposed: proposedSnapshot,
-            latestStored: latestStoredSnapshot
-        )
-    }
-
-    private static func mergedSnapshotForPersist(
-        base: TickStorageSnapshot,
-        proposed: TickStorageSnapshot,
-        latestStored: TickStorageSnapshot
-    ) -> TickStorageSnapshot {
-        TickStorageSnapshot(
-            projects: proposed.projects == base.projects ? latestStored.projects : proposed.projects,
-            sessions: proposed.sessions == base.sessions ? latestStored.sessions : proposed.sessions,
-            autoTickRules: proposed.autoTickRules == base.autoTickRules ? latestStored.autoTickRules : proposed.autoTickRules
         )
     }
 
@@ -1277,8 +1306,7 @@ final class TickViewModel {
             createdAt: date
         )
         sessions.insert(session, at: 0)
-        await persist()
-        return true
+        return await persist()
     }
 
     private func stopAutoTickIfNeeded(for rule: AutoTickRule, at date: Date) async -> Bool {
@@ -1300,8 +1328,7 @@ final class TickViewModel {
         sessions[sessionIndex].endedAt = endedAt < startedAt ? startedAt : endedAt
         sessions[sessionIndex].pausedAt = nil
         sessions.sort { $0.referenceDate > $1.referenceDate }
-        await persist()
-        return true
+        return await persist()
     }
 
     private func apply(locationState: AutoTickLocationState) {

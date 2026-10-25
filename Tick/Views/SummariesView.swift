@@ -141,7 +141,7 @@ private struct SummaryPeriodProjectChart: View {
         }
         .chartYAxisLabel("Hours")
         .frame(minHeight: 220)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(chartAccessibilityLabel)
     }
 

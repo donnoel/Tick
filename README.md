@@ -75,21 +75,18 @@ background timer. See [Watch architecture and validation](docs/WATCH_APP.md).
 2. Select an iPhone or iPad Simulator
 3. Build and Run
 
-For command-line validation:
+For the release validation gate, select an installed iOS 26.5 simulator UDID
+from `xcrun simctl list devices available`, then run:
 
 ```sh
-SIMULATOR_ID="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }')"
-xcodebuild \
-  -project Tick.xcodeproj \
-  -scheme Tick \
-  -destination "id=${SIMULATOR_ID}" \
-  CODE_SIGNING_ALLOWED=NO \
-  GCC_TREAT_WARNINGS_AS_ERRORS=YES \
-  SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
-  clean test
+export DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer
+SIMULATOR_ID="<iOS-26.5-simulator-UDID>"
+bash Scripts/ci.sh all "$SIMULATOR_ID"
+swift test -Xswiftc -warnings-as-errors
 ```
 
-CI creates and boots an available iPhone simulator dynamically before running tests, so local simulator names do not need to match GitHub Actions exactly.
+Use focused tests while developing small changes. CI creates and boots an
+available iPhone simulator dynamically; local simulator names need not match.
 
 ## 🧠 How It Works
 
@@ -123,6 +120,11 @@ The current default timer sync uses CloudKit; KVS is a legacy import path.
 Commit `4e84aa9` recorded an unresolved physical widget Stop-propagation checkpoint at that time. Don's October 18 owner confirmation closes the current follow-up; no new independent device verification is claimed.
 
 ## 🔒 Data and Privacy
+
+Read the [Ticks Privacy Policy](docs/PRIVACY_POLICY.md), also available offline
+from the Privacy Policy button in the Spaces toolbar. App, widget, and Watch
+privacy manifests and their source evidence are documented in
+[Privacy configuration](docs/PRIVACY_CONFIGURATION.md).
 
 The current shared-data path uses CloudKit, with the earlier iCloud key-value
 store retained for legacy import. The app persists local records and exposes

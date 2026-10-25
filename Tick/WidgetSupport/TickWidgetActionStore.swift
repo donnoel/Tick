@@ -145,7 +145,11 @@ nonisolated final class TickWidgetActionStore {
     }
 
     @discardableResult
-    func stopTick(at date: Date = .now, calendar: Calendar = .current) throws -> TickWidgetActionResult {
+    func stopTick(
+        at date: Date = .now,
+        expectedSessionID: UUID? = nil,
+        calendar: Calendar = .current
+    ) throws -> TickWidgetActionResult {
         _ = try loadStorageSnapshot()
 
         return try TickSharedFileCoordinator.coordinateWriting(at: dataFileURL) { coordinatedDataFileURL in
@@ -153,6 +157,11 @@ nonisolated final class TickWidgetActionStore {
 
             guard let activeIndex = storageSnapshot.sessions.firstIndex(where: \.isActive) else {
                 return TickWidgetActionResult(didChange: false, message: "No Tick is running.")
+            }
+            if let expectedSessionID, storageSnapshot.sessions[activeIndex].id != expectedSessionID {
+                return TickWidgetActionResult(
+                    didChange: false, message: "That Tick changed on another device. Open Ticks to review it."
+                )
             }
 
             try TickTimerMutation.stop(in: &storageSnapshot,
@@ -228,10 +237,10 @@ nonisolated final class TickWidgetActionStore {
             return (.empty, fileModifiedAt)
         }
 
-        if let envelope = try? decoder.decode(
-            TickStorageFileEnvelope<TickWidgetStorageSnapshot>.self,
-            from: data
-        ) {
+        if try TickStorageFileEnvelope<TickWidgetStorageSnapshot>.hasEnvelopeShape(data) {
+            let envelope = try decoder.decode(
+                TickStorageFileEnvelope<TickWidgetStorageSnapshot>.self, from: data
+            )
             return (envelope.snapshot, envelope.updatedAt)
         }
 

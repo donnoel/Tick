@@ -47,6 +47,7 @@ nonisolated enum TickSharedStorage {
         try? fileManager.removeItem(at: currentDataURL)
         try? fileManager.removeItem(at: currentWidgetURL)
         try? fileManager.removeItem(at: voiceMemoMetadataURL)
+        try? fileManager.removeItem(at: voiceMemoMetadataURL.appendingPathExtension("account"))
         try? fileManager.removeItem(at: voiceMemoDirectoryURL)
         try? fileManager.removeItem(at: legacyDataURL)
     }

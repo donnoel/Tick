@@ -6,6 +6,7 @@ final class TickVoiceMemoAudioController: NSObject, AVAudioPlayerDelegate {
     enum AudioError: LocalizedError {
         case microphonePermissionDenied
         case recordingDidNotStart
+        case recordingAlreadyActive
         case noActiveRecording
 
         var errorDescription: String? {
@@ -14,6 +15,8 @@ final class TickVoiceMemoAudioController: NSObject, AVAudioPlayerDelegate {
                 "Microphone permission is needed before Tick can record voice memos."
             case .recordingDidNotStart:
                 "Tick could not start recording that voice memo."
+            case .recordingAlreadyActive:
+                "Stop the current voice memo before starting another one."
             case .noActiveRecording:
                 "There is no active voice memo recording to stop."
             }
@@ -31,9 +34,11 @@ final class TickVoiceMemoAudioController: NSObject, AVAudioPlayerDelegate {
     }
 
     func startRecording(to fileURL: URL) async throws {
+        guard recorder == nil else { throw AudioError.recordingAlreadyActive }
         guard await microphonePermissionGranted() else {
             throw AudioError.microphonePermissionDenied
         }
+        guard recorder == nil else { throw AudioError.recordingAlreadyActive }
 
         stopPlaying()
 

@@ -643,7 +643,7 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(TickUIStateStorage.selectedContentTab(defaults: defaults), .today)
     }
 
-    func testDataStoreQuarantinesCorruptSnapshotAndReturnsEmpty() async throws {
+    func testDataStorePreservesCorruptSnapshotAndReportsFailure() async throws {
         let fileURL = temporaryStoreURL()
         defer {
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
@@ -656,17 +656,43 @@ final class TickTests: XCTestCase {
         try Data("not-json".utf8).write(to: fileURL, options: [.atomic])
         let store = TickDataStore(fileURL: fileURL)
 
-        let snapshot = try await store.load()
+        do {
+            _ = try await store.load()
+            XCTFail("Corrupt history must not appear as an empty store")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("preserved"))
+        }
         let backupURLs = try FileManager.default.contentsOfDirectory(
             at: fileURL.deletingLastPathComponent(),
             includingPropertiesForKeys: nil
         )
         .filter { $0.lastPathComponent.hasPrefix("tick-data.corrupt-") }
 
-        XCTAssertEqual(snapshot, .empty)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+        XCTAssertEqual(try Data(contentsOf: fileURL), Data("not-json".utf8))
         XCTAssertEqual(backupURLs.count, 1)
         XCTAssertEqual(try Data(contentsOf: backupURLs[0]), Data("not-json".utf8))
+    }
+
+    func testDataStorePreservesMalformedEnvelopeWithIntactHistory() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let data = Data(#"{"updatedAt":"invalid-date","snapshot":{"projects":[{"id":"00000000-0000-0000-0000-000000000001","name":"Saved history","createdAt":"2026-10-24T00:00:00Z"}],"sessions":[]}}"#.utf8)
+        try data.write(to: fileURL, options: .atomic)
+        let store = TickDataStore(fileURL: fileURL)
+
+        do {
+            _ = try await store.load()
+            XCTFail("Malformed envelope must not fall through to the permissive legacy decoder")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("preserved"))
+        }
+        let backups = try FileManager.default.contentsOfDirectory(
+            at: fileURL.deletingLastPathComponent(), includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix("tick-data.corrupt-") }
+        XCTAssertEqual(backups.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(backups.first)), data)
+        XCTAssertEqual(try Data(contentsOf: fileURL), data)
     }
 
     func testICloudResolutionUsesNewerRemoteSnapshot() {
@@ -916,6 +942,116 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(loadedVoiceMemos, [voiceMemo])
         XCTAssertEqual(iCloudSnapshot.voiceMemos, [voiceMemo])
         XCTAssertTrue(FileManager.default.fileExists(atPath: iCloudAudioURL.path))
+    }
+
+    func testVoiceMemoAccountSwitchCannotCopyCachedRecordingToNewAccount() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directoryURL) }
+        let memo = VoiceMemo(
+            projectID: UUID(), title: "Private recording", duration: 12,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let accountA = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: urls.iCloudMetadataFileURL,
+            iCloudVoiceMemoDirectoryURL: urls.iCloudAudioDirectoryURL,
+            requiresAccountBinding: true
+        )
+        try await accountA.bind(to: "account-A", trustedLegacyAccountID: "account-A")
+        let localAudioURL = try await accountA.preparedFileURL(for: memo.fileName)
+        try Data([1, 2, 3]).write(to: localAudioURL)
+        try await accountA.save([memo])
+
+        let accountBMetadata = urls.directoryURL.appendingPathComponent("account-B/voice-memos.json")
+        let accountBAudio = urls.directoryURL.appendingPathComponent("account-B/VoiceMemos")
+        let accountB = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: accountBMetadata,
+            iCloudVoiceMemoDirectoryURL: accountBAudio,
+            requiresAccountBinding: true
+        )
+        do {
+            try await accountB.bind(to: "account-B", trustedLegacyAccountID: "account-A")
+            XCTFail("Cached account-A recordings must not bind to account B")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("account changed"))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: accountBMetadata.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: accountBAudio.appendingPathComponent(memo.fileName).path))
+        XCTAssertEqual(try Data(contentsOf: localAudioURL), Data([1, 2, 3]))
+        let retained = try await accountA.load()
+        XCTAssertEqual(retained, [memo])
+    }
+
+    func testVoiceMemoDeletionKeepsAudioUntilCloudMetadataIsDurable() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directoryURL) }
+        let memo = VoiceMemo(
+            projectID: UUID(), title: "Keep audio", duration: 12,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let store = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: urls.iCloudMetadataFileURL,
+            iCloudVoiceMemoDirectoryURL: urls.iCloudAudioDirectoryURL
+        )
+        let audioURL = try await store.preparedFileURL(for: memo.fileName)
+        try Data([1, 2, 3]).write(to: audioURL)
+        try await store.save([memo])
+        let remoteData = try Data(contentsOf: urls.iCloudMetadataFileURL)
+        try FileManager.default.removeItem(at: urls.iCloudMetadataFileURL)
+        try FileManager.default.createDirectory(at: urls.iCloudMetadataFileURL, withIntermediateDirectories: true)
+
+        try await store.save([], deletedVoiceMemoIDs: [memo.id])
+        let deferred = await store.hasDeferredSync()
+        XCTAssertTrue(deferred)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+        let local = try decodeVoiceMemoSnapshot(at: urls.metadataFileURL)
+        XCTAssertTrue(local.voiceMemos.isEmpty)
+        XCTAssertEqual(local.deletedVoiceMemos.map(\.id), [memo.id])
+
+        try FileManager.default.removeItem(at: urls.iCloudMetadataFileURL)
+        try remoteData.write(to: urls.iCloudMetadataFileURL, options: .atomic)
+        let recovered = try await store.loadSnapshot()
+        XCTAssertTrue(recovered.voiceMemos.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
+        let stillDeferred = await store.hasDeferredSync()
+        XCTAssertFalse(stillDeferred)
+    }
+
+    func testVoiceMemoLocalRecordingSyncsAfterAccountIsVerifiedAgain() async throws {
+        let urls = temporaryVoiceMemoStoreURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directoryURL) }
+        let memo = VoiceMemo(
+            projectID: UUID(), title: "Offline recording", duration: 15,
+            createdAt: Date(timeIntervalSince1970: 1_000)
+        )
+        let store = TickVoiceMemoStore(
+            metadataFileURL: urls.metadataFileURL,
+            voiceMemoDirectoryURL: urls.audioDirectoryURL,
+            iCloudMetadataFileURL: urls.iCloudMetadataFileURL,
+            iCloudVoiceMemoDirectoryURL: urls.iCloudAudioDirectoryURL,
+            requiresAccountBinding: true
+        )
+        try await store.bind(to: "account-A", trustedLegacyAccountID: "account-A")
+        let localAudio = try await store.preparedFileURL(for: memo.fileName)
+        try Data([4, 5, 6]).write(to: localAudio)
+        try await store.saveLocalOnly([memo])
+        let deferred = await store.hasDeferredSync()
+        XCTAssertTrue(deferred)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: urls.iCloudMetadataFileURL.path))
+
+        await store.invalidateAccount()
+        try await store.bind(to: "account-A", trustedLegacyAccountID: "account-A")
+        let recovered = try await store.loadSnapshot()
+        XCTAssertEqual(recovered.voiceMemos.map(\.id), [memo.id])
+        XCTAssertEqual(
+            try Data(contentsOf: urls.iCloudAudioDirectoryURL.appendingPathComponent(memo.fileName)),
+            Data([4, 5, 6])
+        )
     }
 
     func testVoiceMemoStoreCopiesICloudMetadataAndAudioToLocalStore() async throws {
@@ -2006,6 +2142,159 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(savedSnapshot.projects.map(\.name), ["Studio", "Admin"])
         XCTAssertEqual(savedSnapshot.sessions.filter(\.isActive).count, 1)
         XCTAssertEqual(savedSnapshot.sessions.first?.projectID, project.id)
+    }
+
+    @MainActor
+    func testAppMetadataEditKeepsWidgetStopTerminal() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directoryURL) }
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let startedAt = Date(timeIntervalSince1970: 100)
+        let session = TimeSession(
+            projectID: project.id, title: "Draft", notes: "", startedAt: startedAt,
+            endedAt: nil, manualDuration: nil, entrySource: .timer, createdAt: startedAt
+        )
+        let store = TickDataStore(fileURL: urls.dataFileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: [session]))
+        let viewModel = TickViewModel(store: store)
+        await viewModel.loadIfNeeded()
+
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL, widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+        XCTAssertTrue(try widgetStore.stopTick(at: Date(timeIntervalSince1970: 160)).didChange)
+        let didUpdate = await viewModel.updateSession(
+            id: session.id, title: "Finished", notes: "", projectID: project.id
+        )
+        XCTAssertTrue(didUpdate)
+
+        let saved = try await store.load()
+        XCTAssertEqual(saved.sessions.first?.title, "Finished")
+        XCTAssertEqual(saved.sessions.first?.endedAt, Date(timeIntervalSince1970: 160))
+        XCTAssertEqual(saved.sessions.filter(\.isActive).count, 0)
+    }
+
+    @MainActor
+    func testConcurrentWidgetStartRejectsStaleAppStart() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directoryURL) }
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let store = TickDataStore(fileURL: urls.dataFileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: []))
+        let viewModel = TickViewModel(store: store)
+        await viewModel.loadIfNeeded()
+        let widgetStore = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL, widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+        XCTAssertTrue(try widgetStore.startTick(at: Date(timeIntervalSince1970: 100)).didChange)
+
+        let didStart = await viewModel.startTick(at: Date(timeIntervalSince1970: 101))
+        XCTAssertFalse(didStart)
+        let saved = try await store.load()
+        XCTAssertEqual(saved.sessions.filter(\.isActive).count, 1)
+        XCTAssertEqual(saved.sessions.count, 1)
+        XCTAssertTrue(viewModel.errorMessage?.contains("Another Tick started") == true)
+    }
+
+    func testWidgetStopCannotStopReplacementTickAfterRefresh() async throws {
+        let urls = temporaryWidgetStoreURLs()
+        defer { try? FileManager.default.removeItem(at: urls.directoryURL) }
+        let project = TickProject(name: "Studio", createdAt: Date(timeIntervalSince1970: 0))
+        let dataStore = TickDataStore(fileURL: urls.dataFileURL)
+        try await dataStore.save(TickStorageSnapshot(projects: [project], sessions: []))
+        let widget = TickWidgetActionStore(
+            dataFileURL: urls.dataFileURL, widgetSnapshotFileURL: urls.snapshotFileURL
+        )
+        _ = try widget.startTick(at: Date(timeIntervalSince1970: 100))
+        let tappedSessionID = try XCTUnwrap(widget.loadStorageSnapshot().sessions.first(where: \.isActive)?.id)
+        _ = try widget.stopTick(at: Date(timeIntervalSince1970: 150))
+        _ = try widget.startTick(at: Date(timeIntervalSince1970: 200))
+
+        let staleStop = try widget.stopTick(
+            at: Date(timeIntervalSince1970: 210), expectedSessionID: tappedSessionID
+        )
+        let current = try widget.loadStorageSnapshot()
+        XCTAssertFalse(staleStop.didChange)
+        XCTAssertEqual(current.sessions.first(where: \.isActive)?.startedAt, Date(timeIntervalSince1970: 200))
+        XCTAssertEqual(current.sessions.filter(\.isActive).count, 1)
+    }
+
+    @MainActor
+    func testStaleSessionDraftChangesOnlyEditedMetadata() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        let project = TickProject(name: "Studio")
+        let session = TimeSession(
+            projectID: project.id, title: "Original title", notes: "Original notes",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 160), manualDuration: nil,
+            entrySource: .timer
+        )
+        let store = TickDataStore(fileURL: fileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: [session]))
+        let viewModel = TickViewModel(store: store)
+        await viewModel.loadIfNeeded()
+        let firstSave = await viewModel.updateSession(
+            id: session.id, title: "New title", notes: session.notes, projectID: project.id
+        )
+        let staleSave = await viewModel.updateSession(
+            id: session.id, title: session.title, notes: "New notes", projectID: project.id,
+            originalMetadata: session
+        )
+
+        XCTAssertTrue(firstSave)
+        XCTAssertTrue(staleSave)
+        let saved = try await store.load()
+        XCTAssertEqual(saved.sessions.first?.title, "New title")
+        XCTAssertEqual(saved.sessions.first?.notes, "New notes")
+    }
+
+    @MainActor
+    func testManualTimeRejectsDeletedSpaceWithoutCreatingOrphan() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        let project = TickProject(name: "Studio")
+        let store = TickDataStore(fileURL: fileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: []))
+        let viewModel = TickViewModel(store: store)
+        await viewModel.loadIfNeeded()
+        let didDelete = await viewModel.deleteProject(id: project.id)
+        XCTAssertTrue(didDelete)
+        let didAdd = await viewModel.addManualSession(
+            projectID: project.id, title: "Missing space", notes: "",
+            date: Date(timeIntervalSince1970: 100), duration: 60
+        )
+        XCTAssertFalse(didAdd)
+        let saved = try await store.load()
+        XCTAssertTrue(saved.sessions.isEmpty)
+    }
+
+    @MainActor
+    func testFailedLocalSaveDoesNotReportManualTimeSuccess() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        let project = TickProject(name: "Studio")
+        let store = TickDataStore(fileURL: fileURL)
+        try await store.save(TickStorageSnapshot(projects: [project], sessions: []))
+        let viewModel = TickViewModel(store: store)
+        await viewModel.loadIfNeeded()
+        let originalData = try Data(contentsOf: fileURL)
+        try FileManager.default.removeItem(at: fileURL)
+        try FileManager.default.createDirectory(at: fileURL, withIntermediateDirectories: true)
+
+        let didAdd = await viewModel.addManualSession(
+            projectID: project.id, title: "Unsaved", notes: "",
+            date: Date(timeIntervalSince1970: 100), duration: 60
+        )
+        XCTAssertFalse(didAdd)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertTrue(viewModel.errorMessage?.contains("could not save") == true)
+
+        try FileManager.default.removeItem(at: fileURL)
+        try originalData.write(to: fileURL, options: .atomic)
+        let reloaded = TickViewModel(store: TickDataStore(fileURL: fileURL))
+        await reloaded.reload()
+        XCTAssertTrue(reloaded.sessions.isEmpty)
     }
 
     func testWidgetStartMirrorsStorageSnapshotToICloudStore() async throws {

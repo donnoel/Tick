@@ -1,6 +1,24 @@
 import XCTest
 
 final class TickUITests: XCTestCase {
+    func testPrivacyPolicyIsAvailableWithoutSpaces() throws {
+        let app = launchResetApp()
+        tab(named: "Spaces", in: app).tap()
+        let privacy = app.buttons["projects.privacyPolicyButton"]
+        XCTAssertTrue(privacy.waitForExistence(timeout: 5))
+        privacy.tap()
+        XCTAssertTrue(app.staticTexts["Your information"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["iCloud and your devices"].exists)
+        let scrollView = app.scrollViews.firstMatch
+        for _ in 0..<8 where !app.staticTexts["Policy updates"].isHittable {
+            scrollView.swipeUp()
+        }
+        XCTAssertTrue(app.staticTexts["Policy updates"].isHittable)
+        app.buttons["privacy.done"].tap()
+        XCTAssertTrue(privacy.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["projects.addProjectButton"].isHittable)
+    }
+
     func testCompactCapturePanelPreservesTimerAndManualEntryControls() throws {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait

@@ -4,6 +4,7 @@ struct SessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let viewModel: TickViewModel
     let sessionID: TimeSession.ID
+    private let originalSession: TimeSession
     @State private var title: String
     @State private var notes: String
     @State private var projectID: TickProject.ID?
@@ -14,6 +15,7 @@ struct SessionDetailView: View {
     init(viewModel: TickViewModel, session: TimeSession) {
         self.viewModel = viewModel
         self.sessionID = session.id
+        self.originalSession = session
         _title = State(initialValue: session.title)
         _notes = State(initialValue: session.notes)
         _projectID = State(initialValue: session.projectID)
@@ -53,7 +55,8 @@ struct SessionDetailView: View {
                             title: title,
                             notes: notes,
                             projectID: projectID,
-                            timing: timing.hasChanges ? timing : nil
+                            timing: timing.hasChanges ? timing : nil,
+                            originalMetadata: originalSession
                         )
                         isSaving = false
                         if didUpdate {

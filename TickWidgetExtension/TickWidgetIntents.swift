@@ -6,8 +6,9 @@ struct StartTickIntent: AppIntent {
     static let description = IntentDescription("Start recording time for the default Tick space.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        let invokedAt = Date.now
         _ = try? await TickCloudSyncStore.shared.synchronize()
-        let result = try TickWidgetActionStore().startTick()
+        let result = try TickWidgetActionStore().startTick(at: invokedAt)
         WidgetCenter.shared.reloadAllTimelines()
         do { try await TickCloudSyncStore.shared.synchronize() }
         catch {
@@ -22,8 +23,16 @@ struct StopTickIntent: AppIntent {
     static let description = IntentDescription("Stop the active Tick session.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        let invokedAt = Date.now
+        let actionStore = TickWidgetActionStore()
+        let tappedSessionID = try actionStore.loadStorageSnapshot().sessions.first(where: \.isActive)?.id
         _ = try? await TickCloudSyncStore.shared.synchronize()
-        let result = try TickWidgetActionStore().stopTick()
+        let result: TickWidgetActionResult
+        if let tappedSessionID {
+            result = try actionStore.stopTick(at: invokedAt, expectedSessionID: tappedSessionID)
+        } else {
+            result = TickWidgetActionResult(didChange: false, message: "No Tick is running.")
+        }
         WidgetCenter.shared.reloadAllTimelines()
         do { try await TickCloudSyncStore.shared.synchronize() }
         catch {
