@@ -78,7 +78,8 @@ persistence journeys continue to create their data through the UI.
 The push and pull-request workflow uses one build-for-testing artifact for unit and smoke phases.
 The full regression workflow separately builds once and runs the complete UI
 suite. Both use Xcode 26.6, iOS Simulator 26.5, warnings as errors, no retries,
-and failure artifacts. Superseded runs on the same ref are cancelled.
+and failure artifacts. Simulator boot overlaps the clean build, with test phases
+waiting for readiness before execution. Superseded runs on the same ref are cancelled.
 
 Use focused local checks while developing. Run a complete affected suite for
 shared fixtures, harness changes, CI behavior, persistence/startup changes, or

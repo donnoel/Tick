@@ -57,5 +57,6 @@ PY
 )"
 
 xcrun simctl boot "$simulator_id" >&2 || true
-xcrun simctl bootstatus "$simulator_id" -b >&2
+# Build-for-testing does not need a booted simulator. Let boot continue while the
+# app builds; Scripts/ci.sh waits for boot readiness before either test phase.
 printf '%s\n' "$simulator_id"
