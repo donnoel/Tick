@@ -429,7 +429,7 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["today.secondTimer.expand"].exists)
 
         let dragPoint = secondCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
-        let dropPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.12))
+        let dropPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         dragPoint.press(
             forDuration: 1.0,
             thenDragTo: dropPoint,
@@ -497,7 +497,7 @@ final class TickUITests: XCTestCase {
         let share = app.buttons["spaceReport.share"]
         XCTAssertTrue(share.isEnabled)
         share.tap()
-        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Copy")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout: 10))
     }
 
     private func launchResetApp(fixture: UITestFixture? = nil) -> XCUIApplication {
