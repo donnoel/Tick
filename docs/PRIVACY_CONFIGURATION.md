@@ -8,11 +8,11 @@ public hosting. The policy is accessible from the Spaces toolbar even when there
 are no Spaces, uses native scalable text and heading accessibility traits, and
 does not load a remote web page.
 
-Privacy contact: `donnoel@icloud.com`. The intended public policy URL is
+Privacy contact: `donnoel@icloud.com`. The public policy URL is
 `https://github.com/donnoel/Tick/blob/main/docs/PRIVACY_POLICY.md`, following
-the owner's preference for a repository link. Verify that the exact policy is
-publicly reachable after these files are pushed, then enter the URL in App Store
-Connect. A local repository document is not evidence of a published policy URL.
+the owner's preference for a repository link. The link returned HTTP 200 after
+publication on October 24, 2026; its content should be checked again before
+entering it in App Store Connect.
 This change does not configure App Store Connect privacy answers or submit a build.
 
 ## Manifest scope
