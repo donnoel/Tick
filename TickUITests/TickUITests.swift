@@ -45,7 +45,7 @@ final class TickUITests: XCTestCase {
         start.tap()
         let pause = app.buttons["today.pauseButton"]
         XCTAssertTrue(pause.waitForExistence(timeout: 5))
-        XCTAssertTrue(pause.waitUntilEnabled(timeout: 5))
+        XCTAssertTrue(pause.waitUntilHittable(timeout: 5))
         capture("Compact timer - running")
         pause.tap()
         let resume = app.buttons["today.playButton"]
@@ -55,7 +55,7 @@ final class TickUITests: XCTestCase {
         resume.tap()
         XCTAssertTrue(pause.waitForExistence(timeout: 5))
         let stop = app.buttons["today.stopButton"]
-        XCTAssertTrue(stop.waitUntilEnabled(timeout: 5))
+        XCTAssertTrue(stop.waitUntilHittable(timeout: 5))
         stop.tap()
         XCTAssertTrue(start.waitForExistence(timeout: 5))
         XCTAssertEqual(start.label, "Start Tick")
@@ -100,7 +100,7 @@ final class TickUITests: XCTestCase {
 
         let stopButton = app.buttons["today.stopButton"]
         XCTAssertTrue(stopButton.waitForExistence(timeout: 5))
-        XCTAssertTrue(stopButton.waitUntilEnabled(timeout: 5))
+        XCTAssertTrue(stopButton.waitUntilHittable(timeout: 5))
         stopButton.tap()
 
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
