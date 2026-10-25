@@ -516,7 +516,12 @@ final class TickUITests: XCTestCase {
 
         let dragPoint = secondCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
         let dropPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.12))
-        dragPoint.press(forDuration: 0.8, thenDragTo: dropPoint)
+        dragPoint.press(
+            forDuration: 1.0,
+            thenDragTo: dropPoint,
+            withVelocity: .slow,
+            thenHoldForDuration: 0.5
+        )
 
         XCTAssertLessThan(secondCard.frame.minY, firstCard.frame.minY)
         XCTAssertTrue(app.buttons["today.playButton.secondary"].exists)
