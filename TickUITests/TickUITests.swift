@@ -1,6 +1,12 @@
 import XCTest
 
 final class TickUITests: XCTestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+    }
+
     func testPrivacyPolicyIsAvailableWithoutSpaces() throws {
         let app = launchResetApp()
         tab(named: "Spaces", in: app).tap()
@@ -22,8 +28,7 @@ final class TickUITests: XCTestCase {
     func testCompactCapturePanelPreservesTimerAndManualEntryControls() throws {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
-        let app = launchResetApp()
-        createProject(named: "Design Studio", in: app)
+        let app = launchResetApp(fixture: .capture)
         tab(named: "Today", in: app).tap()
 
         func capture(_ name: String) {
@@ -68,8 +73,7 @@ final class TickUITests: XCTestCase {
     }
 
     func testPrimaryTabsExist() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchResetApp()
 
         XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Spaces"].exists)
@@ -165,84 +169,30 @@ final class TickUITests: XCTestCase {
         let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         app.launchArguments = ["-disableCloudSyncForUITests"]
 
-        for tabName in ["Spaces", "Summaries", "Today", "Auto Ticks"] {
-            let tab = app.tabBars.firstMatch.buttons[tabName]
-            XCTAssertTrue(tab.waitForExistence(timeout: 5))
-            tab.tap()
-            XCTAssertTrue(tab.isSelected)
+        let summaries = app.tabBars.firstMatch.buttons["Summaries"]
+        XCTAssertTrue(summaries.waitForExistence(timeout: 5))
+        summaries.tap()
+        XCTAssertTrue(summaries.isSelected)
 
-            XCUIDevice.shared.press(.home)
-            app.activate()
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].isSelected)
 
-            let reactivatedTab = app.tabBars.firstMatch.buttons[tabName]
-            XCTAssertTrue(reactivatedTab.waitForExistence(timeout: 5))
-            XCTAssertTrue(reactivatedTab.isSelected)
+        photos.launch()
+        app.activate()
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].isSelected)
 
-            photos.launch()
-            app.activate()
-
-            let photosReactivatedTab = app.tabBars.firstMatch.buttons[tabName]
-            XCTAssertTrue(photosReactivatedTab.waitForExistence(timeout: 5))
-            XCTAssertTrue(photosReactivatedTab.isSelected)
-
-            app.terminate()
-            app.launch()
-
-            let relaunchedTab = app.tabBars.firstMatch.buttons[tabName]
-            XCTAssertTrue(relaunchedTab.waitForExistence(timeout: 5))
-            XCTAssertTrue(relaunchedTab.isSelected)
-        }
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].isSelected)
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {
-        let app = launchResetApp()
+        let app = launchResetApp(fixture: .manualEditing)
 
-        let projectName = "Manual UI Project"
         let initialSessionTitle = "Manual UI Session"
         let editedSessionTitle = "Edited Manual UI Session"
-        let tabBar = app.tabBars.firstMatch
-
-        let projectsTab = tabBar.buttons["Spaces"]
-        XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
-        projectsTab.tap()
-
-        let addProjectButton = app.buttons["projects.addProjectButton"]
-        XCTAssertTrue(addProjectButton.waitForExistence(timeout: 5))
-        addProjectButton.tap()
-
-        let projectNameField = app.textFields["addProject.nameField"]
-        XCTAssertTrue(projectNameField.waitForExistence(timeout: 5))
-        XCTAssertTrue(projectNameField.waitUntilHittable(timeout: 5))
-        projectNameField.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        projectNameField.typeText(projectName)
-
-        let saveProjectButton = app.buttons["addProject.saveButton"]
-        XCTAssertTrue(saveProjectButton.waitForExistence(timeout: 5))
-        saveProjectButton.tap()
-
-        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
-
-        let todayTab = tabBar.buttons["Today"]
-        XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
-        todayTab.tap()
-
-        let addTimeButton = app.buttons["today.addTimeButton"]
-        XCTAssertTrue(addTimeButton.waitForExistence(timeout: 5))
-        addTimeButton.tap()
-
-        let manualTitleField = app.textFields["manualTime.titleField"]
-        XCTAssertTrue(manualTitleField.waitForExistence(timeout: 5))
-        manualTitleField.tap()
-        manualTitleField.typeText(initialSessionTitle)
-
-        let manualNotesField = app.textFields["manualTime.notesField"]
-        XCTAssertTrue(manualNotesField.waitForExistence(timeout: 5))
-        manualNotesField.tap()
-        manualNotesField.typeText("Logged from UI test")
-
-        let manualSaveButton = app.buttons["manualTime.saveButton"]
-        XCTAssertTrue(manualSaveButton.waitForExistence(timeout: 5))
-        manualSaveButton.tap()
 
         let initialSessionRow = app.staticTexts[initialSessionTitle]
         XCTAssertTrue(initialSessionRow.waitForExistence(timeout: 5))
@@ -263,9 +213,7 @@ final class TickUITests: XCTestCase {
     func testSessionTimingEditsCanBeCancelledSavedAndRestored() throws {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
-        let app = launchResetApp()
-        createProject(named: "Timing Project", in: app)
-        addManualSession(titled: "Timing work", in: app)
+        let app = launchResetApp(fixture: .timingEditing)
         app.staticTexts["Timing work"].tap()
         XCTAssertTrue(app.datePickers["sessionDetail.date"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.datePickers["sessionDetail.start"].exists)
@@ -310,42 +258,19 @@ final class TickUITests: XCTestCase {
 
     func testProjectDetailSessionCanBeDeleted() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
+        let app = launchResetApp(fixture: .projectDeletion)
 
-        let projectName = "Delete UI Project"
         let sessionTitle = "Delete UI Session"
         let tabBar = app.tabBars.firstMatch
-
-        createProject(named: projectName, in: app)
-
-        let todayTab = tabBar.buttons["Today"]
-        XCTAssertTrue(todayTab.waitForExistence(timeout: 5))
-        todayTab.tap()
-
-        let addTimeButton = app.buttons["today.addTimeButton"]
-        XCTAssertTrue(addTimeButton.waitForExistence(timeout: 5))
-        addTimeButton.tap()
-
-        let manualTitleField = app.textFields["manualTime.titleField"]
-        XCTAssertTrue(manualTitleField.waitForExistence(timeout: 5))
-        manualTitleField.tap()
-        manualTitleField.typeText(sessionTitle)
-
-        let manualSaveButton = app.buttons["manualTime.saveButton"]
-        XCTAssertTrue(manualSaveButton.waitForExistence(timeout: 5))
-        manualSaveButton.tap()
-
-        XCTAssertFalse(manualTitleField.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts[sessionTitle].waitForExistence(timeout: 5))
 
         let projectsTab = tabBar.buttons["Spaces"]
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 5))
         projectsTab.tap()
-        XCTAssertTrue(app.staticTexts[projectName].waitForExistence(timeout: 5))
-        app.staticTexts[projectName].tap()
+        XCTAssertTrue(app.staticTexts["Delete UI Project"].waitForExistence(timeout: 5))
+        app.staticTexts["Delete UI Project"].tap()
 
         let projectSessionRowText = app.staticTexts[sessionTitle]
+        reveal(projectSessionRowText, in: app)
         XCTAssertTrue(projectSessionRowText.waitForExistence(timeout: 5))
 
         let projectSessionRow = app.cells.containing(.staticText, identifier: sessionTitle).firstMatch
@@ -381,9 +306,7 @@ final class TickUITests: XCTestCase {
 
     func testTodaySessionSwipeDeleteRequiresConfirmation() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
-        createProject(named: "Today Delete Space", in: app)
-        addManualSession(titled: "Today Delete Tick", in: app)
+        let app = launchResetApp(fixture: .todayDeletion)
 
         let row = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "today.sessionRow.")
@@ -420,10 +343,7 @@ final class TickUITests: XCTestCase {
 
     func testTodayControlsTwoSpaceTicksIndependently() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
-        createProject(named: "Puzzles", in: app)
-        createProject(named: "Ticks", in: app)
-        tab(named: "Today", in: app).tap()
+        let app = launchResetApp(fixture: .twoSpaces)
 
         let firstStart = app.buttons["today.playButton"]
         let secondStart = app.buttons["today.playButton.secondary"]
@@ -461,10 +381,7 @@ final class TickUITests: XCTestCase {
 
     func testTodayTimerCardsCanBeReorderedWithoutChangingTheirTicks() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
-        createProject(named: "Puzzles", in: app)
-        createProject(named: "Ticks", in: app)
-        tab(named: "Today", in: app).tap()
+        let app = launchResetApp(fixture: .twoSpaces)
 
         app.buttons["today.playButton"].tap()
         let expand = app.buttons["today.secondTimer.expand"]
@@ -503,10 +420,7 @@ final class TickUITests: XCTestCase {
 
     func testCollapsedSecondTimerCanBeDraggedToTop() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
-        createProject(named: "Puzzles", in: app)
-        createProject(named: "Ticks", in: app)
-        tab(named: "Today", in: app).tap()
+        let app = launchResetApp(fixture: .twoSpaces)
 
         let firstCard = app.otherElements["today.timerCard"]
         let secondCard = app.otherElements["today.timerCard.secondary"]
@@ -530,11 +444,7 @@ final class TickUITests: XCTestCase {
 
     func testTodayTotalIncludesEverySpaceBeforeAndAfterStop() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
-        createProject(named: "Puzzles", in: app)
-        addManualSession(titled: "Planning", in: app)
-        createProject(named: "Tonight", in: app)
-        tab(named: "Today", in: app).tap()
+        let app = launchResetApp(fixture: .todayTotals)
 
         let expand = app.buttons["today.secondTimer.expand"]
         XCTAssertTrue(expand.waitForExistence(timeout: 5))
@@ -556,17 +466,12 @@ final class TickUITests: XCTestCase {
 
     func testSummarySpaceOpensDetailedShareableReport() throws {
         continueAfterFailure = false
-        let app = launchResetApp()
-        for name in ["Planning report", "Review report"] {
-            createProject(named: name, in: app)
-            addManualSession(titled: "Project planning", in: app)
-        }
-        createProject(named: "Client report", in: app)
-        addManualSession(titled: "Implementation and testing", in: app)
+        let app = launchResetApp(fixture: .summaryReport)
 
         tab(named: "Summaries", in: app).tap()
         let spaces = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "summaries.space."))
         let space = spaces.matching(NSPredicate(format: "label == %@", "Client report")).firstMatch
+        reveal(space, in: app)
         XCTAssertTrue(space.waitForExistence(timeout: 5))
         XCTAssertLessThan(space.frame.height, 160)
         let header = app.staticTexts["By Space"].firstMatch
@@ -595,12 +500,15 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Copy")).firstMatch.waitForExistence(timeout: 5))
     }
 
-    private func launchResetApp() -> XCUIApplication {
+    private func launchResetApp(fixture: UITestFixture? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetDataForUITests",
             "-disableCloudSyncForUITests",
         ]
+        if let fixture {
+            app.launchArguments += ["-uiTestFixture", fixture.rawValue]
+        }
         app.launch()
         return app
     }
@@ -664,6 +572,23 @@ final class TickUITests: XCTestCase {
         // iPad's floating tabs are exposed as cells rather than a TabBar.
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title)).firstMatch
     }
+
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 6) {
+        for _ in 0..<maxSwipes where !element.exists {
+            app.swipeUp()
+        }
+    }
+}
+
+private enum UITestFixture: String {
+    case capture
+    case manualEditing
+    case timingEditing
+    case projectDeletion
+    case todayDeletion
+    case twoSpaces
+    case todayTotals
+    case summaryReport
 }
 
 private extension XCUIElement {

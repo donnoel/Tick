@@ -161,7 +161,7 @@ Reference checks for a future submission (not outstanding current closeout tasks
 - Scheme: `Tick`
 - Target platform: iOS Simulator
 - Watch scheme: `TickWatch`, watchOS 26 or later; see `docs/WATCH_APP.md`
-- CI uses Xcode 26.6 and an explicitly selected iOS Simulator 26.5 runtime. Build, unit, and UI phases use the same `Scripts/ci.sh` command locally and on GitHub.
+- CI uses Xcode 26.6 and an explicitly selected iOS Simulator 26.5 runtime. Build, unit, UI smoke, and full UI phases use the same `Scripts/ci.sh` command locally and on GitHub.
 - Build warnings should be treated as failures.
 
 ## Future release validation reference
@@ -211,7 +211,9 @@ alone must still not be presented as independent physical-device proof.
 - GitHub keeps Xcode 26.6 and Simulator 26.5. For deliberate complete reproduction use `bash Scripts/local-check.sh bash Scripts/ci.sh all <fresh-iOS-26.5-simulator-UDID>`. Fresh simulators are for isolated/full reproduction; preserve existing simulator data. Upgrade pinned baselines in a separate validated change.
 - Run the complete affected suites when changing build/test workflow behavior, test harnesses or shared fixtures, or when reproducing a hosted failure. Full local CI is not a blanket prerequisite for every edit. Keep GitHub CI enabled and all existing suites/assertions; a focused pass is not a full-suite pass.
 - Check installed tools and equivalent capabilities before proposing a download. Do not install or switch global tools merely to obtain exact CI parity for an unrelated change. Report local compiler/runtime/browser/OS differences and checks not run; only observed GitHub results establish hosted CI success.
-- Keep clean build-for-testing, unit tests, and the full UI suite visible as distinct phases. The same built artifacts are used for both test phases; preserve warnings as errors and test assertions.
+- Keep clean build-for-testing, unit tests, UI smoke tests, and the full UI suite visible as distinct phases. The same built artifacts are used for test phases; preserve warnings as errors and test assertions.
+- Pushes to `main` run the fast gate: build, unit tests, TickCore tests, and the representative UI smoke suite. Pull requests that can affect runtime behavior run the full UI regression instead of duplicating its smoke subset. The full UI suite also runs nightly and on manual dispatch.
+- Named UI fixtures may establish preconditions for one behavior under test. They must be DEBUG-only, deterministic, validated by unit tests, and require both reset and cloud-isolation launch arguments. Keep at least one true UI path for each core creation/persistence journey; do not replace the behavior under test with fixture data.
 - Changes to UI/harness/CI build/test behavior require the full relevant suite, including deletion confirmation and cancel behavior. A focused test or unit-only pass does not establish full CI success.
 - Date fixtures must use an explicit calendar/timezone consistently. UI helpers must replace text deterministically and verify the value, wait for observable readiness, and isolate cloud/Keychain dependencies when those services are not the subject of the test.
 - Treat zero-step account/payment/spending-limit failures as unavailable execution evidence. Diagnose the job annotation before changing application code. Keep deployment failures separate from build/test failures.

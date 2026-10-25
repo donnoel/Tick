@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export TZ=UTC LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 phase="${1:-all}"
-case "$phase" in environment|build|unit|ui|all) ;; *) echo "Usage: bash scripts/ci.sh {environment|build|unit|ui|all} <simulator-UDID>" >&2; exit 2 ;; esac
+case "$phase" in environment|build|unit|ui-smoke|ui|all) ;; *) echo "Usage: bash Scripts/ci.sh {environment|build|unit|ui-smoke|ui|all} <simulator-UDID>" >&2; exit 2 ;; esac
 expected_xcode=26.6
 project=Tick.xcodeproj
 scheme=Tick
@@ -56,7 +56,19 @@ run_tests() {
   if [[ "$state" != Booted ]]; then xcrun simctl boot "$simulator_id"; fi
   xcrun simctl bootstatus "$simulator_id" -b
   local selection=()
-  if [[ "$kind" == unit ]]; then selection=("-skip-testing:$ui_target"); else selection=("-only-testing:$ui_target"); fi
+  if [[ "$kind" == unit ]]; then
+    selection=("-skip-testing:$ui_target")
+  elif [[ "$kind" == ui-smoke ]]; then
+    selection=(
+      "-only-testing:$ui_target/TickUITests/testCreateProjectStartStopShowsTodaySessionRow"
+      "-only-testing:$ui_target/TickUITests/testSpaceAndSessionPersistAfterRelaunch"
+      "-only-testing:$ui_target/TickUITests/testProjectDetailSessionCanBeDeleted"
+      "-only-testing:$ui_target/TickUITests/testTodayControlsTwoSpaceTicksIndependently"
+      "-only-testing:$ui_target/TickUITests/testSummarySpaceOpensDetailedShareableReport"
+    )
+  else
+    selection=("-only-testing:$ui_target")
+  fi
   local result="${RESULT_BUNDLE%.xcresult}-$kind.xcresult"
   mkdir -p "$(dirname "$result")"
   xcodebuild "${args[@]}" -resultBundlePath "$result" \
@@ -65,6 +77,6 @@ run_tests() {
 }
 case "$phase" in
   build) build ;;
-  unit|ui) run_tests "$phase" ;;
+  unit|ui-smoke|ui) run_tests "$phase" ;;
   all) build; run_tests unit; run_tests ui ;;
 esac

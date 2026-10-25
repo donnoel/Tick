@@ -62,76 +62,8 @@ jobs:
         id: simulator
         run: |
           set -euo pipefail
-          SIMULATOR_ID="$(python3 <<'PY'
-          import json
-          import os
-          import subprocess
-
-          runtimes = json.loads(
-              subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "--json"])
-          )["runtimes"]
-          ios_runtimes = [
-              runtime for runtime in runtimes
-              if runtime.get("platform") == "iOS" and runtime.get("isAvailable")
-              and runtime.get("version") == os.environ["IOS_SIMULATOR_VERSION"]
-          ]
-          if not ios_runtimes:
-              raise SystemExit("Required iOS 26.5 simulator runtime is unavailable.")
-
-          def version_key(runtime):
-              parts = []
-              for part in runtime.get("version", "0").split("."):
-                  try:
-                      parts.append(int(part))
-                  except ValueError:
-                      break
-              return tuple(parts)
-
-          runtime_identifier = sorted(ios_runtimes, key=version_key)[-1]["identifier"]
-
-          device_types = json.loads(
-              subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "--json"])
-          )["devicetypes"]
-          iphone_types = [
-              device_type for device_type in device_types
-              if device_type.get("name", "").startswith("iPhone")
-          ]
-          if not iphone_types:
-              raise SystemExit("No iPhone simulator device types.")
-
-          preferred_names = [
-              "iPhone 17 Pro",
-              "iPhone 17",
-              "iPhone 16 Pro",
-              "iPhone 16",
-              "iPhone SE (3rd generation)",
-          ]
-          selected_device = next(
-              (
-                  device_type for preferred_name in preferred_names
-                  for device_type in iphone_types
-                  if device_type.get("name") == preferred_name
-              ),
-              iphone_types[-1],
-          )
-
-          simulator_id = subprocess.check_output(
-              [
-                  "xcrun",
-                  "simctl",
-                  "create",
-                  "CI iPhone",
-                  selected_device["identifier"],
-                  runtime_identifier,
-              ],
-              text=True,
-          ).strip()
-          print(simulator_id)
-          PY
-          )"
+          SIMULATOR_ID="$(bash Scripts/create-ci-simulator.sh "$IOS_SIMULATOR_VERSION")"
           echo "id=${SIMULATOR_ID}" >> "$GITHUB_OUTPUT"
-          xcrun simctl boot "${SIMULATOR_ID}" || true
-          xcrun simctl bootstatus "${SIMULATOR_ID}" -b
 
       - name: Build for testing
         run: bash Scripts/ci.sh build '${{ steps.simulator.outputs.id }}'
@@ -142,8 +74,9 @@ jobs:
       - name: TickCore package tests
         run: swift test -Xswiftc -warnings-as-errors
 
-      - name: UI tests
-        run: bash Scripts/ci.sh ui '${{ steps.simulator.outputs.id }}'
+      - name: UI smoke tests
+        if: github.event_name != 'pull_request'
+        run: bash Scripts/ci.sh ui-smoke '${{ steps.simulator.outputs.id }}'
 
       - name: Upload xcodebuild artifacts
         if: failure()

@@ -75,11 +75,15 @@ background timer. See [Watch architecture and validation](docs/WATCH_APP.md).
 2. Select an iPhone or iPad Simulator
 3. Build and Run
 
-For a deliberate full CI reproduction, select an installed iOS 26.5 simulator UDID
-from `xcrun simctl list devices available`, then run:
+For local checks, select an installed iOS 26.5 simulator UDID from
+`xcrun simctl list devices available`. Use the narrowest tier that proves the
+change; reserve `all` for test-harness, shared-state, or release-risk work:
 
 ```sh
 SIMULATOR_ID="<iOS-26.5-simulator-UDID>"
+bash Scripts/local-check.sh bash Scripts/ci.sh unit "$SIMULATOR_ID"
+bash Scripts/local-check.sh bash Scripts/ci.sh ui-smoke "$SIMULATOR_ID"
+# Full regression when its broader evidence is required:
 bash Scripts/local-check.sh bash Scripts/ci.sh all "$SIMULATOR_ID"
 bash Scripts/local-check.sh swift test -Xswiftc -warnings-as-errors
 ```
@@ -89,6 +93,7 @@ Use focused tests while developing small changes through
 already-installed CI Xcode for that command, respects `DEVELOPER_DIR`, and never
 installs tools or changes global defaults. CI creates and boots an
 available iPhone simulator dynamically; local simulator names need not match.
+See [Testing Architecture](docs/TESTING.md) for suite ownership and CI policy.
 
 ## 🧠 How It Works
 
