@@ -132,33 +132,42 @@ nonisolated struct TickSpaceReport {
     }
 
     var sharedText: String {
-        var lines = [
-            "\(projectName) — Work report",
-            "Period: \(range.title)",
-            "Total time: \(Self.durationText(totalDuration))",
-            "\(sessionCount) \(sessionCount == 1 ? "session" : "sessions") across \(days.count) \(days.count == 1 ? "day" : "days")",
-            "As of \(generatedAt.formatted(.dateTime.year().month().day().hour().minute().timeZone()))"
+        // Paragraphs survive sharing to both Mail and Messages without relying on
+        // Markdown, fixed-width columns, or rich-text support in the receiving app.
+        var sections = [
+            "\(projectName)\nWork report\n\n\(range.title)",
+            "Overview\n\nTotal time: \(Self.durationText(totalDuration))\n\(sessionCount) \(sessionCount == 1 ? "session" : "sessions") across \(days.count) \(days.count == 1 ? "day" : "days")"
         ]
         if activeSessionCount > 0 {
-            lines.append("Includes \(activeSessionCount) running or paused session(s); time is captured as of the report date.")
+            sections[1] += "\n\nIncludes \(activeSessionCount) running or paused \(activeSessionCount == 1 ? "session" : "sessions").\nTime captured as of \(generatedAt.formatted(.dateTime.year().month().day().hour().minute().timeZone()))."
         }
-        lines += ["", "WORK SUMMARY"]
-        if work.isEmpty { lines.append("No time recorded in this period.") }
-        for item in work {
-            lines.append("• \(item.id.title) — \(Self.durationText(item.duration)) (\(item.sessionCount) \(item.sessionCount == 1 ? "session" : "sessions"))")
-            if !item.id.notes.isEmpty { lines.append(item.id.notes) }
+        guard !work.isEmpty else {
+            sections.append("No time recorded in this period.")
+            return sections.joined(separator: "\n\n\n")
         }
-        lines += ["", "SESSIONS BY DAY"]
+
+        let workBlocks = work.enumerated().map { index, item in
+            var block = "\(index + 1). \(item.id.title)\nTime: \(Self.durationText(item.duration))"
+            if item.sessionCount > 1 { block += " across \(item.sessionCount) sessions" }
+            if !item.id.notes.isEmpty { block += "\nNotes: \(item.id.notes)" }
+            return block
+        }
+        sections.append("Work summary\n\n" + workBlocks.joined(separator: "\n\n"))
+
+        var dayBlocks: [String] = []
         for day in days {
-            lines += ["", "\(day.id.formatted(date: .complete, time: .omitted)) — \(Self.durationText(day.duration))"]
-            for entry in day.entries {
+            let heading = "\(day.id.formatted(date: .complete, time: .omitted))\nDaily total: \(Self.durationText(day.duration))"
+            let entryBlocks = day.entries.map { entry in
                 // Manual entries have a recorded date, not a claimed start/end time.
-                let time = entry.status == "Manual" ? "Manual" : "\(entry.date.formatted(date: .omitted, time: .shortened)) · \(entry.status)"
-                lines.append("• \(entry.description.title) — \(Self.durationText(entry.duration)) · \(time)")
-                if !entry.description.notes.isEmpty { lines.append(entry.description.notes) }
+                let timing = entry.status == "Manual" ? "Recorded manually" : "Started: \(entry.date.formatted(date: .omitted, time: .shortened)) · \(entry.status)"
+                var block = "• \(entry.description.title)\nTime: \(Self.durationText(entry.duration))\n\(timing)"
+                if !entry.description.notes.isEmpty { block += "\nNotes: \(entry.description.notes)" }
+                return block
             }
+            dayBlocks.append(heading + "\n\n" + entryBlocks.joined(separator: "\n\n"))
         }
-        return lines.joined(separator: "\n")
+        sections.append("Daily detail\n\n" + dayBlocks.joined(separator: "\n\n\n"))
+        return sections.joined(separator: "\n\n\n")
     }
 
     static func durationText(_ duration: TimeInterval) -> String {

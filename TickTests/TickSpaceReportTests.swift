@@ -112,6 +112,69 @@ final class TickSpaceReportTests: XCTestCase {
         XCTAssertEqual(report.work.reduce(0) { $0 + $1.duration }, report.totalDuration)
     }
 
+    func testSharedReportSeparatesHeadingsTasksTimingAndNotesIntoReadableBlocks() {
+        let projectID = UUID()
+        let start = date(20, hour: 9)
+        let finish = date(21, hour: 14)
+        let title = "Migration of proof of concept to business AWS account"
+        let note = "Updated support functions.\nChecked the remaining UI issues."
+        let sessions = [
+            manual(projectID, at: finish, title: "Add versioning", notes: "", duration: 1_800),
+            TimeSession(projectID: projectID, title: title, notes: note, startedAt: start,
+                        endedAt: start.addingTimeInterval(3_615), manualDuration: nil, entrySource: .timer)
+        ]
+        let report = TickSpaceReport(projectID: projectID, projectName: "3Puzzles",
+                                     range: TickReportDateRange(start: start, end: finish, calendar: calendar),
+                                     sessions: sessions, generatedAt: finish, calendar: calendar)
+        let expected = """
+        3Puzzles
+        Work report
+
+        \(report.range.title)
+
+
+        Overview
+
+        Total time: 1h 30m 15s
+        2 sessions across 2 days
+
+
+        Work summary
+
+        1. \(title)
+        Time: 1h 15s
+        Notes: \(note)
+
+        2. Add versioning
+        Time: 30m
+
+
+        Daily detail
+
+        \(report.days[0].id.formatted(date: .complete, time: .omitted))
+        Daily total: 1h 15s
+
+        • \(title)
+        Time: 1h 15s
+        Started: \(start.formatted(date: .omitted, time: .shortened)) · Timer
+        Notes: \(note)
+
+
+        \(report.days[1].id.formatted(date: .complete, time: .omitted))
+        Daily total: 30m
+
+        • Add versioning
+        Time: 30m
+        Recorded manually
+        """
+        XCTAssertEqual(report.sharedText, expected)
+        XCTAssertFalse(report.sharedText.contains("As of"))
+        let preview = XCTAttachment(string: report.sharedText)
+        preview.name = "Shared report formatting"
+        preview.lifetime = .keepAlways
+        add(preview)
+    }
+
     func testEmptyReportAndLifetimeFallbackHaveFiniteDates() {
         let projectID = UUID()
         let now = date(15)
@@ -121,6 +184,7 @@ final class TickSpaceReportTests: XCTestCase {
         let report = TickSpaceReport(projectID: projectID, projectName: "Unknown Space", range: range, sessions: [], calendar: calendar)
         XCTAssertEqual(report.totalDuration, 0)
         XCTAssertTrue(report.sharedText.contains("No time recorded"))
+        XCTAssertFalse(report.sharedText.contains("Daily detail"))
         XCTAssertEqual(TickSpaceReport.durationText(0), "0s")
     }
 }
