@@ -115,8 +115,12 @@ actor TickDataStore {
             let data = try encoder.encode(
                 TickStorageFileEnvelope(updatedAt: updatedAt, snapshot: merged, cloudSync: checkpoint)
             )
+            // Match the dates the next read will decode (ISO 8601 drops subsecond precision).
+            let storedSnapshot = try decoder.decode(
+                TickStorageFileEnvelope<TickStorageSnapshot>.self, from: data
+            ).snapshot
             try data.write(to: coordinatedURL, options: [.atomic])
-            return merged
+            return storedSnapshot
         }
     }
 

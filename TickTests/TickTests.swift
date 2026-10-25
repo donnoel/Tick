@@ -2034,6 +2034,28 @@ final class TickTests: XCTestCase {
     }
 
     @MainActor
+    func testResumeClearsPausedStateAfterFractionalTimestampIsSaved() async throws {
+        let fileURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let store = TickDataStore(fileURL: fileURL)
+        let viewModel = TickViewModel(store: store)
+        let didAdd = await viewModel.addProject(name: "Tick", createdAt: Date(timeIntervalSince1970: 0))
+        let didStart = await viewModel.startTick(at: Date(timeIntervalSince1970: 100.4))
+        let didPause = await viewModel.pauseTick(at: Date(timeIntervalSince1970: 160.6))
+        XCTAssertTrue(didAdd)
+        XCTAssertTrue(didStart)
+        XCTAssertTrue(didPause)
+        XCTAssertTrue(viewModel.activeSession?.isPaused == true)
+
+        let didResume = await viewModel.resumeTick(at: Date(timeIntervalSince1970: 220.8))
+        XCTAssertTrue(didResume)
+        XCTAssertFalse(viewModel.activeSession?.isPaused == true)
+        let saved = try await store.load()
+        XCTAssertNil(saved.sessions.first?.pausedAt)
+    }
+
+    @MainActor
     func testStoppingPausedTickDoesNotIncludePausedTime() async {
         let fileURL = temporaryStoreURL()
         defer {
