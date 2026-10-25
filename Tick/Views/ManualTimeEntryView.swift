@@ -51,6 +51,7 @@ struct ManualTimeEntryView: View {
                     }
                 }
             }
+            .tickScreenBackground()
             .navigationTitle("Add Time")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

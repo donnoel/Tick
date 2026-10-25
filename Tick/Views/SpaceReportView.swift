@@ -119,8 +119,7 @@ struct SpaceReportView: View {
 
             }
             .accessibilityIdentifier("spaceReport.list")
-            .scrollContentBackground(.hidden)
-            .background(TickPalette.appBackground)
+            .tickScreenBackground()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: report.sharedText, subject: Text(report.subject)) {

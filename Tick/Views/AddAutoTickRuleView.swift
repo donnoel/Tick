@@ -74,6 +74,7 @@ struct AddAutoTickRuleView: View {
                     Toggle("Stop on Departure", isOn: $stopsOnDeparture)
                 }
             }
+            .tickScreenBackground()
             .navigationTitle("New Auto Tick")
             .onChange(of: viewModel.latestAutoTickCoordinate) { _, newCoordinate in
                 coordinate = newCoordinate

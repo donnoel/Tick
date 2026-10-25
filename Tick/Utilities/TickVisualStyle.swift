@@ -8,6 +8,26 @@ enum TickPalette {
     static let locationReady = Color.green
 }
 
+struct TickScreenBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        LinearGradient(
+            colors: colorScheme == .dark
+                ? [Color(red: 0.06, green: 0.12, blue: 0.20),
+                   Color(red: 0.06, green: 0.16, blue: 0.15),
+                   Color(red: 0.18, green: 0.10, blue: 0.16)]
+                : [Color(red: 0.84, green: 0.92, blue: 1.00),
+                   Color(red: 0.88, green: 0.97, blue: 0.93),
+                   Color(red: 1.00, green: 0.90, blue: 0.94)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+}
+
 struct TickCardBackground: ViewModifier {
     var tint: Color = Color.accentColor
     var isHighlighted = false
@@ -30,6 +50,11 @@ struct TickCardBackground: ViewModifier {
 }
 
 extension View {
+    func tickScreenBackground() -> some View {
+        scrollContentBackground(.hidden)
+            .background { TickScreenBackground() }
+    }
+
     func tickCard(tint: Color = Color.accentColor, isHighlighted: Bool = false) -> some View {
         modifier(TickCardBackground(tint: tint, isHighlighted: isHighlighted))
     }

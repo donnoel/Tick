@@ -16,6 +16,7 @@ struct AddProjectView: View {
                         .accessibilityHint("Enter a short space name.")
                 }
             }
+            .tickScreenBackground()
             .navigationTitle("New Space")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

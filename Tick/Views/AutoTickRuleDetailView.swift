@@ -33,6 +33,7 @@ struct AutoTickRuleDetailView: View {
                 systemImage: "location.slash",
                 description: Text("Tick could not find this Auto Tick rule.")
             )
+            .tickScreenBackground()
             .navigationTitle("Auto Tick")
         }
     }
@@ -101,6 +102,7 @@ struct AutoTickRuleDetailView: View {
                 .accessibilityHint("Shows a confirmation before deleting this Auto Tick rule.")
             }
         }
+        .tickScreenBackground()
         .navigationTitle("Auto Tick")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

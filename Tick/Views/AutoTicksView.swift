@@ -16,8 +16,7 @@ struct AutoTicksView: View {
                 }
                 rulesSection
             }
-            .scrollContentBackground(.hidden)
-            .background(TickPalette.appBackground)
+            .tickScreenBackground()
             .navigationTitle("Auto Ticks")
             .navigationDestination(for: AutoTickRule.ID.self) { ruleID in
                 if let rule = viewModel.autoTickRule(for: ruleID) {

@@ -49,7 +49,7 @@ struct TodayView: View {
                     .padding(.bottom, 28)
                 }
             }
-            .background(Color(.systemBackground))
+            .tickScreenBackground()
             .navigationTitle("Start Ticking")
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTime) {
@@ -86,80 +86,12 @@ struct TodayView: View {
         activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
-        VStack(alignment: .leading, spacing: dynamicTypeSize.isAccessibilitySize ? 24 : 20) {
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(activeSession == nil ? "Start Ticking" : "Current Tick")
-                        .font(.title.weight(.bold))
-
-                    Text(displayDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 16)
-
-                iPadTimerStatus(activeSession: activeSession)
-            }
-
-            projectSelector(presentation: .iPadHero)
-
-            TodayTimerTimeline(
-                staticTotalDuration: staticTotalDuration(from: sessions, at: displayDate),
-                activeSession: activeSession,
-                activeSessionCountsTowardTotal: activeSession.map { activeSession in
-                    sessions.contains { $0.id == activeSession.id }
-                } ?? false,
-                displayDate: displayDate,
-                presentation: .iPadHero
-            )
-            .frame(maxWidth: .infinity)
-
-            timerActions(presentation: .iPadHero)
-
-            addTimeButton(presentation: .iPadHero)
-                .frame(maxWidth: .infinity)
+        VStack(alignment: .leading, spacing: 20) {
+            todayHeader(at: displayDate)
+            capturePanel(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
         }
-        .padding(.horizontal, 32)
-        .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 28 : 24)
         .frame(maxWidth: 760)
-        .background {
-            RoundedRectangle(cornerRadius: 24)
-                .fill(TickPalette.cardBackground)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                }
-        }
         .frame(maxWidth: .infinity)
-    }
-
-    @ViewBuilder
-    private func iPadTimerStatus(activeSession: TimeSession?) -> some View {
-        if activeSession?.isPaused == true {
-            iPadStatusPill(
-                "Paused",
-                systemImage: "pause.circle.fill",
-                tint: TickPalette.running
-            )
-            .accessibilityLabel("Tick paused")
-        } else if activeSession == nil {
-            iPadStatusPill(
-                "Ready",
-                systemImage: "checkmark.circle.fill",
-                tint: TickPalette.primaryAction
-            )
-            .accessibilityLabel("Ready to start a Tick")
-        }
-    }
-
-    private func iPadStatusPill(_ title: String, systemImage: String, tint: Color) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 12)
-            .frame(minHeight: 36)
-            .background(tint.opacity(0.10), in: Capsule())
     }
 
     private func iPadTodaySessionsSection(
@@ -251,55 +183,69 @@ struct TodayView: View {
         activeSession: TimeSession?,
         displayDate: Date
     ) -> some View {
-        VStack(spacing: 12) {
-            VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 22 : 18) {
-                Text(iPhoneCaptureStatus(activeSession: activeSession))
-                    .font(.caption.weight(.semibold))
-                    .tracking(1)
-                    .foregroundStyle(activeSession == nil ? Color.secondary : selectedProjectAccent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityHidden(true)
-
-                projectSelector()
-
-                timerTimeline(
-                    sessions: sessions,
-                    activeSession: activeSession,
-                    displayDate: displayDate
-                )
-                .frame(maxWidth: .infinity)
-
-                timerActions()
-                    .frame(maxWidth: .infinity)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 20)
-            .background {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(TickPalette.cardBackground)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(selectedProjectAccent.opacity(0.055))
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(selectedProjectAccent.opacity(0.16), lineWidth: 1)
-                    }
-            }
-
-            addTimeButton()
-                .frame(maxWidth: .infinity)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 4)
+        capturePanel(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
     }
 
-    private func iPhoneCaptureStatus(activeSession: TimeSession?) -> String {
-        guard let activeSession else {
-            return "READY TO START"
-        }
+    private func capturePanel(
+        sessions: [TimeSession],
+        activeSession: TimeSession?,
+        displayDate: Date
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            projectSelector()
 
-        return activeSession.isPaused ? "TICK PAUSED" : "CURRENT TICK"
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 20) {
+                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
+                        .fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    panelActions()
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 16) {
+                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate)
+                    panelActions()
+                }
+            }
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    addTimeButton()
+                    Spacer(minLength: 0)
+                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate, presentation: .totalOnly)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    addTimeButton()
+                    timerTimeline(sessions: sessions, activeSession: activeSession, displayDate: displayDate, presentation: .totalOnly)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(TickPalette.cardBackground)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(LinearGradient(
+                            colors: [.blue.opacity(0.10), .mint.opacity(0.12), .pink.opacity(0.07)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+        }
+    }
+
+    private func panelActions() -> some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            timerActionButtons(presentation: .compact)
+        }
     }
 
     @ViewBuilder
@@ -338,96 +284,38 @@ struct TodayView: View {
                     }
                 }
             } label: {
-                if presentation == .iPadHero {
-                    HStack(spacing: 14) {
-                        Circle()
-                            .fill(selectedProjectAccent)
-                            .frame(width: 14, height: 14)
-                            .accessibilityHidden(true)
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("SPACE")
-                                .font(.caption2.weight(.semibold))
-                                .tracking(0.8)
-                                .foregroundStyle(.secondary)
-
-                            Text(selectedProjectName)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                        }
-
-                        Spacer(minLength: 12)
-
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
-                    }
-                    .padding(.horizontal, 18)
-                    .frame(maxWidth: .infinity, minHeight: 58)
-                    .background(selectedProjectAccent.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(selectedProjectAccent.opacity(0.14), lineWidth: 1)
-                    }
-                    .contentShape(Rectangle())
-                } else {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(selectedProjectAccent)
-                            .frame(width: 9, height: 9)
-                            .accessibilityHidden(true)
-
-                        Text(selectedProjectName)
-                            .lineLimit(1)
-
-                        Spacer(minLength: 4)
-
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .background(selectedProjectAccent.opacity(0.06), in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(selectedProjectAccent.opacity(0.14), lineWidth: 1)
-                    }
-                    .contentShape(Rectangle())
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(selectedProjectAccent)
+                        .frame(width: 9, height: 9)
+                        .accessibilityHidden(true)
+                    Text(selectedProjectName)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 0)
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .accessibilityLabel("Space, \(selectedProjectName)")
             .accessibilityHint("Choose the space for the next timer session.")
         }
     }
 
-    private func addTimeButton(presentation: CapturePresentation = .compact) -> some View {
+    private func addTimeButton() -> some View {
         Button {
             isAddingTime = true
         } label: {
-            if presentation == .iPadHero {
-                Label("Add Time", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .foregroundStyle(TickPalette.primaryAction)
-                    .frame(minWidth: 120, minHeight: 44)
-                    .contentShape(Rectangle())
-            } else {
-                Label("Add Time", systemImage: "plus.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(TickPalette.primaryAction)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color.secondary.opacity(0.06), in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    }
-                    .contentShape(Rectangle())
-            }
+            Label("Add Time", systemImage: "plus")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(TickPalette.primaryAction)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(viewModel.activeProjects.isEmpty)
@@ -439,7 +327,8 @@ struct TodayView: View {
     private func timerTimeline(
         sessions: [TimeSession],
         activeSession: TimeSession?,
-        displayDate: Date
+        displayDate: Date,
+        presentation: TodayTimerDisplay.Presentation = .compact
     ) -> some View {
         TodayTimerTimeline(
             staticTotalDuration: staticTotalDuration(from: sessions, at: displayDate),
@@ -447,53 +336,9 @@ struct TodayView: View {
             activeSessionCountsTowardTotal: activeSession.map { activeSession in
                 sessions.contains { $0.id == activeSession.id }
             } ?? false,
-            displayDate: displayDate
+            displayDate: displayDate,
+            presentation: presentation
         )
-    }
-
-    @ViewBuilder
-    private func timerActions(presentation: CapturePresentation = .compact) -> some View {
-        if presentation == .iPadHero {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(spacing: 14) {
-                    timerActionButtons(presentation: presentation)
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 14) {
-                        timerActionButtons(presentation: presentation)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    VStack(spacing: 14) {
-                        timerActionButtons(presentation: presentation)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        } else if viewModel.activeSession != nil {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(spacing: 10) {
-                    timerActionButtons(presentation: presentation)
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) {
-                        timerActionButtons(presentation: presentation)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    VStack(spacing: 10) {
-                        timerActionButtons(presentation: presentation)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        } else {
-            timerActionButtons(presentation: presentation)
-        }
     }
 
     @ViewBuilder
@@ -505,7 +350,7 @@ struct TodayView: View {
                     title: "Resume Tick",
                     tint: TickPalette.primaryAction,
                     isProminent: true,
-                    minimumWidth: presentation == .iPadHero ? 240 : 124,
+                    minimumWidth: presentation == .iPadHero ? 240 : 84,
                     presentation: presentation == .iPadHero ? .iPadHero : .compact
                 ) {
                     Task {
@@ -520,7 +365,7 @@ struct TodayView: View {
                     title: "Pause Tick",
                     tint: TickPalette.running,
                     isProminent: true,
-                    minimumWidth: presentation == .iPadHero ? 240 : 124,
+                    minimumWidth: presentation == .iPadHero ? 240 : 84,
                     presentation: presentation == .iPadHero ? .iPadHero : .compact
                 ) {
                     Task {
@@ -551,7 +396,7 @@ struct TodayView: View {
                 title: "Start Tick",
                 tint: TickPalette.primaryAction,
                 isProminent: true,
-                minimumWidth: presentation == .iPadHero ? 240 : 170,
+                minimumWidth: presentation == .iPadHero ? 240 : 84,
                 presentation: presentation == .iPadHero ? .iPadHero : .compact
             ) {
                 Task {
@@ -670,86 +515,45 @@ private struct TodayHeader: View {
 private struct TodayTimerDisplay: View {
     enum Presentation {
         case compact
-        case iPadHero
+        case totalOnly
     }
 
-    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 48.0
-    @ScaledMetric(relativeTo: .largeTitle) private var iPadTimerFontSize = 72.0
-
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 44.0
     let totalDuration: TimeInterval
     let activeSession: TimeSession?
     let displayDate: Date
     var presentation: Presentation = .compact
 
     var body: some View {
-        switch presentation {
-        case .compact:
-            compactDisplay
-        case .iPadHero:
-            iPadHeroDisplay
-        }
-    }
-
-    private var compactDisplay: some View {
-        VStack(spacing: 4) {
-            Text(TickDurationFormatter.timerString(from: activeSession?.duration(at: displayDate) ?? 0))
-                .font(.system(size: timerFontSize, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .minimumScaleFactor(0.62)
-                .lineLimit(1)
-
+        if presentation == .totalOnly {
             Text("Today total \(TickDurationFormatter.timerString(from: totalDuration))")
                 .font(.subheadline)
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity)
-        .multilineTextAlignment(.center)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-    }
-
-    private var iPadHeroDisplay: some View {
-        VStack(spacing: 5) {
-            Text(activeSession == nil ? "TODAY'S TIME" : activeSession?.isPaused == true ? "PAUSED AT" : "ELAPSED")
-                .font(.caption.weight(.semibold))
-                .tracking(1.1)
                 .foregroundStyle(.secondary)
-
-            Text(TickDurationFormatter.timerString(from: primaryDuration))
-                .font(.system(size: iPadTimerFontSize, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-                .minimumScaleFactor(0.55)
-                .lineLimit(1)
-
-            if activeSession != nil {
-                Text("Today total \(TickDurationFormatter.timerString(from: totalDuration))")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 3) {
+                if let activeSession {
+                    Text(activeSession.isPaused ? "Paused" : "Running")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                Text(TickDurationFormatter.timerString(from: activeSession?.duration(at: displayDate) ?? 0))
+                    .font(.system(size: timerFontSize, weight: .medium))
                     .monospacedDigit()
-            } else {
-                Text("Ready when you are")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                    .minimumScaleFactor(0.62)
+                    .lineLimit(1)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
         }
-        .frame(maxWidth: .infinity)
-        .multilineTextAlignment(.center)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-    }
-
-    private var primaryDuration: TimeInterval {
-        activeSession?.duration(at: displayDate) ?? totalDuration
     }
 
     private var accessibilityLabel: String {
         if let activeSession {
             let status = activeSession.isPaused ? "Paused Tick" : "Running Tick"
-            return "\(status), elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate))), \(TickDurationFormatter.shortString(from: totalDuration)) today"
+            return "\(status), elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate)))"
         }
-
-        return "Today's total recorded time, \(TickDurationFormatter.shortString(from: totalDuration)). Ready when you are."
+        return "Ready to start a Tick"
     }
 }
 
@@ -830,7 +634,7 @@ private struct TimerTextButton: View {
     let title: String
     let tint: Color
     let isProminent: Bool
-    var minimumWidth = 124.0
+    var minimumWidth = 84.0
     var presentation: Presentation = .compact
     let action: () -> Void
 
@@ -860,13 +664,14 @@ private struct TimerTextButton: View {
     private var button: some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
-                .font(presentation == .iPadHero ? .title3.weight(.semibold) : .headline)
+                .font(presentation == .iPadHero ? .title3.weight(.semibold) : .subheadline.weight(.semibold))
                 .frame(
                     minWidth: minimumWidth,
                     maxWidth: presentation == .iPadHero ? (isProminent ? 300 : 260) : nil,
-                    minHeight: presentation == .iPadHero ? 58 : 46
+                    minHeight: presentation == .iPadHero ? 58 : 28
                 )
         }
+        .frame(minHeight: 44)
         .clipShape(Capsule())
         .accessibilityLabel(title)
     }

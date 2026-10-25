@@ -87,8 +87,7 @@ struct SummariesView: View {
                         )
                     }
                 }
-                .scrollContentBackground(.hidden)
-                .background(TickPalette.appBackground)
+                .tickScreenBackground()
             }
             .navigationTitle("Summaries")
             .navigationDestination(item: $selectedReport) { destination in

@@ -33,6 +33,7 @@ struct SessionDetailView: View {
                 .navigationTitle("Session")
             }
         }
+        .tickScreenBackground()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {

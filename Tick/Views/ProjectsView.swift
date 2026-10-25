@@ -101,8 +101,7 @@ struct ProjectsView: View {
                     .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 28, trailing: 16))
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(TickPalette.appBackground)
+            .tickScreenBackground()
             .navigationTitle("Spaces")
             .toolbar {
                 if canReorderProjects(activeProjects: orderedActiveProjects, archivedProjects: archivedProjects) && selectedSortMode == .manual {

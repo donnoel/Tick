@@ -1,6 +1,54 @@
 import XCTest
 
 final class TickUITests: XCTestCase {
+    func testCompactCapturePanelPreservesTimerAndManualEntryControls() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = launchResetApp()
+        createProject(named: "Design Studio", in: app)
+        tab(named: "Today", in: app).tap()
+
+        func capture(_ name: String) {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+
+        let start = app.buttons["today.playButton"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertTrue(start.isHittable)
+        capture("Compact timer - ready")
+        start.tap()
+        let pause = app.buttons["today.pauseButton"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        XCTAssertTrue(pause.waitUntilEnabled(timeout: 5))
+        capture("Compact timer - running")
+        pause.tap()
+        let resume = app.buttons["today.playButton"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 5))
+        XCTAssertEqual(resume.label, "Resume Tick")
+        capture("Compact timer - paused")
+        resume.tap()
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        let stop = app.buttons["today.stopButton"]
+        XCTAssertTrue(stop.waitUntilEnabled(timeout: 5))
+        stop.tap()
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertEqual(start.label, "Start Tick")
+        let addTime = app.buttons["today.addTimeButton"]
+        XCTAssertTrue(addTime.isHittable)
+        addTime.tap()
+        XCTAssertTrue(app.textFields["manualTime.titleField"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        for title in ["Spaces", "Auto Ticks", "Summaries"] {
+            tab(named: title, in: app).tap()
+            capture("Pastel theme - \(title)")
+        }
+        tab(named: "Today", in: app).tap()
+    }
+
     func testPrimaryTabsExist() throws {
         let app = XCUIApplication()
         app.launch()
@@ -35,7 +83,7 @@ final class TickUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["1 Tick"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Ticking..."].waitForExistence(timeout: 5))
     }
 
     func testSpaceAndSessionPersistAfterRelaunch() throws {

@@ -37,8 +37,7 @@ struct ProjectDetailView: View {
 
                 sessionsSection(for: currentProject, at: timeline.date, accent: projectAccent)
             }
-            .scrollContentBackground(.hidden)
-            .background(TickPalette.appBackground)
+            .tickScreenBackground()
         }
         .navigationTitle(currentProject.name)
         .navigationBarTitleDisplayMode(.inline)
