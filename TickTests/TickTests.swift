@@ -2274,7 +2274,7 @@ final class TickTests: XCTestCase {
         let saved = try await store.load()
         XCTAssertEqual(saved.sessions.filter(\.isActive).count, 1)
         XCTAssertEqual(saved.sessions.count, 1)
-        XCTAssertTrue(viewModel.errorMessage?.contains("Another Tick started") == true)
+        XCTAssertTrue(viewModel.errorMessage?.contains("this Space has an active Tick") == true)
     }
 
     func testWidgetStopCannotStopReplacementTickAfterRefresh() async throws {
