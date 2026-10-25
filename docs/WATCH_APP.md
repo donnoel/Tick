@@ -63,8 +63,8 @@ refreshes it. Source inspection does not establish measured battery drain.
 
 - Shared model, sync failure, merge, and persistence tests:
   `swift test -Xswiftc -warnings-as-errors`.
-- `TickWatchUITests` exercises Space selection, Start/Pause/Resume/Stop, locked
-  active Space, and relaunch while paused against an isolated simulator fixture.
+- `TickWatchUITests` exercises Space selection, Start/Pause/Resume/Stop,
+  relaunch while paused, and selection between two active Ticks against isolated simulator fixtures.
 - Use `-watchPreviewFixture` only in a Debug Watch simulator to show sample
   Spaces. Fixture cloud data is local and separate from real iCloud.
 - Add `-watchPreviewOffline` to that fixture to simulate a temporary fetch
@@ -155,3 +155,17 @@ Before publication, the Xcode 26.6/iOS 26.5 CI script's clean build and all 113
 unit tests passed without warnings. The additional iPhone UI run was stopped
 at Don's request; it does not establish a full CI pass. The separate Watch UI
 suite result above remains the validation for the changed Watch layout.
+
+## Two active Ticks — October 25, 2026
+
+When two Spaces have active Ticks, the Watch selects an active Space if its saved
+selection is idle. The header shows “2 active”; tapping it lists active Spaces
+first with Running or Paused status. Choosing either Space makes Pause, Resume,
+and Stop act on that Space's Tick. The header and controls retain their compact
+layout. This adds no timer mutation, data migration, or background polling.
+
+Build 38 passed warning-as-error Watch and iOS builds, strict signature checks,
+and both Watch UI tests on the watchOS 27 simulator. The two-active simulator
+view was inspected for visible Pause and Stop controls. Build 38 was installed
+on Don's Apple Watch. Live two-Tick cloud sync and physical accessibility checks
+remain user-validation items.

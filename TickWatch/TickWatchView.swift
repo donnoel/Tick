@@ -79,13 +79,24 @@ struct TickWatchView: View {
         Group {
             if !viewModel.spaces.isEmpty {
                 Button { isChoosingSpace = true } label: {
-                    Text(viewModel.displayedSpace?.name ?? "Choose Space")
+                    HStack(spacing: 6) {
+                        Text(viewModel.displayedSpace?.name ?? "Choose Space")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        if viewModel.activeSessionCount == 2 {
+                            Text("2 active")
+                                .font(.system(size: statusFontSize, weight: .semibold))
+                                .foregroundStyle(secondaryInk)
+                        }
+                    }
                         .padding(.horizontal, 14)
                         .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Choose Space")
-                .accessibilityValue(viewModel.displayedSpace?.name ?? "None selected")
+                .accessibilityValue(viewModel.activeSessionCount == 2
+                    ? "\(viewModel.displayedSpace?.name ?? "None selected"), 2 Ticks active"
+                    : viewModel.displayedSpace?.name ?? "None selected")
                 .accessibilityHint("Choose the Space and its Tick to control.")
                 .disabled(viewModel.isActing)
             } else {
@@ -194,7 +205,7 @@ private struct TickWatchSpacePicker: View {
 
     var body: some View {
         NavigationStack {
-            List(viewModel.spaces) { space in
+            List(viewModel.pickerSpaces) { space in
                 Button {
                     viewModel.selectedSpaceID = space.id
                     dismiss()
@@ -202,13 +213,20 @@ private struct TickWatchSpacePicker: View {
                     HStack {
                         Text(space.name)
                         Spacer()
+                        if let session = viewModel.activeSession(for: space.id) {
+                            Text(session.pausedAt == nil ? "Running" : "Paused")
+                                .font(.caption2)
+                        }
                         if space.id == viewModel.selectedSpaceID { Image(systemName: "checkmark").accessibilityHidden(true) }
                     }
                 }
                 .foregroundStyle(isLuminanceReduced ? TickWatchPalette.dimmedInk : TickWatchPalette.ink)
                 .listRowBackground(isLuminanceReduced ? TickWatchPalette.dimmedSurface : Color.white.opacity(0.45))
                 .accessibilityLabel(space.name)
-                .accessibilityValue(space.id == viewModel.selectedSpaceID ? "Selected" : "")
+                .accessibilityValue([
+                    viewModel.activeSession(for: space.id).map { $0.pausedAt == nil ? "Running" : "Paused" },
+                    space.id == viewModel.selectedSpaceID ? "Selected" : nil
+                ].compactMap { $0 }.joined(separator: ", "))
             }
             .navigationTitle("Spaces")
             .toolbarForegroundStyle(isLuminanceReduced ? TickWatchPalette.dimmedInk : TickWatchPalette.ink, for: .navigationBar)

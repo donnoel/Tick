@@ -29,10 +29,23 @@ final class TickWatchViewModel {
     var spaces: [TickWidgetStoredProject] {
         TickWidgetStoredProject.activeSortedByDisplayOrder(state.snapshot.projects)
     }
-    var activeSession: TickWidgetStoredSession? {
-        state.snapshot.sessions.first { $0.isActive && $0.projectID == selectedSpaceID }
+    var activeSessions: [TickWidgetStoredSession] {
+        state.snapshot.sessions.filter(\.isActive).sorted {
+            if $0.referenceDate == $1.referenceDate { return $0.id.uuidString < $1.id.uuidString }
+            return $0.referenceDate < $1.referenceDate
+        }
     }
-    var activeSessionCount: Int { state.snapshot.sessions.filter(\.isActive).count }
+    var activeSession: TickWidgetStoredSession? {
+        activeSessions.first { $0.projectID == selectedSpaceID }
+    }
+    var activeSessionCount: Int { activeSessions.count }
+    var pickerSpaces: [TickWidgetStoredProject] {
+        let activeIDs = Set(activeSessions.map(\.projectID))
+        return spaces.filter { activeIDs.contains($0.id) } + spaces.filter { !activeIDs.contains($0.id) }
+    }
+    func activeSession(for projectID: UUID) -> TickWidgetStoredSession? {
+        activeSessions.first { $0.projectID == projectID }
+    }
     var displayedSpace: TickWidgetStoredProject? {
         state.snapshot.projects.first { $0.id == (activeSession?.projectID ?? selectedSpaceID) }
     }
@@ -116,6 +129,14 @@ final class TickWatchViewModel {
 
     private func apply(_ state: TickCloudClientState) {
         self.state = state
-        if !spaces.contains(where: { $0.id == selectedSpaceID }) { selectedSpaceID = spaces.first?.id }
+        if activeSessions.count == 2,
+           !activeSessions.contains(where: { $0.projectID == selectedSpaceID }),
+           let firstActiveSpace = activeSessions.first(where: { session in
+               spaces.contains { $0.id == session.projectID }
+           }) {
+            selectedSpaceID = firstActiveSpace.projectID
+        } else if !spaces.contains(where: { $0.id == selectedSpaceID }) {
+            selectedSpaceID = spaces.first?.id
+        }
     }
 }

@@ -11,6 +11,36 @@ enum TickWatchPreview {
         return TickCloudClientStore(transport: PreviewTransport(), fileURL: path)
     }
 
+    static func twoActiveStore() -> TickCloudClientStore {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tick-watch-two-active-\(UUID().uuidString).json")
+        return TickCloudClientStore(
+            transport: PreviewTransport(initialSnapshot: twoActiveSnapshot()), fileURL: path
+        )
+    }
+
+    private static func twoActiveSnapshot() -> TickWidgetStorageSnapshot {
+        let beamID = UUID(uuidString: "10000000-0000-0000-0000-000000000001")!
+        let mosaID = UUID(uuidString: "10000000-0000-0000-0000-000000000002")!
+        let tickID = UUID(uuidString: "10000000-0000-0000-0000-000000000003")!
+        let startedAt = Date.now.addingTimeInterval(-120)
+        return TickWidgetStorageSnapshot(
+            projects: [
+                TickWidgetStoredProject(id: beamID, name: "Beam", createdAt: .distantPast, isArchived: false, sortOrder: 0),
+                TickWidgetStoredProject(id: mosaID, name: "Mosa", createdAt: .distantPast, isArchived: false, sortOrder: 1),
+                TickWidgetStoredProject(id: tickID, name: "Tick", createdAt: .distantPast, isArchived: false, sortOrder: 2)
+            ],
+            sessions: [mosaID, tickID].enumerated().map { index, projectID in
+                TickWidgetStoredSession(
+                    id: UUID(uuidString: "20000000-0000-0000-0000-00000000000\(index + 1)")!,
+                    projectID: projectID, title: "", notes: "", startedAt: startedAt.addingTimeInterval(Double(index) * 30),
+                    endedAt: nil, manualDuration: nil, entrySource: "timer", autoTickRuleID: nil,
+                    createdAt: startedAt.addingTimeInterval(Double(index) * 30)
+                )
+            }
+        )
+    }
+
     static func unavailableStore() -> TickCloudClientStore {
         TickCloudClientStore(transport: UnavailableTransport(), fileURL:
             FileManager.default.temporaryDirectory.appendingPathComponent("tick-watch-simulator.json"))
@@ -29,10 +59,16 @@ enum TickWatchPreview {
 
     private actor PreviewTransport: TickCloudTransport {
         private var payload: TickCloudPayload
-        private let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("tick-watch-preview-cloud.json")
+        private let fileURL: URL
 
-        init() {
-            let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("tick-watch-preview-cloud.json")
+        init(initialSnapshot: TickWidgetStorageSnapshot? = nil) {
+            fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+                initialSnapshot == nil ? "tick-watch-preview-cloud.json" : "tick-watch-two-active-cloud-\(UUID().uuidString).json"
+            )
+            if let initialSnapshot {
+                payload = TickCloudPayload(snapshot: initialSnapshot)
+                return
+            }
             if let data = try? Data(contentsOf: fileURL), let saved = try? TickCloudCodec.decode(TickCloudPayload.self, from: data) {
                 payload = saved
                 return

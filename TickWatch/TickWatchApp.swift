@@ -18,6 +18,9 @@ enum TickWatchServices {
     static let store: TickCloudClientStore = {
         #if targetEnvironment(simulator)
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-watchPreviewTwoActive") {
+            return TickWatchPreview.twoActiveStore()
+        }
         if ProcessInfo.processInfo.arguments.contains("-watchPreviewFixture") {
             return TickWatchPreview.store()
         }

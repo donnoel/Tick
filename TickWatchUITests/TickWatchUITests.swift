@@ -1,6 +1,44 @@
 import XCTest
 
 nonisolated final class TickWatchUITests: XCTestCase {
+    @MainActor func testTwoActiveTicksAreVisibleAndSelectable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-watchPreviewTwoActive"]
+        app.launch()
+
+        let choose = app.buttons["Choose Space"]
+        XCTAssertTrue(choose.waitForExistence(timeout: 10))
+        XCTAssertEqual(choose.value as? String, "Mosa, 2 Ticks active")
+        XCTAssertTrue(app.buttons["Pause Tick"].exists)
+
+        choose.tap()
+        let mosa = app.buttons["Mosa"]
+        let tick = app.buttons["Tick"]
+        XCTAssertTrue(mosa.waitForExistence(timeout: 5))
+        XCTAssertTrue(tick.waitForExistence(timeout: 5))
+        XCTAssertTrue((mosa.value as? String)?.contains("Running") == true)
+        XCTAssertTrue((tick.value as? String)?.contains("Running") == true)
+        XCTAssertLessThan(mosa.frame.minY, app.buttons["Beam"].frame.minY)
+        XCTAssertLessThan(tick.frame.minY, app.buttons["Beam"].frame.minY)
+        tick.tap()
+        XCTAssertEqual(choose.value as? String, "Tick, 2 Ticks active")
+        XCTAssertTrue(app.buttons["Pause Tick"].exists)
+
+        choose.tap()
+        XCTAssertTrue(app.buttons["Beam"].waitForExistence(timeout: 5))
+        app.buttons["Beam"].tap()
+        let start = app.buttons["Start Tick"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertFalse(start.isEnabled)
+        XCTAssertEqual(choose.value as? String, "Beam, 2 Ticks active")
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(choose.waitForExistence(timeout: 10))
+        XCTAssertEqual(choose.value as? String, "Mosa, 2 Ticks active")
+        XCTAssertTrue(app.buttons["Pause Tick"].exists)
+    }
+
     @MainActor func testChooseSpaceStartPauseResumeStopAndRelaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-watchPreviewFixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"]
@@ -32,9 +70,8 @@ nonisolated final class TickWatchUITests: XCTestCase {
         XCTAssertEqual(timer.frame.minY, readyTimerFrame.minY, accuracy: 1)
         XCTAssertLessThanOrEqual(pause.frame.maxY, app.frame.maxY - 10)
         XCTAssertLessThanOrEqual(stop.frame.maxY, app.frame.maxY - 10)
-        XCTAssertTrue(app.staticTexts["Active Space, Mosa"].exists)
-        XCTAssertEqual(app.staticTexts["Active Space, Mosa"].frame.midY, readySpaceFrame.midY, accuracy: 1)
-        XCTAssertFalse(app.buttons["Choose Space"].exists)
+        XCTAssertEqual(app.buttons["Choose Space"].value as? String, "Mosa")
+        XCTAssertEqual(app.buttons["Choose Space"].frame.midY, readySpaceFrame.midY, accuracy: 1)
         attachScreenshot(app, name: "Running")
         let pauseFrame = pause.frame
         app.buttons["Pause Tick"].tap()
