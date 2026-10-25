@@ -258,10 +258,9 @@ struct TodayView: View {
         if let projectID, let otherProjectID {
             timerCard(sessions: sessions, projectID: projectID, activeSession: activeSession,
                       displayDate: displayDate, isSecondary: isSecondary, isFirst: isFirst,
-                      showsDragHandle: true)
+                      dragItem: projectID.uuidString)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier(isSecondary ? "today.timerCard.secondary" : "today.timerCard")
-                .draggable(projectID.uuidString)
                 .dropDestination(for: String.self) { items, _ in
                     guard items.contains(otherProjectID.uuidString) else { return false }
                     swapTimerCards(topProjectID: isFirst ? projectID : otherProjectID,
@@ -275,24 +274,24 @@ struct TodayView: View {
         } else {
             timerCard(sessions: sessions, projectID: projectID, activeSession: activeSession,
                       displayDate: displayDate, isSecondary: isSecondary, isFirst: isFirst,
-                      showsDragHandle: false)
+                      dragItem: nil)
         }
     }
 
     @ViewBuilder
     private func timerCard(
         sessions: [TimeSession], projectID: TickProject.ID?, activeSession: TimeSession?,
-        displayDate: Date, isSecondary: Bool, isFirst: Bool, showsDragHandle: Bool
+        displayDate: Date, isSecondary: Bool, isFirst: Bool, dragItem: String?
     ) -> some View {
         if UIDevice.current.userInterfaceIdiom == .phone, !isFirst,
            activeSession == nil, !isSecondTimerExpanded, let projectID {
-            collapsedSecondTimer(projectID: projectID, showsDragHandle: showsDragHandle)
+            collapsedSecondTimer(projectID: projectID, dragItem: dragItem)
         } else {
             capturePanel(sessions: sessions, projectID: projectID, activeSession: activeSession,
                          displayDate: displayDate, isSecondary: isSecondary,
                          showsCollapseButton: UIDevice.current.userInterfaceIdiom == .phone
                              && !isFirst && activeSession == nil,
-                         showsDragHandle: showsDragHandle)
+                         dragItem: dragItem)
         }
     }
 
@@ -302,7 +301,7 @@ struct TodayView: View {
         }
     }
 
-    private func collapsedSecondTimer(projectID: TickProject.ID, showsDragHandle: Bool) -> some View {
+    private func collapsedSecondTimer(projectID: TickProject.ID, dragItem: String?) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = true }
         } label: {
@@ -318,11 +317,16 @@ struct TodayView: View {
                 Text("Start another Tick")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if showsDragHandle {
+                if let dragItem {
                     Image(systemName: "line.3.horizontal")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
+                        .frame(width: 28, height: 44)
+                        .contentShape(Rectangle())
+                        .draggable(dragItem)
+                        .accessibilityIdentifier("today.timerDragHandle.secondary")
+                        .accessibilityLabel("Reorder \(projectName(for: projectID)) timer")
+                        .accessibilityHint("Drag to change the timer order.")
                 }
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
@@ -350,17 +354,22 @@ struct TodayView: View {
         displayDate: Date,
         isSecondary: Bool,
         showsCollapseButton: Bool = false,
-        showsDragHandle: Bool = false
+        dragItem: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 projectSelector(projectID: projectID, activeSession: activeSession, isSecondary: isSecondary)
-                if showsDragHandle {
+                if let dragItem {
                     Image(systemName: "line.3.horizontal")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 44)
-                        .accessibilityHidden(true)
+                        .contentShape(Rectangle())
+                        .draggable(dragItem)
+                        .accessibilityIdentifier(isSecondary
+                            ? "today.timerDragHandle.secondary" : "today.timerDragHandle")
+                        .accessibilityLabel("Reorder timer")
+                        .accessibilityHint("Drag to change the timer order.")
                 }
                 if showsCollapseButton {
                     Button {

@@ -401,7 +401,9 @@ final class TickUITests: XCTestCase {
         }
 
         XCTAssertTrue(isBefore(firstCard, secondCard))
-        let dragPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.87, dy: 0.12))
+        let dragHandle = app.descendants(matching: .any)["today.timerDragHandle"]
+        XCTAssertTrue(dragHandle.waitForExistence(timeout: 5))
+        let dragPoint = dragHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let dropPoint = secondCard.coordinate(withNormalizedOffset: CGVector(dx: 0.87, dy: 0.12))
         dragPoint.press(forDuration: 0.8, thenDragTo: dropPoint)
 
@@ -428,7 +430,9 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(secondCard.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["today.secondTimer.expand"].exists)
 
-        let dragPoint = secondCard.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        let dragHandle = app.descendants(matching: .any)["today.timerDragHandle.secondary"]
+        XCTAssertTrue(dragHandle.waitForExistence(timeout: 5))
+        let dragPoint = dragHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let dropPoint = firstCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         dragPoint.press(
             forDuration: 1.0,
