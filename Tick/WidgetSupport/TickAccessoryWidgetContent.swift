@@ -54,11 +54,11 @@ nonisolated enum TickAccessoryWidgetContentBuilder {
                 state: .active,
                 rectangularTitle: "2 Ticks active",
                 rectangularDetail: total,
-                rectangularFootnote: "Open to choose",
+                rectangularFootnote: nil,
                 circularText: "2",
                 circularSystemImage: "timer",
                 inlineText: "2 Ticks active",
-                accessibilityLabel: "Two Ticks active. Open Ticks to choose which one to control."
+                accessibilityLabel: "Two Ticks active. \(total) today."
             )
         }
         let projectName = snapshot.activeProjectName ?? "Ticks"

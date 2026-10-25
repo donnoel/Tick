@@ -273,11 +273,9 @@ struct TickWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                if entry.snapshot.needsTickChoice {
-                    Label("Open Ticks to choose", systemImage: "arrow.up.right")
-                        .font(.caption.weight(.semibold))
-                        .accessibilityHint("Opens Today to choose which Tick to control.")
-                } else {
+                if let secondarySession = entry.snapshot.secondarySession {
+                    secondarySessionBadge(secondarySession)
+                } else if !entry.snapshot.needsTickChoice {
                     compactPrimaryActionButton(
                         title: "Stop Tick",
                         systemImage: "stop.fill",
@@ -321,11 +319,9 @@ struct TickWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                if entry.snapshot.needsTickChoice {
-                    Label("2 Ticks active · Open to choose", systemImage: "arrow.up.right")
-                        .font(.caption.weight(.semibold))
-                        .accessibilityHint("Opens Today to choose which Tick to control.")
-                } else {
+                if let secondarySession = entry.snapshot.secondarySession {
+                    secondarySessionBadge(secondarySession)
+                } else if !entry.snapshot.needsTickChoice {
                     actionFooter(
                         title: "Stop Tick",
                         caption: activeStatusCaption(isStale: isStale),
@@ -336,6 +332,54 @@ struct TickWidgetView: View {
                 }
             }
         }
+    }
+
+    private func secondarySessionBadge(_ session: TickWidgetSecondarySession) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: -3) {
+                Circle()
+                    .fill(TickWidgetStyle.running)
+                    .frame(width: 11, height: 11)
+                Circle()
+                    .fill(TickWidgetStyle.primary)
+                    .frame(width: 11, height: 11)
+            }
+            .frame(width: 19, height: 11)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(session.isPaused ? "ALSO PAUSED" : "ALSO TICKING")
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(TickWidgetStyle.running)
+                    .lineLimit(1)
+                Text(session.projectName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: 240, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    TickWidgetStyle.mint.opacity(colorScheme == .dark ? 0.14 : 0.48),
+                    TickWidgetStyle.butter.opacity(colorScheme == .dark ? 0.13 : 0.42)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            ),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(TickWidgetStyle.running.opacity(0.16), lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(session.projectName) is \(session.isPaused ? "paused" : "also running")")
     }
 
     @ViewBuilder
@@ -601,8 +645,7 @@ struct TickWidgetView: View {
             .accessibilityHint("Starts a Tick for the default space.")
         case .active:
             if entry.snapshot.needsTickChoice {
-                Image(systemName: "arrow.up.right")
-                    .accessibilityLabel("Open Ticks to choose which Tick to control")
+                EmptyView()
             } else {
                 Button(intent: StopTickIntent()) {
                     Image(systemName: "stop.fill")

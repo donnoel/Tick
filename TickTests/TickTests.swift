@@ -1564,6 +1564,7 @@ final class TickTests: XCTestCase {
         XCTAssertEqual(snapshot.activeSessionID, id)
         XCTAssertNil(snapshot.activePausedAt)
         XCTAssertNil(snapshot.activeElapsedDuration)
+        XCTAssertNil(snapshot.secondarySession)
         XCTAssertFalse(snapshot.isActivePaused)
         XCTAssertEqual(
             snapshot.runningTimerStartDate,
@@ -1583,8 +1584,19 @@ final class TickTests: XCTestCase {
                                                           at: date.addingTimeInterval(20))
         XCTAssertTrue(snapshot.needsTickChoice)
         XCTAssertEqual(snapshot.activeProjectName, "Ticks")
+        XCTAssertEqual(snapshot.secondarySession?.projectName, "Puzzles")
+        XCTAssertEqual(snapshot.secondarySession?.isPaused, false)
         let content = TickAccessoryWidgetContentBuilder.content(from: snapshot, at: date.addingTimeInterval(20))
         XCTAssertEqual(content.rectangularTitle, "2 Ticks active")
+        XCTAssertNil(content.rectangularFootnote)
+        XCTAssertEqual(content.accessibilityLabel, "Two Ticks active. 0m today.")
+
+        let firstSessionID = try XCTUnwrap(storage.sessions.first { $0.projectID == first.id }?.id)
+        try TickTimerMutation.pause(in: &storage, sessionID: firstSessionID, at: date.addingTimeInterval(30))
+        let pausedSnapshot = TickWidgetSnapshotBuilder.snapshot(from: storage, defaultProjectID: second.id,
+                                                                at: date.addingTimeInterval(40))
+        XCTAssertEqual(pausedSnapshot.secondarySession?.projectName, "Puzzles")
+        XCTAssertEqual(pausedSnapshot.secondarySession?.isPaused, true)
     }
 
     func testAccessoryRectangularNoProjectContent() {

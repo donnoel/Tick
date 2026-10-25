@@ -1,5 +1,10 @@
 import Foundation
 
+nonisolated struct TickWidgetSecondarySession: Codable, Equatable {
+    var projectName: String
+    var isPaused: Bool
+}
+
 nonisolated struct TickWidgetSnapshot: Codable, Equatable {
     var hasProjects: Bool
     var defaultProjectID: UUID?
@@ -14,6 +19,7 @@ nonisolated struct TickWidgetSnapshot: Codable, Equatable {
     var lastUpdatedAt: Date
     var runningStateConfirmedAt: Date? = nil
     var activeSessionCount: Int? = nil
+    var secondarySession: TickWidgetSecondarySession? = nil
 
     var needsTickChoice: Bool { (activeSessionCount ?? 1) > 1 }
 
@@ -100,6 +106,7 @@ nonisolated enum TickWidgetSnapshotBuilder {
         let activeSessions = storageSnapshot.sessions.filter(\.isActive)
         let activeSession = activeSessions.first { $0.projectID == verifiedDefaultProject?.id }
             ?? activeSessions.first
+        let secondarySession = activeSessions.first { $0.id != activeSession?.id }
         let activeProject = activeSession.flatMap { session in
             storageSnapshot.projects.first { $0.id == session.projectID }
         }
@@ -119,6 +126,13 @@ nonisolated enum TickWidgetSnapshotBuilder {
             lastUpdatedAt: date
         )
         snapshot.activeSessionCount = activeSessions.count
+        if let secondarySession,
+           let secondaryProject = storageSnapshot.projects.first(where: { $0.id == secondarySession.projectID }) {
+            snapshot.secondarySession = TickWidgetSecondarySession(
+                projectName: secondaryProject.name,
+                isPaused: secondarySession.pausedAt != nil
+            )
+        }
         return snapshot
     }
 
