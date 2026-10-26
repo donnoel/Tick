@@ -13,6 +13,7 @@ Tick.xcodeproj/xcshareddata/xcschemes/*
 
 # SwiftPM
 .build/
+.swiftpm/
 
 # macOS
 .DS_Store
