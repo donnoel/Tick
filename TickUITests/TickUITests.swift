@@ -420,6 +420,40 @@ final class TickUITests: XCTestCase {
         XCTAssertTrue(isBefore(secondCard, firstCard))
     }
 
+    func testIPadTodayCardsStayAlignedWithRunningTickAndLongTitle() throws {
+        let app = launchResetApp(fixture: .iPadAlignment)
+        guard app.frame.width > 700 else { throw XCTSkip("iPad layout only") }
+
+        let rows = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "today.sessionRow.")
+        )
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows.element(boundBy: 0).frame.height, rows.element(boundBy: 1).frame.height, accuracy: 2)
+        XCTAssertTrue((0..<rows.count).contains {
+            rows.element(boundBy: $0).label.contains("detailed project description")
+        })
+
+        let firstCard = app.otherElements["today.timerCard"]
+        let secondCard = app.otherElements["today.timerCard.secondary"]
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondCard.waitForExistence(timeout: 5))
+        app.buttons["today.playButton"].tap()
+        let pause = app.buttons["today.pauseButton"]
+        let stop = app.buttons["today.stopButton"]
+        let otherStart = app.buttons["today.playButton.secondary"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        XCTAssertEqual(firstCard.frame.height, secondCard.frame.height, accuracy: 2)
+        XCTAssertEqual(pause.frame.midY, otherStart.frame.midY, accuracy: 2)
+        XCTAssertEqual(stop.frame.midY, otherStart.frame.midY, accuracy: 2)
+
+        pause.tap()
+        let resume = app.buttons["today.playButton"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 5))
+        XCTAssertEqual(firstCard.frame.height, secondCard.frame.height, accuracy: 2)
+        XCTAssertEqual(resume.frame.midY, otherStart.frame.midY, accuracy: 2)
+        XCTAssertEqual(stop.frame.midY, otherStart.frame.midY, accuracy: 2)
+    }
+
     func testCollapsedSecondTimerCanBeDraggedToTop() throws {
         continueAfterFailure = false
         let app = launchResetApp(fixture: .twoSpaces)
@@ -591,6 +625,7 @@ private enum UITestFixture: String {
     case projectDeletion
     case todayDeletion
     case twoSpaces
+    case iPadAlignment
     case todayTotals
     case summaryReport
 }

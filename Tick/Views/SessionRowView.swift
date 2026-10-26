@@ -8,8 +8,11 @@ struct SessionRowView: View {
 
     enum Presentation {
         case card
+        case iPadGrid
         case plain
     }
+
+    @ScaledMetric(relativeTo: .headline) private var gridTitleHeight = 48.0
 
     let session: TimeSession
     let projectID: TickProject.ID
@@ -23,7 +26,7 @@ struct SessionRowView: View {
     @ViewBuilder
     var body: some View {
         switch presentation {
-        case .card:
+        case .card, .iPadGrid:
             cardRow
         case .plain:
             plainRow
@@ -42,10 +45,13 @@ struct SessionRowView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title)
                             .font(.headline)
+                            .lineLimit(isUniformGridCard ? 2 : nil)
+                            .frame(minHeight: isUniformGridCard ? gridTitleHeight : nil, alignment: .topLeading)
 
                         Text(projectName)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(isUniformGridCard ? 1 : nil)
                     }
 
                     Spacer()
@@ -64,6 +70,7 @@ struct SessionRowView: View {
                 HStack {
                     Text(timeDescription)
                         .foregroundStyle(.secondary)
+                        .lineLimit(isUniformGridCard ? 1 : nil)
 
                     Spacer()
 
@@ -115,6 +122,11 @@ struct SessionRowView: View {
 
     private var rowAccentColor: Color {
         accentColor ?? TickProjectAccent.color(for: projectID)
+    }
+
+    private var isUniformGridCard: Bool {
+        if case .iPadGrid = presentation { return true }
+        return false
     }
 
     private var title: String {

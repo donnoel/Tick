@@ -8,6 +8,7 @@ nonisolated enum TickUITestFixture: String, CaseIterable {
     case projectDeletion
     case todayDeletion
     case twoSpaces
+    case iPadAlignment
     case todayTotals
     case summaryReport
 }
@@ -96,6 +97,20 @@ nonisolated enum TickUITestFixtureInstaller {
                     project(id: 2, name: "Ticks", order: 1, now: now),
                 ],
                 sessions: []
+            )
+        case .iPadAlignment:
+            let puzzles = project(id: 1, name: "Puzzles", order: 0, now: now)
+            let ticks = project(id: 2, name: "Ticks", order: 1, now: now)
+            return TickStorageSnapshot(
+                projects: [puzzles, ticks],
+                sessions: [
+                    manualSession(id: 101, projectID: puzzles.id, title: "Short task", now: now),
+                    manualSession(
+                        id: 102, projectID: ticks.id,
+                        title: "A detailed project description that would otherwise wrap over several lines in the Today grid",
+                        now: now
+                    ),
+                ]
             )
         case .todayTotals:
             let puzzles = project(id: 1, name: "Puzzles", order: 0, now: now)

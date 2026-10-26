@@ -155,7 +155,7 @@ struct TodayView: View {
                             fallbackTitle: fallbackTitles[session.id] ?? "Tick",
                             projectIDs: projectIDs,
                             displayDate: displayDate,
-                            presentation: .card
+                            presentation: .iPadGrid
                         )
                     }
                 }
@@ -442,9 +442,18 @@ struct TodayView: View {
 
     private func panelActions(activeSession: TimeSession?, projectID: TickProject.ID?,
                               isSecondary: Bool) -> some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            timerActionButtons(activeSession: activeSession, projectID: projectID,
-                               isSecondary: isSecondary, presentation: .compact)
+        Group {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                HStack(spacing: 8) {
+                    timerActionButtons(activeSession: activeSession, projectID: projectID,
+                                       isSecondary: isSecondary, presentation: .compact)
+                }
+            } else {
+                VStack(alignment: .trailing, spacing: 8) {
+                    timerActionButtons(activeSession: activeSession, projectID: projectID,
+                                       isSecondary: isSecondary, presentation: .compact)
+                }
+            }
         }
     }
 
@@ -556,7 +565,7 @@ struct TodayView: View {
             if activeSession.isPaused {
                 TimerTextButton(
                     systemImage: "play.fill",
-                    title: "Resume Tick",
+                    title: UIDevice.current.userInterfaceIdiom == .pad ? "Resume" : "Resume Tick",
                     tint: TickPalette.primaryAction,
                     isProminent: true,
                     minimumWidth: presentation == .iPadHero ? 240 : 84,
@@ -573,7 +582,7 @@ struct TodayView: View {
             } else {
                 TimerTextButton(
                     systemImage: "pause.fill",
-                    title: "Pause Tick",
+                    title: UIDevice.current.userInterfaceIdiom == .pad ? "Pause" : "Pause Tick",
                     tint: TickPalette.running,
                     isProminent: true,
                     minimumWidth: presentation == .iPadHero ? 240 : 84,
@@ -591,10 +600,10 @@ struct TodayView: View {
 
             TimerTextButton(
                 systemImage: "stop.fill",
-                title: "Stop Tick",
+                title: UIDevice.current.userInterfaceIdiom == .pad ? "Stop" : "Stop Tick",
                 tint: TickPalette.running,
                 isProminent: false,
-                minimumWidth: presentation == .iPadHero ? 180 : 100,
+                minimumWidth: presentation == .iPadHero ? 180 : (UIDevice.current.userInterfaceIdiom == .pad ? 84 : 100),
                 presentation: presentation == .iPadHero ? .iPadHero : .compact
             ) {
                 Task {
@@ -882,6 +891,10 @@ private struct TodayTimerDisplay: View {
                     Text(activeSession.isPaused ? "Paused" : "Running")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
+                } else if UIDevice.current.userInterfaceIdiom == .pad {
+                    Text("Running")
+                        .font(.caption.weight(.medium))
+                        .hidden()
                 }
                 Text(TickDurationFormatter.timerString(from: activeSession?.duration(at: displayDate) ?? 0))
                     .font(.system(size: timerFontSize, weight: .medium))
