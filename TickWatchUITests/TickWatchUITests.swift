@@ -54,6 +54,8 @@ nonisolated final class TickWatchUITests: XCTestCase {
         XCTAssertTrue(timer.waitForExistence(timeout: 5))
         let readyTimerFrame = timer.frame
         let startFrame = app.buttons["Start Tick"].frame
+        XCTAssertTrue(app.buttons["Start Tick"].isHittable)
+        assertControlFits(startFrame, in: app)
         attachScreenshot(app, name: "Ready")
         app.buttons["Start Tick"].tap()
         XCTAssertTrue(app.buttons["Pause Tick"].waitForExistence(timeout: 5))
@@ -61,6 +63,8 @@ nonisolated final class TickWatchUITests: XCTestCase {
         let stop = app.buttons["Stop Tick"]
         XCTAssertTrue(pause.isHittable)
         XCTAssertTrue(stop.isHittable)
+        assertControlFits(pause.frame, in: app)
+        assertControlFits(stop.frame, in: app)
         XCTAssertEqual(pause.frame.midY, stop.frame.midY, accuracy: 1)
         XCTAssertEqual(pause.frame.width, stop.frame.width, accuracy: 1)
         XCTAssertGreaterThanOrEqual(pause.frame.height, 44)
@@ -76,6 +80,7 @@ nonisolated final class TickWatchUITests: XCTestCase {
         let pauseFrame = pause.frame
         app.buttons["Pause Tick"].tap()
         XCTAssertTrue(app.buttons["Resume Tick"].waitForExistence(timeout: 5))
+        assertControlFits(app.buttons["Resume Tick"].frame, in: app)
         XCTAssertEqual(app.buttons["Resume Tick"].frame.minY, pauseFrame.minY, accuracy: 1)
         XCTAssertEqual(app.buttons["Resume Tick"].frame.width, pauseFrame.width, accuracy: 1)
         XCTAssertEqual(timer.frame.minY, readyTimerFrame.minY, accuracy: 1)
@@ -88,6 +93,14 @@ nonisolated final class TickWatchUITests: XCTestCase {
         app.buttons["Stop Tick"].tap()
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons["Choose Space"].value as? String, "Mosa")
+    }
+
+    @MainActor private func assertControlFits(_ frame: CGRect, in app: XCUIApplication,
+                                             file: StaticString = #filePath, line: UInt = #line) {
+        // Hit testing alone can pass when a control is partly outside the viewport.
+        XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX + 12, file: file, line: line)
+        XCTAssertLessThanOrEqual(frame.maxX, app.frame.maxX - 12, file: file, line: line)
+        XCTAssertLessThanOrEqual(frame.maxY, app.frame.maxY - 16, file: file, line: line)
     }
 
     @MainActor private func attachScreenshot(_ app: XCUIApplication, name: String) {

@@ -17,26 +17,23 @@ struct TickWatchView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: 12) {
-                        spaceControl
-                        timer
-                        controls
-                        if let message = viewModel.errorMessage {
-                            Text(message).font(.caption2).foregroundStyle(secondaryInk).multilineTextAlignment(.center)
-                            Button("Try Again", systemImage: "arrow.clockwise") { Task { await viewModel.refresh() } }
-                                .disabled(viewModel.isRefreshing || viewModel.isActing)
-                        }
+            ScrollView {
+                VStack(spacing: 8) {
+                    spaceControl
+                    timer
+                    controls
+                    if let message = viewModel.errorMessage {
+                        Text(message).font(.caption2).foregroundStyle(secondaryInk).multilineTextAlignment(.center)
+                        Button("Try Again", systemImage: "arrow.clockwise") { Task { await viewModel.refresh() } }
+                            .disabled(viewModel.isRefreshing || viewModel.isActing)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
-                    .padding(.bottom, 20)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: geometry.size.height)
                 }
-                .contentMargins(.vertical, 0, for: .scrollContent)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
             }
+            .contentMargins(.vertical, 0, for: .scrollContent)
+            .defaultScrollAnchor(.top)
             .foregroundStyle(ink)
             .containerBackground(for: .navigation) { TickWatchPalette.background(dimmed: isLuminanceReduced) }
             .navigationTitle("")

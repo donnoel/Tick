@@ -12,7 +12,7 @@ Success for the current phase means the app can create spaces, capture up to two
 For product language only, the app is space-centric: users measure time for a Space. The internal model type is still `TickProject`.
 
 ## Current product phase
-As of October 24, 2026, Don confirms the Watch UI follow-up sprint is complete after accepting build 22 on his Watch. The implementation is published in `f31b53e`. Prior acceptance and delete-confirmation follow-ups remain closed on owner confirmation. Do not infer additional tests, battery measurements, accessibility observations, or a release from that confirmation; new requests and reported regressions are follow-up work.
+As of October 27, 2026, Don confirms the Watch screen-clearance sprint is complete after accepting build 41 on his Watch. Prior acceptance and delete-confirmation follow-ups remain closed on owner confirmation. Do not infer additional tests, battery measurements, accessibility observations, or a release from that confirmation; new requests and reported regressions are follow-up work.
 
 Current scope:
 - space capture with local JSON persistence plus CloudKit synchronization
@@ -177,8 +177,8 @@ The current scope is owner-confirmed complete. Use these procedures when a futur
 
 ## Current closeout
 
-- The Watch UI follow-up sprint is closed at Don's request on October 24, 2026; build 22 is installed, visually accepted, and published in `f31b53e`.
-- The signed Watch build and Watch UI suite passed. The additional iPhone UI run was stopped at Don's request after the clean build and 113 unit tests passed; full local CI success is not claimed. See `docs/WATCH_APP.md` for the dated evidence and toolchain details.
+- The Watch screen-clearance sprint is closed at Don's request on October 27, 2026; build 41 is installed and visually accepted on his Watch.
+- The signed Watch build passed without warnings on Xcode 26.6, and both Watch UI tests passed on Xcode 27/watchOS 27. Full local or hosted CI success is not claimed. See `docs/WATCH_APP.md` for the dated evidence and validation limits.
 - Additional validation or UI coverage belongs to separately requested future work.
 
 ## Output expectations per patch

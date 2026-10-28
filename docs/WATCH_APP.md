@@ -1,14 +1,34 @@
 # Ticks on Apple Watch
 
+## Watch screen clearance follow-up — October 27, 2026
+
+Build 41 removes the full-height geometry frame from the main scroll content,
+aligns the content to the top, tightens the vertical gaps, and reserves 16 points
+below the controls. Text sizes, minimum tap targets, Space selection, two-active
+Tick behavior, native elapsed rendering, and sync scheduling are unchanged.
+There is no data migration or new background work.
+
+The signed Watch build passed with warnings treated as errors on Xcode 26.6;
+strict signature verification passed. Both Watch UI tests passed on Xcode 27 /
+watchOS 27. The timer flow checks complete control bounds, horizontal insets,
+bottom clearance, and stable ready/running/paused positions at the largest
+standard text size. Simulator screenshots also confirmed a 3:29:33 paused Tick
+fits. Build 41 was installed and launched on Don's physical Watch; its screenshot
+shows the full Start Tick control above the lower screen edge. No live timer
+action was performed. Don approved the on-watch appearance and closed the
+sprint on October 27. Physical VoiceOver operation and measured battery use
+remain unverified.
+
 The Watch app provides only an existing Space picker and Start, Pause, Resume,
 and Stop. Space management, session editing, summaries, voice memos, and Auto
-Tick configuration remain on the other clients. An active Tick locks its Space.
+Tick configuration remain on the other clients. Choosing a Space selects its
+Tick to control.
 
-## Current closeout — October 24, 2026
+## Current closeout — October 27, 2026
 
-Don closed the Watch UI follow-up sprint after approving build 22 on his Watch.
-The implementation is committed and pushed in `f31b53e`. No sprint work remains;
-new requests or reported issues are follow-up work. Earlier checkpoints below
+Don closed the screen-clearance sprint after approving build 41 on his Watch
+and requested commit and push. No sprint work remains; new requests or reported
+issues are follow-up work. Earlier checkpoints below
 remain dated evidence, including validation limits. This closeout adds no
 independent battery measurements, accessibility observations, hosted CI result,
 or App Store release claim.
