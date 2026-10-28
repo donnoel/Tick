@@ -627,22 +627,6 @@ final class TickTests: XCTestCase {
         XCTAssertNotNil(loadedState.updatedAt)
     }
 
-    func testSelectedContentTabStorageRoundTripsEveryTabAndFallsBackSafely() {
-        let suiteName = "TickTests.TabSelection.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
-        defer {
-            defaults.removePersistentDomain(forName: suiteName)
-        }
-
-        for tab in [ContentTab.today, .spaces, .autoTicks, .summaries] {
-            TickUIStateStorage.saveSelectedContentTab(tab, defaults: defaults)
-            XCTAssertEqual(TickUIStateStorage.selectedContentTab(defaults: defaults), tab)
-        }
-
-        defaults.set("unknown", forKey: TickUIStateStorage.selectedContentTabKey)
-        XCTAssertEqual(TickUIStateStorage.selectedContentTab(defaults: defaults), .today)
-    }
-
     func testDataStorePreservesCorruptSnapshotAndReportsFailure() async throws {
         let fileURL = temporaryStoreURL()
         defer {

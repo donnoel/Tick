@@ -164,28 +164,35 @@ final class TickUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Save"].isEnabled)
     }
 
-    func testSelectedTabSurvivesHomePhotosAndRelaunch() throws {
+    func testAppReturnsToTodayAfterLeavingAndRelaunching() throws {
         let app = launchResetApp()
         let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         app.launchArguments = ["-disableCloudSyncForUITests"]
 
-        let summaries = app.tabBars.firstMatch.buttons["Summaries"]
-        XCTAssertTrue(summaries.waitForExistence(timeout: 5))
-        summaries.tap()
-        XCTAssertTrue(summaries.isSelected)
+        let today = app.tabBars.firstMatch.buttons["Today"]
+        let autoTicks = app.tabBars.firstMatch.buttons["Auto Ticks"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
+        autoTicks.tap()
+        XCTAssertTrue(autoTicks.waitUntilSelected(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No Auto Ticks yet"].waitForExistence(timeout: 5))
 
         XCUIDevice.shared.press(.home)
         app.activate()
-        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].isSelected)
+        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
 
+        autoTicks.tap()
+        XCTAssertTrue(autoTicks.waitUntilSelected(timeout: 5))
         photos.launch()
         app.activate()
-        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].isSelected)
+        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
 
+        autoTicks.tap()
+        XCTAssertTrue(autoTicks.waitUntilSelected(timeout: 5))
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.firstMatch.buttons["Summaries"].isSelected)
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {
@@ -631,6 +638,14 @@ private enum UITestFixture: String {
 }
 
 private extension XCUIElement {
+    func waitUntilSelected(timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isSelected == true")
+        return XCTWaiter.wait(
+            for: [XCTNSPredicateExpectation(predicate: predicate, object: self)],
+            timeout: timeout
+        ) == .completed
+    }
+
     func waitForValue(_ expectedValue: String, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "value == %@", expectedValue)
         return XCTWaiter.wait(

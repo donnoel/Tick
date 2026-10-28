@@ -10,17 +10,17 @@ struct ContentView: View {
     @MainActor
     init() {
         _viewModel = State(initialValue: TickViewModel())
-        _selectedTab = State(initialValue: TickUIStateStorage.selectedContentTab())
+        _selectedTab = State(initialValue: .today)
     }
 
     @MainActor
     init(viewModel: TickViewModel) {
         _viewModel = State(initialValue: viewModel)
-        _selectedTab = State(initialValue: TickUIStateStorage.selectedContentTab())
+        _selectedTab = State(initialValue: .today)
     }
 
     var body: some View {
-        TabView(selection: selectedTabBinding) {
+        TabView(selection: $selectedTab) {
             TodayView(viewModel: viewModel)
                 .tabItem {
                     Label("Today", systemImage: "clock.fill")
@@ -54,7 +54,7 @@ struct ContentView: View {
                 return
             }
 
-            selectedTab = TickUIStateStorage.selectedContentTab()
+            selectedTab = .today
             viewModel.scheduleReload()
         }
         .onChange(of: viewModel.selectedProjectID) { _, selectedProjectID in
@@ -86,19 +86,6 @@ struct ContentView: View {
         }
     }
 
-    private var selectedTabBinding: Binding<ContentTab> {
-        Binding {
-            selectedTab
-        } set: { newTab in
-            guard scenePhase == .active else {
-                return
-            }
-
-            selectedTab = newTab
-            TickUIStateStorage.saveSelectedContentTab(newTab)
-        }
-    }
-
     private func restoreSelectedSpaceIfNeeded() {
         guard viewModel.selectedProjectID == nil else {
             return
@@ -109,27 +96,9 @@ struct ContentView: View {
 }
 
 nonisolated enum TickUIStateStorage {
-    static let selectedContentTabKey = "selectedContentTab"
     static let todayTimerOrderKey = "todayTimerOrder"
 
-    static func selectedContentTab(defaults: UserDefaults = .standard) -> ContentTab {
-        guard let rawValue = defaults.string(forKey: selectedContentTabKey),
-              let selectedTab = ContentTab(rawValue: rawValue) else {
-            return .today
-        }
-
-        return selectedTab
-    }
-
-    static func saveSelectedContentTab(
-        _ selectedTab: ContentTab,
-        defaults: UserDefaults = .standard
-    ) {
-        defaults.set(selectedTab.rawValue, forKey: selectedContentTabKey)
-    }
-
     static func resetForUITests(defaults: UserDefaults = .standard) {
-        defaults.removeObject(forKey: selectedContentTabKey)
         defaults.removeObject(forKey: todayTimerOrderKey)
     }
 }
