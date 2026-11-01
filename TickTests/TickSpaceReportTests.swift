@@ -128,47 +128,37 @@ final class TickSpaceReportTests: XCTestCase {
                                      sessions: sessions, generatedAt: finish, calendar: calendar)
         let expected = """
         3Puzzles
-        Work report
-
+        WORK REPORT
         \(report.range.title)
 
+        AT A GLANCE
 
-        Overview
-
-        Total time: 1h 30m 15s
+        1h 30m 15s total
         2 sessions across 2 days
 
-
-        Work summary
+        WORK RECORDED
 
         1. \(title)
-        Time: 1h 15s
-        Notes: \(note)
+           1h 15s · 1 session
+           Notes: Updated support functions.
+           Checked the remaining UI issues.
 
         2. Add versioning
-        Time: 30m
+           30m · 1 session
 
+        DAY BY DAY
 
-        Daily detail
-
-        \(report.days[0].id.formatted(date: .complete, time: .omitted))
-        Daily total: 1h 15s
-
+        \(report.days[0].id.formatted(date: .complete, time: .omitted)) · 1h 15s
         • \(title)
-        Time: 1h 15s
-        Started: \(start.formatted(date: .omitted, time: .shortened)) · Timer
-        Notes: \(note)
+          1h 15s · Started \(start.formatted(date: .omitted, time: .shortened)) · Timer
 
-
-        \(report.days[1].id.formatted(date: .complete, time: .omitted))
-        Daily total: 30m
-
+        \(report.days[1].id.formatted(date: .complete, time: .omitted)) · 30m
         • Add versioning
-        Time: 30m
-        Recorded manually
+          30m · Recorded manually
         """
         XCTAssertEqual(report.sharedText, expected)
         XCTAssertFalse(report.sharedText.contains("As of"))
+        XCTAssertEqual(report.sharedText.components(separatedBy: "Updated support functions.").count, 2)
         let preview = XCTAttachment(string: report.sharedText)
         preview.name = "Shared report formatting"
         preview.lifetime = .keepAlways
@@ -184,7 +174,7 @@ final class TickSpaceReportTests: XCTestCase {
         let report = TickSpaceReport(projectID: projectID, projectName: "Unknown Space", range: range, sessions: [], calendar: calendar)
         XCTAssertEqual(report.totalDuration, 0)
         XCTAssertTrue(report.sharedText.contains("No time recorded"))
-        XCTAssertFalse(report.sharedText.contains("Daily detail"))
+        XCTAssertFalse(report.sharedText.contains("DAY BY DAY"))
         XCTAssertEqual(TickSpaceReport.durationText(0), "0s")
     }
 }
