@@ -3,9 +3,11 @@ import CloudKit
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("selectedSpaceID") private var selectedSpaceID = ""
     @State private var viewModel: TickViewModel
     @State private var selectedTab: ContentTab
+    @State private var lastActiveColorScheme: ColorScheme?
 
     @MainActor
     init() {
@@ -45,15 +47,21 @@ struct ContentView: View {
                 }
                 .tag(ContentTab.summaries)
         }
+        .preferredColorScheme(scenePhase == .active ? nil : lastActiveColorScheme)
         .task {
             restoreSelectedSpaceIfNeeded()
             await viewModel.loadIfNeeded()
+        }
+        .onChange(of: colorScheme, initial: true) { _, newScheme in
+            guard scenePhase == .active else { return }
+            lastActiveColorScheme = newScheme
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else {
                 return
             }
 
+            lastActiveColorScheme = colorScheme
             selectedTab = .today
             viewModel.scheduleReload()
         }
