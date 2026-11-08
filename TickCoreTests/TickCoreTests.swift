@@ -43,6 +43,39 @@ struct TickCoreTests {
         #expect(state.sessions[0].duration(at: date.addingTimeInterval(300)) == 200)
     }
 
+    @Test func activeTickDetailsAreTrimmedWithoutChangingTiming() throws {
+        var state = snapshot()
+        let id = UUID()
+        try TickTimerMutation.start(in: &state, projectID: state.projects[0].id, sessionID: id, at: date)
+        let originalStartedAt = state.sessions[0].startedAt
+
+        try TickTimerMutation.updateDetails(
+            in: &state,
+            sessionID: id,
+            title: "  Review launch plan  ",
+            notes: "\n Capture follow-up items. \n"
+        )
+
+        #expect(state.sessions[0].title == "Review launch plan")
+        #expect(state.sessions[0].notes == "Capture follow-up items.")
+        #expect(state.sessions[0].startedAt == originalStartedAt)
+        #expect(state.sessions[0].isActive)
+    }
+
+    @Test func detailsCannotChangeAStoppedOrMissingTick() throws {
+        var state = snapshot()
+        let id = UUID()
+        try TickTimerMutation.start(in: &state, projectID: state.projects[0].id, sessionID: id, at: date)
+        try TickTimerMutation.stop(in: &state, sessionID: id, at: date.addingTimeInterval(60))
+
+        #expect(throws: TickTimerMutation.Failure.changedSession) {
+            try TickTimerMutation.updateDetails(in: &state, sessionID: id, title: "Changed", notes: "")
+        }
+        #expect(throws: TickTimerMutation.Failure.changedSession) {
+            try TickTimerMutation.updateDetails(in: &state, sessionID: UUID(), title: "Changed", notes: "")
+        }
+    }
+
     @Test func startRejectsArchivedSpacesAndDuplicateTimers() throws {
         var state = snapshot()
         state.projects[0].isArchived = true

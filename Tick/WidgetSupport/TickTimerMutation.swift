@@ -68,6 +68,21 @@ nonisolated public enum TickTimerMutation {
         snapshot.sessions[index].pausedAt = nil
     }
 
+    /// Update the details for the active session the user saw, never a replacement Tick.
+    public static func updateDetails(
+        in snapshot: inout TickWidgetStorageSnapshot,
+        sessionID: UUID,
+        title: String,
+        notes: String
+    ) throws {
+        guard let index = snapshot.sessions.firstIndex(where: { $0.id == sessionID }),
+              snapshot.sessions[index].isActive else {
+            throw Failure.changedSession
+        }
+        snapshot.sessions[index].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        snapshot.sessions[index].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     public static func stopDate(startedAt: Date?, pausedAt: Date?, at date: Date) -> Date {
         max(startedAt ?? date, pausedAt ?? date)
     }
