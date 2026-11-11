@@ -218,3 +218,21 @@ alone must still not be presented as independent physical-device proof.
 - Date fixtures must use an explicit calendar/timezone consistently. UI helpers must replace text deterministically and verify the value, wait for observable readiness, and isolate cloud/Keychain dependencies when those services are not the subject of the test.
 - Treat zero-step account/payment/spending-limit failures as unavailable execution evidence. Diagnose the job annotation before changing application code. Keep deployment failures separate from build/test failures.
 - Prose-only pushes skip expensive CI; optional pull-request checks still run. New pushes cancel superseded runs of this workflow on the same ref. Never disable CI or weaken assertions to make a run green.
+
+## Session summaries for Tix
+
+When Don says **"summary please,"** return only the following format:
+
+**Description:** One short sentence describing the problem addressed or work
+accomplished.
+
+**Summary:** A concise paragraph covering the cause, changes, verification, and
+any outstanding follow-up. Include release versions and deployment status when
+relevant.
+
+**Commit:** Short commit hash and exact commit subject. List multiple commits
+when applicable; state "No commits made" when appropriate.
+
+Cover the current working session. Report only verified results, distinguishing
+completed work from pending checks or acceptance. The Description goes into
+Tix's description field; Summary and Commit go into its notes.
