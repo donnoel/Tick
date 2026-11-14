@@ -400,6 +400,47 @@ final class TickTests: XCTestCase {
         })
     }
 
+    func testWeeklySummaryChartAndReportUseMondayThroughSundayInSundayFirstLocale() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 1
+
+        func date(_ day: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: 11, day: day))!
+        }
+        let project = TickProject(name: "Client")
+        let sessions = [(8, 60.0), (9, 120.0), (15, 180.0), (16, 240.0)].map { day, duration in
+            TimeSession(projectID: project.id, title: "Work on day \(day)", notes: "",
+                        startedAt: nil, endedAt: nil, manualDuration: duration,
+                        entrySource: .manual, createdAt: date(day))
+        }
+        let referenceDate = date(11)
+        let interval = SummaryPeriod.week.interval(containing: referenceDate, calendar: calendar)
+        XCTAssertEqual(interval.start, date(9))
+        XCTAssertEqual(interval.end, date(16))
+
+        let summary = TickSummaryCalculator.summary(for: .week, projects: [project],
+                                                    sessions: sessions, referenceDate: referenceDate,
+                                                    calendar: calendar)
+        XCTAssertEqual(summary.sessionCount, 2)
+        XCTAssertEqual(summary.totalDuration, 300)
+
+        let days = TickChartDataBuilder.dayEntries(for: .week, sessions: sessions,
+                                                   referenceDate: referenceDate, calendar: calendar)
+        XCTAssertEqual(days.map(\.date), (9...15).map(date))
+        XCTAssertEqual(days.map(\.duration), [120, 0, 0, 0, 0, 0, 180])
+
+        let range = TickReportDateRange.initial(period: .week, projectID: project.id,
+                                                sessions: sessions, referenceDate: referenceDate,
+                                                calendar: calendar)
+        let report = TickSpaceReport(projectID: project.id, projectName: project.name,
+                                     range: range, sessions: sessions, calendar: calendar)
+        XCTAssertEqual(range.start, date(9))
+        XCTAssertEqual(range.end, date(15))
+        XCTAssertEqual(report.totalDuration, summary.totalDuration)
+        XCTAssertEqual(Set(report.entries.map { $0.date }), Set([date(9), date(15)]))
+    }
+
     func testMonthlyDayChartReturnsOrderedDaysForMonth() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

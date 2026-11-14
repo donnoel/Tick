@@ -66,15 +66,17 @@ nonisolated enum SummaryPeriod: String, CaseIterable, Identifiable {
     func interval(containing date: Date, calendar: Calendar = .current) -> DateInterval {
         switch self {
         case .day:
-            calendar.dateInterval(of: .day, for: date) ?? DateInterval(start: date, duration: 0)
+            return calendar.dateInterval(of: .day, for: date) ?? DateInterval(start: date, duration: 0)
         case .week:
-            calendar.dateInterval(of: .weekOfYear, for: date) ?? DateInterval(start: date, duration: 0)
+            var workWeekCalendar = calendar
+            workWeekCalendar.firstWeekday = 2 // Monday, regardless of the device's regional setting.
+            return workWeekCalendar.dateInterval(of: .weekOfYear, for: date) ?? DateInterval(start: date, duration: 0)
         case .month:
-            calendar.dateInterval(of: .month, for: date) ?? DateInterval(start: date, duration: 0)
+            return calendar.dateInterval(of: .month, for: date) ?? DateInterval(start: date, duration: 0)
         case .year:
-            calendar.dateInterval(of: .year, for: date) ?? DateInterval(start: date, duration: 0)
+            return calendar.dateInterval(of: .year, for: date) ?? DateInterval(start: date, duration: 0)
         case .lifetime:
-            DateInterval(start: .distantPast, end: .distantFuture)
+            return DateInterval(start: .distantPast, end: .distantFuture)
         }
     }
 
