@@ -141,6 +141,12 @@ the earlier iCloud key-value store retained for legacy import. Location-based
 Auto Ticks require opt-in permission; voice memo recording uses the microphone
 only when started by the user.
 
+## Work tracking
+
+[GitHub Issues](https://github.com/donnoel/Tick/issues) is the source of truth for actionable work, priorities, and status. The current navigation follow-up is [#6](https://github.com/donnoel/Tick/issues/6).
+
+The completed roadmap and dated validation documents below are historical evidence and release procedures, not a parallel backlog. Previously owner-closed acceptance work stays closed unless a new request or regression warrants an issue. Optional ideas are not implementation commitments; record approved follow-up scope in an issue before starting it.
+
 ## 📚 Documentation
 
 <a id="release-checklist"></a>
