@@ -16,6 +16,7 @@ struct TodayView: View {
     @State private var manualProjectID: TickProject.ID?
     @State private var secondProjectID: TickProject.ID?
     @State private var isSecondTimerExpanded = false
+    @State private var isEarlierTodayExpanded = false
     @State private var selectedSession: TimeSession?
     @State private var sessionPendingDeletion: TimeSession?
     @State private var deletionMessage: String?
@@ -284,13 +285,14 @@ struct TodayView: View {
         displayDate: Date, isSecondary: Bool, isFirst: Bool, dragItem: String?
     ) -> some View {
         if UIDevice.current.userInterfaceIdiom == .phone, !isFirst,
-           activeSession == nil, !isSecondTimerExpanded, let projectID {
-            collapsedSecondTimer(projectID: projectID, dragItem: dragItem)
+           !isSecondTimerExpanded, let projectID {
+            collapsedSecondTimer(projectID: projectID, activeSession: activeSession, dragItem: dragItem)
         } else {
             capturePanel(sessions: sessions, projectID: projectID, activeSession: activeSession,
                          displayDate: displayDate, isSecondary: isSecondary,
                          showsCollapseButton: UIDevice.current.userInterfaceIdiom == .phone
-                             && !isFirst && activeSession == nil,
+                             && !isFirst,
+                         isProminent: UIDevice.current.userInterfaceIdiom == .phone && isFirst,
                          dragItem: dragItem)
         }
     }
@@ -301,9 +303,11 @@ struct TodayView: View {
         }
     }
 
-    private func collapsedSecondTimer(projectID: TickProject.ID, dragItem: String?) -> some View {
+    private func collapsedSecondTimer(
+        projectID: TickProject.ID, activeSession: TimeSession?, dragItem: String?
+    ) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = true }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { isSecondTimerExpanded = true }
         } label: {
             HStack(spacing: 10) {
                 Circle()
@@ -314,9 +318,13 @@ struct TodayView: View {
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                Text("Start another Tick")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let activeSession {
+                    compactSecondTimerStatus(activeSession)
+                } else {
+                    Text("Start another Tick")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if let dragItem {
                     Image(systemName: "line.3.horizontal")
                         .font(.caption.weight(.semibold))
@@ -344,7 +352,23 @@ struct TodayView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("today.secondTimer.expand")
         .accessibilityLabel("Expand \(projectName(for: projectID)) timer")
-        .accessibilityHint("Shows the second Space timer and its Start Tick button.")
+        .accessibilityValue(activeSession.map { $0.isPaused ? "Paused" : "Running" } ?? "Ready to start")
+        .accessibilityHint("Shows the second Space timer and its controls.")
+    }
+
+    @ViewBuilder
+    private func compactSecondTimerStatus(_ session: TimeSession) -> some View {
+        if session.isPaused {
+            Text(TickDurationFormatter.timerString(from: session.duration(at: .now)))
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(TickPalette.running)
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                Text(TickDurationFormatter.timerString(from: session.duration(at: timeline.date)))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(TickPalette.running)
+            }
+        }
     }
 
     private func capturePanel(
@@ -354,6 +378,7 @@ struct TodayView: View {
         displayDate: Date,
         isSecondary: Bool,
         showsCollapseButton: Bool = false,
+        isProminent: Bool = false,
         dragItem: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -373,7 +398,7 @@ struct TodayView: View {
                 }
                 if showsCollapseButton {
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { isSecondTimerExpanded = false }
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { isSecondTimerExpanded = false }
                     } label: {
                         Image(systemName: "chevron.up")
                             .font(.subheadline.weight(.semibold))
@@ -423,12 +448,16 @@ struct TodayView: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
+            let accent = projectID.map { TickProjectAccent.color(for: $0, among: viewModel.projects.map(\.id)) }
+                ?? TickPalette.primaryAction
             RoundedRectangle(cornerRadius: 18)
                 .fill(TickPalette.cardBackground)
                 .overlay {
                     RoundedRectangle(cornerRadius: 18)
                         .fill(LinearGradient(
-                            colors: [.blue.opacity(0.10), .mint.opacity(0.12), .pink.opacity(0.07)],
+                            colors: isProminent
+                                ? [accent.opacity(0.32), .mint.opacity(0.22), .pink.opacity(0.18)]
+                                : [.blue.opacity(0.10), .mint.opacity(0.12), .pink.opacity(0.07)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ))
@@ -436,7 +465,10 @@ struct TodayView: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                .stroke(isProminent
+                    ? (projectID.map { TickProjectAccent.color(for: $0, among: viewModel.projects.map(\.id)) }
+                        ?? TickPalette.primaryAction).opacity(0.35)
+                    : Color.primary.opacity(0.10), lineWidth: 1)
         }
     }
 
@@ -643,7 +675,10 @@ struct TodayView: View {
         projectIDs: [TickProject.ID],
         displayDate: Date
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let activeSessions = sessions.filter(\.isActive)
+        let completedSessions = sessions.filter { !$0.isActive }
+
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Today's Ticks")
                     .font(.title3.weight(.semibold))
@@ -658,31 +693,107 @@ struct TodayView: View {
                     .accessibilityLabel("\(sessions.count) \(sessions.count == 1 ? "tick" : "ticks") today")
             }
 
+            if !activeSessions.isEmpty {
+                todaySessionList(activeSessions, fallbackTitles: fallbackTitles,
+                                 projectIDs: projectIDs, displayDate: displayDate)
+            }
+
             if sessions.isEmpty {
                 Label("No time recorded yet today", systemImage: "clock")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 14)
-            } else {
-                LazyVStack(spacing: 0) {
-                    ForEach(sessions) { session in
-                        todaySessionRow(
-                            session,
-                            fallbackTitle: fallbackTitles[session.id] ?? "Tick",
-                            projectIDs: projectIDs,
-                            displayDate: displayDate,
-                            presentation: .plain
-                        )
-
-                        if session.id != sessions.last?.id {
-                            Divider()
-                                .padding(.leading, 22)
-                        }
+            } else if !completedSessions.isEmpty {
+                Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+                        isEarlierTodayExpanded.toggle()
                     }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(TickPalette.primaryAction)
+                            .frame(width: 34, height: 34)
+                            .background(TickPalette.primaryAction.opacity(0.12), in: Circle())
+                            .accessibilityHidden(true)
+
+                        Text("Earlier today")
+                            .font(.headline)
+
+                        Spacer(minLength: 8)
+
+                        Text("\(completedSessions.count) completed")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Image(systemName: isEarlierTodayExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                    .frame(minHeight: 48)
+                    .padding(.horizontal, 14)
+                    .background {
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(TickPalette.cardBackground)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(LinearGradient(
+                                        colors: [.blue.opacity(0.14), .mint.opacity(0.16), .pink.opacity(0.12)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ))
+                            }
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(TickPalette.primaryAction.opacity(0.20), lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("today.earlierToday.toggle")
+                .accessibilityLabel("Earlier today")
+                .accessibilityValue("\(completedSessions.count) completed Ticks, \(isEarlierTodayExpanded ? "expanded" : "collapsed")")
+                .accessibilityHint("Shows or hides completed Ticks from today.")
+
+                if isEarlierTodayExpanded {
+                    todaySessionList(completedSessions, fallbackTitles: fallbackTitles,
+                                     projectIDs: projectIDs, displayDate: displayDate)
                 }
             }
         }
+    }
+
+    private func todaySessionList(
+        _ sessions: [TimeSession],
+        fallbackTitles: [TimeSession.ID: String],
+        projectIDs: [TickProject.ID],
+        displayDate: Date
+    ) -> some View {
+        LazyVStack(spacing: 0) {
+            ForEach(sessions) { session in
+                todaySessionRow(
+                    session,
+                    fallbackTitle: fallbackTitles[session.id] ?? "Tick",
+                    projectIDs: projectIDs,
+                    displayDate: displayDate,
+                    presentation: .plain
+                )
+
+                if session.id != sessions.last?.id {
+                    Divider()
+                        .padding(.leading, 50)
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .background(TickPalette.cardBackground, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 
     private func todaySessionRow(
@@ -888,9 +999,13 @@ private struct TodayTimerDisplay: View {
         } else {
             VStack(alignment: .leading, spacing: 3) {
                 if let activeSession {
-                    Text(activeSession.isPaused ? "Paused" : "Running")
+                    Text(UIDevice.current.userInterfaceIdiom == .pad
+                         ? (activeSession.isPaused ? "Paused" : "Running")
+                         : statusLine(for: activeSession))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? nil : 150, alignment: .leading)
                 } else if UIDevice.current.userInterfaceIdiom == .pad {
                     Text("Running")
                         .font(.caption.weight(.medium))
@@ -913,6 +1028,12 @@ private struct TodayTimerDisplay: View {
             return "\(status), elapsed \(TickDurationFormatter.shortString(from: activeSession.duration(at: displayDate)))"
         }
         return "Ready to start a Tick"
+    }
+
+    private func statusLine(for session: TimeSession) -> String {
+        let status = session.isPaused ? "Paused" : "Running"
+        let title = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty || title == "Ticking..." ? status : "\(status) · \(title)"
     }
 }
 

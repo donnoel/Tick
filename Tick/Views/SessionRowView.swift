@@ -88,22 +88,27 @@ struct SessionRowView: View {
     }
 
     private var plainRow: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Circle()
-                .fill(rowAccentColor)
-                .frame(width: 10, height: 10)
+                .fill(rowAccentColor.opacity(0.14))
+                .frame(width: 26, height: 26)
+                .overlay {
+                    Circle()
+                        .fill(rowAccentColor)
+                        .frame(width: 8, height: 8)
+                }
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(title)
-                        .font(.body.weight(.semibold))
+                        .font(.headline)
                         .lineLimit(2)
 
                     Spacer(minLength: 8)
 
                     Text(TickDurationFormatter.shortString(from: session.duration(at: displayDate)))
-                        .font(.body.weight(.medium).monospacedDigit())
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
                         .foregroundStyle(session.isActive ? TickPalette.running : Color.primary)
                 }
 
@@ -114,7 +119,9 @@ struct SessionRowView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 14)
+        .background(TickPalette.cardBackground)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
@@ -176,11 +183,11 @@ struct SessionRowView: View {
     private var compactMetadata: String {
         switch session.entrySource {
         case .timer:
-            return "\(projectName) - \(timeDescription)"
+            return "\(projectName) · \(timeDescription)"
         case .manual:
-            return "\(projectName) - Manual"
+            return "\(projectName) · Added manually"
         case .autoLocation:
-            return "\(projectName) - Auto - \(timeDescription)"
+            return "\(projectName) · Auto Tick · \(timeDescription)"
         }
     }
 

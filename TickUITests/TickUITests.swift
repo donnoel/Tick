@@ -105,6 +105,7 @@ final class TickUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Start Tick"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
+        app.buttons["today.earlierToday.toggle"].tap()
         XCTAssertTrue(app.staticTexts["Ticking..."].waitForExistence(timeout: 5))
     }
 
@@ -127,6 +128,7 @@ final class TickUITests: XCTestCase {
         todayTab.tap()
 
         XCTAssertTrue(app.staticTexts["today.sessionsHeader"].waitForExistence(timeout: 5))
+        app.buttons["today.earlierToday.toggle"].tap()
         XCTAssertTrue(app.staticTexts[sessionTitle].waitForExistence(timeout: 5))
 
         let projectsTab = tabBar.buttons["Spaces"]
@@ -314,6 +316,7 @@ final class TickUITests: XCTestCase {
     func testTodaySessionSwipeDeleteRequiresConfirmation() throws {
         continueAfterFailure = false
         let app = launchResetApp(fixture: .todayDeletion)
+        app.buttons["today.earlierToday.toggle"].tap()
 
         let row = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "today.sessionRow.")
@@ -346,6 +349,36 @@ final class TickUITests: XCTestCase {
 
         XCTAssertTrue(row.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No time recorded yet today"].waitForExistence(timeout: 5))
+    }
+
+    func testTodayJournalKeepsTwoTimersAndTucksCompletedTicksAway() throws {
+        let app = launchResetApp(fixture: .twoSpaces)
+
+        app.buttons["today.playButton"].tap()
+        app.buttons["today.secondTimer.expand"].tap()
+        app.buttons["today.playButton.secondary"].tap()
+        app.buttons["today.secondTimer.collapse"].tap()
+
+        let compactTimer = app.buttons["today.secondTimer.expand"]
+        XCTAssertTrue(compactTimer.waitForExistence(timeout: 5))
+        XCTAssertEqual(compactTimer.value as? String, "Running")
+        XCTAssertTrue(app.buttons["today.pauseButton"].exists)
+
+        compactTimer.tap()
+        app.buttons["today.pauseButton.secondary"].tap()
+        XCTAssertTrue(app.buttons["today.playButton.secondary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["today.pauseButton"].exists)
+        app.buttons["today.stopButton.secondary"].tap()
+        app.buttons["today.stopButton"].tap()
+
+        let earlierToday = app.buttons["today.earlierToday.toggle"]
+        XCTAssertTrue(earlierToday.waitForExistence(timeout: 5))
+        let completedRow = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "today.sessionRow.")
+        ).firstMatch
+        XCTAssertFalse(completedRow.exists)
+        earlierToday.tap()
+        XCTAssertTrue(completedRow.waitForExistence(timeout: 5))
     }
 
     func testTodayControlsTwoSpaceTicksIndependently() throws {
