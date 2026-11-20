@@ -5,24 +5,22 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("selectedSpaceID") private var selectedSpaceID = ""
+    @AppStorage(TickUIStateStorage.selectedTabKey) private var selectedTabRawValue = ContentTab.today.rawValue
     @State private var viewModel: TickViewModel
-    @State private var selectedTab: ContentTab
     @State private var lastActiveColorScheme: ColorScheme?
 
     @MainActor
     init() {
         _viewModel = State(initialValue: TickViewModel())
-        _selectedTab = State(initialValue: .today)
     }
 
     @MainActor
     init(viewModel: TickViewModel) {
         _viewModel = State(initialValue: viewModel)
-        _selectedTab = State(initialValue: .today)
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: selectedTab) {
             TodayView(viewModel: viewModel)
                 .tabItem {
                     Label("Today", systemImage: "clock.fill")
@@ -62,7 +60,6 @@ struct ContentView: View {
             }
 
             lastActiveColorScheme = colorScheme
-            selectedTab = .today
             viewModel.scheduleReload()
         }
         .onChange(of: viewModel.selectedProjectID) { _, selectedProjectID in
@@ -82,6 +79,13 @@ struct ContentView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+    }
+
+    private var selectedTab: Binding<ContentTab> {
+        Binding(
+            get: { ContentTab(rawValue: selectedTabRawValue) ?? .today },
+            set: { selectedTabRawValue = $0.rawValue }
+        )
     }
 
     private var errorIsPresented: Binding<Bool> {
@@ -105,9 +109,11 @@ struct ContentView: View {
 
 nonisolated enum TickUIStateStorage {
     static let todayTimerOrderKey = "todayTimerOrder"
+    static let selectedTabKey = "selectedTab"
 
     static func resetForUITests(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: todayTimerOrderKey)
+        defaults.removeObject(forKey: selectedTabKey)
     }
 }
 

@@ -166,35 +166,33 @@ final class TickUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Save"].isEnabled)
     }
 
-    func testAppReturnsToTodayAfterLeavingAndRelaunching() throws {
+    func testSelectedTabPersistsAfterLeavingAndRelaunching() throws {
         let app = launchResetApp()
         let photos = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         app.launchArguments = ["-disableCloudSyncForUITests"]
 
         let today = app.tabBars.firstMatch.buttons["Today"]
-        let autoTicks = app.tabBars.firstMatch.buttons["Auto Ticks"]
         XCTAssertTrue(today.waitForExistence(timeout: 5))
         XCTAssertTrue(today.waitUntilSelected(timeout: 5))
-        autoTicks.tap()
-        XCTAssertTrue(autoTicks.waitUntilSelected(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No Auto Ticks yet"].waitForExistence(timeout: 5))
 
-        XCUIDevice.shared.press(.home)
-        app.activate()
-        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
+        for name in ["Summaries", "Spaces", "Auto Ticks", "Today"] {
+            let selectedTab = app.tabBars.firstMatch.buttons[name]
+            selectedTab.tap()
+            XCTAssertTrue(selectedTab.waitUntilSelected(timeout: 5))
 
-        autoTicks.tap()
-        XCTAssertTrue(autoTicks.waitUntilSelected(timeout: 5))
-        photos.launch()
-        app.activate()
-        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
+            XCUIDevice.shared.press(.home)
+            app.activate()
+            XCTAssertTrue(selectedTab.waitUntilSelected(timeout: 5))
 
-        autoTicks.tap()
-        XCTAssertTrue(autoTicks.waitUntilSelected(timeout: 5))
-        app.terminate()
-        app.launch()
-        XCTAssertTrue(today.waitForExistence(timeout: 5))
-        XCTAssertTrue(today.waitUntilSelected(timeout: 5))
+            photos.launch()
+            app.activate()
+            XCTAssertTrue(selectedTab.waitUntilSelected(timeout: 5))
+
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(selectedTab.waitForExistence(timeout: 5))
+            XCTAssertTrue(selectedTab.waitUntilSelected(timeout: 5))
+        }
     }
 
     func testManualTimeSessionCanBeEditedFromSessionDetail() throws {
